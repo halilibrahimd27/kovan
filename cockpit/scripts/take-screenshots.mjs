@@ -51,10 +51,14 @@ const theme = (value) => cmd('Emulation.setEmulatedMedia', { features: [{ name: 
 const open = async (hash, settle = 1500) => {
   await cmd('Page.navigate', { url: 'about:blank' });
   await cmd('Page.navigate', { url: `${BASE}/#${hash}` });
-  await until('document.readyState === "complete" && !!window.S && !!S.d');
+  await until('document.readyState === "complete" && typeof S !== "undefined" && !!S.d');
   await sleep(settle);
 };
 await theme('dark');
+// The UI follows the browser's language (this machine's may not be English): pin it explicitly.
+await cmd('Page.navigate', { url: `${BASE}/#overview` });
+await until('document.readyState === "complete"');
+await js(`localStorage.setItem('kovan.lang', 'en')`);
 
 // 1. A kovan-driven session streaming its reply
 await open(`chat/${sid('API refactor')}`, 800);
@@ -116,7 +120,7 @@ await open('overview', 300);
 await js(`localStorage.setItem('kovan.lang', 'tr')`);
 await open('board/crew:c7ab1e5f0', 2500);
 await shot('turkish.png');
-await js(`localStorage.removeItem('kovan.lang')`);
+await js(`localStorage.setItem('kovan.lang', 'en')`);
 
 // 9. Light theme
 await theme('light');

@@ -819,6 +819,8 @@ const TR={
   'that folder has files but is not a git repository — choose an empty folder or a git repository, so every milestone is a reviewable commit':'o klasörde dosyalar var ama git deposu değil — her kilometre taşı incelenebilir bir commit olsun diye boş bir klasör ya da bir git deposu seç',
   'that repository has uncommitted changes — commit or stash them first, so the crew’s commits contain only its own work':'o depoda commit’lenmemiş değişiklikler var — ekibin commit’leri yalnız kendi işini içersin diye önce commit’le ya da stash’le',
   'crew not found':'ekip bulunamadı','empty note':'boş not','forbidden':'yasak',
+  'Prompts':'Komutlar','Files edited':'Düzenlenen dosyalar','Subagents':'Alt ajanlar','Closed sessions':'Kapalı oturumlar','None.':'Yok.',
+  'running':'çalışıyor','failed':'başarısız','stopped':'durduruldu','unknown':'bilinmiyor','Tool calls ':'Araç çağrıları ',
   // words passed to plural()
   'prompt':'komut','file':'dosya','subagent':'alt ajan','background task':'arka plan görevi',
   'pick an idea':'bir fikir seç','approve the plan':'planı onayla','continue to the next milestone':'sonraki kilometre taşına geç','paused by you':'senin tarafından duraklatıldı',
@@ -853,16 +855,18 @@ const TR_RX=[
   [/^read (.+)$/,'okudu: $1'],[/^edited (.+)$/,'düzenledi: $1'],[/^wrote (.+)$/,'yazdı: $1'],[/^searched for (.+)$/,'aradı: $1'],[/^listed (.+)$/,'listeledi: $1'],
   [/^started subagent: (.*)$/,'alt ajan başlattı: $1'],[/^web search: (.*)$/,'web araması: $1'],[/^fetched (.+)$/,'getirdi: $1'],[/^skill: (.*)$/,'beceri: $1'],
   [/^asked you a question$/,'sana bir soru sordu'],[/^asked to approve a plan$/,'plan onayı istedi'],[/^preparing (.+)…$/,'$1 hazırlanıyor…'],
-  [/^(\d+) tool calls?$/,'$1 araç çağrısı'],[/^(\d+) acceptance criteria( · history)?$/,(m,n,h)=>n+' kabul ölçütü'+(h?' · geçmiş':'')],[/^✎ (\d+) files?$/,'✎ $1 dosya'],[/^⚠ (\d+) failed$/,'⚠ $1 başarısız'],
+  [/^(\d+) tool calls?$/,'$1 araç çağrısı'],[/^⚙ (\d+) background tasks?$/,'⚙ $1 arka plan görevi'],
+  [/^(Working|Idle|Waiting|Starting|Your turn|Needs your answer) in VS Code$/,(m,a)=>TR[a]+' · VS Code’da'],[/^(Working|Idle|Waiting|Starting|Your turn|Needs your answer) elsewhere$/,(m,a)=>TR[a]+' · başka yerde'],[/^(\d+) acceptance criteria( · history)?$/,(m,n,h)=>n+' kabul ölçütü'+(h?' · geçmiş':'')],[/^✎ (\d+) files?$/,'✎ $1 dosya'],[/^⚠ (\d+) failed$/,'⚠ $1 başarısız'],
   // swarm project states
   [/^(queued|planning|awaiting approval|building|replanning|integration|done|blocked|killed)( · .*)?$/,(m,st,rest)=>({queued:'sırada',planning:'planlanıyor','awaiting approval':'onay bekliyor',building:'inşa ediliyor',replanning:'yeniden planlanıyor',integration:'entegrasyon',done:'bitti',blocked:'takıldı',killed:'durduruldu'}[st])+(rest||'')],[/^Stack: (.*)$/,'Teknoloji: $1'],[/^Novelty: (.*)$/,'Yenilik: $1'],
 ];
+function trLook(k){let v=TR[k];if(v==null)for(const[rx,rep]of TR_RX){if(rx.test(k)){v=k.replace(rx,rep);break;}}return v;}
 function tt(s){
   if(LANG!=='tr'||!s)return s;
   const k=s.replace(/\s+/g,' ').trim();if(!k)return s;
-  let v=TR[k];
-  if(v==null)for(const[rx,rep]of TR_RX){if(rx.test(k)){v=k.replace(rx,rep);break;}}
-  if(v==null&&/ ·$/.test(k)){const h=TR[k.slice(0,-2)];if(h)v=h+' ·';}
+  let v=trLook(k);
+  if(v==null&&/ ·$/.test(k)){const h=trLook(k.slice(0,-2));if(h)v=h+' ·';}
+  if(v==null&&k.includes(' · ')){let ch=false;const out=k.split(' · ').map(p=>{const w=trLook(p);if(w!=null&&w!==p){ch=true;return w;}return p;});if(ch)v=out.join(' · ');}
   if(v==null||v===k)return s;
   const lead=s.match(/^\s*/)[0],trail=s.match(/\s*$/)[0];
   return lead+v+trail;}
