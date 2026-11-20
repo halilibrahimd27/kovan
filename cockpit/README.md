@@ -49,6 +49,10 @@ you watch them talk in the **boardroom**. It is a single Python package with no 
   fix per critical or high finding).
 - Only the tree the Reviewer read can be committed: if files change after the review, kovan runs the check and
   the review again.
+- **Pull requests and real CI**: a crew can work on its own branch and open a pull request (GitHub, via `gh`) or
+  a merge request (GitLab, via push options) at the end, and wait for the project's **real CI** after every
+  commit — GitHub Actions, commit statuses from Jenkins and others, GitLab pipelines (via `glab`), or a status
+  command of your own. A red CI sends the milestone back to the Developer with the failing jobs and their logs.
 - Steering notes reach a working role immediately, otherwise its next task. Pause, resume, stop, retry, skip.
 - A narrow permission policy answers routine prompts; everything else waits for you (see [SECURITY.md](SECURITY.md#crews)).
 - The finance officer pauses a crew before the 5-hour usage window runs out and resumes it afterwards.
@@ -144,8 +148,19 @@ you want them (or **＋ Define a role**). The Planner goes first; approve its pl
 Every accepted milestone is a commit in that folder.
 
 Each milestone goes through the same steps: Developer → Tester (optional) → extra roles that work *after the
-Developer* → your check command → Reviewer → extra roles that read the diff *before the commit* → commit. A
-blocking finding or a failed step sends the work back to the Developer with the reasons.
+Developer* → your check command → Reviewer → extra roles that read the diff *before the commit* → commit →
+the project's CI (optional). A blocking finding or a failed step sends the work back to the Developer with the
+reasons.
+
+**Pull requests and the CI gate.** Tick *Open a pull / merge request at the end* and the crew creates a branch
+(`kovan/<name>`) from the current one, pushes every milestone to it and opens the request when it finishes — on
+GitHub with the `gh` CLI (a draft right after the first push when the CI gate is on, so `pull_request` workflows
+run, marked ready at the end), on GitLab with `git push -o merge_request.create` on the first push. Tick *Wait
+for the project's CI* and a milestone only counts as done when the CI on its commit is green: kovan reads GitHub
+check runs and commit statuses with `gh`, GitLab pipelines and statuses with `glab`, or runs your **status
+command** (`{sha}` and `{branch}` are filled in; exit 0 = green, 75 = still running, anything else = red). Both
+need a git repository with an `origin` remote; if no CI result appears for a commit within five minutes, the
+crew stops and asks you.
 
 ### Moving a session from VS Code to kovan
 

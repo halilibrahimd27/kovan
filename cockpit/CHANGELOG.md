@@ -13,6 +13,10 @@
   and the review again.
 - The boardroom seats extra roles; milestones show each gate's findings; the New crew dialog has templates and a
   role editor (English and Turkish).
+- **Pull requests and the CI gate**: a crew can work on its own branch and open a pull request (GitHub, `gh`) or a
+  merge request (GitLab, push options), and wait for the project's real CI after every commit — GitHub check runs
+  and commit statuses (Jenkins…), GitLab pipelines (`glab`), or your own status command. Red CI goes back to the
+  Developer with the failing jobs, their annotations and log tails.
 - **Notifications**: a Slack/Mattermost-compatible webhook and a Telegram bot tell you when a crew needs you or is
   done. Telegram buttons approve, revise or stop a plan, pick an idea, retry, skip or stop a blocked crew, and
   continue or pause after a milestone — only for the user ids you allow, never for an outdated message.

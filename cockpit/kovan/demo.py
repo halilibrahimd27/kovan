@@ -424,6 +424,7 @@ def crew_milestones(now, m):
         if i < 3:
             ms['check'] = {'code': 0, 'output': '%d passed' % (9 + 5 * i), 'seconds': 2.0 + i}
         if i < 2:
+            ms['ci'] = {'state': 'green', 'summary': 'passed: test (3.9), test (3.13)', 'sha': ms['commit']}
             ms['findings'] = {'security': [{'severity': 'low', 'file': 'parse.py', 'line': 88, 'fix': '',
                                             'note': 'very long lines are split with one regex per cell'}] if i == 0 else []}
         if i == 2:
@@ -457,10 +458,13 @@ def crew_board(now, m):
         (69.9, 'security', 'kovan', 'verdict', 'No blocking findings. The scanner only reads the strings it is given — no '
          'file, shell or network access.\n- [low] parse.py:88: very long lines are split with one regex per cell; a '
          'length cap would bound the work'),
-        (69.8, 'kovan', None, 'milestone', '“Parse tables out of Markdown” is done — committed 3f9c2a1.'),
-        (69.7, 'finance', None, 'finance', '4 role turns so far; 5-hour usage 18%.'),
-        (68, 'planner', 'you', 'replan', 'Continue — a clean run, and the next milestone is small.'),
-        (67.9, 'kovan', 'developer', 'milestone', 'Milestone 2/5: **Align columns**'),
+        (69.85, 'kovan', None, 'check', 'Committed 3f9c2a1 and pushed — waiting for the CI.'),
+        (69.84, 'kovan', None, 'status', 'Opened a draft pull request: https://github.com/example/tablefmt/pull/3'),
+        (66.5, 'kovan', None, 'check', 'CI passed on 3f9c2a1 (passed: test (3.9), test (3.13)).'),
+        (66.4, 'kovan', None, 'milestone', '“Parse tables out of Markdown” is done — committed 3f9c2a1.'),
+        (66.3, 'finance', None, 'finance', '4 role turns so far; 5-hour usage 18%.'),
+        (66, 'planner', 'you', 'replan', 'Continue — a clean run, and the next milestone is small.'),
+        (65.9, 'kovan', 'developer', 'milestone', 'Milestone 2/5: **Align columns**'),
         (58, 'developer', 'tester', 'handoff', 'Column widths come from the widest cell; alignment from the separator row. '
          'Files: tablefmt/align.py, tests/test_align.py'),
         (54, 'tester', 'developer', 'verdict', 'Tests fail: a row with a CJK cell is one column short, because `len()` '
@@ -473,6 +477,8 @@ def crew_board(now, m):
         (41, 'reviewer', 'security', 'verdict', 'Approved. Width handling is isolated in one function with direct tests.'),
         (40.9, 'security', 'kovan', 'verdict', 'No blocking findings. Width tables come from the standard library; nothing '
          'user-controlled reaches a shell or a file path.'),
+        (40.85, 'kovan', None, 'check', 'Committed 8b41d07 and pushed — waiting for the CI.'),
+        (40.82, 'kovan', None, 'check', 'CI passed on 8b41d07 (passed: test (3.9), test (3.13)).'),
         (40.8, 'kovan', None, 'milestone', '“Align columns” is done — committed 8b41d07.'),
         (40.7, 'finance', None, 'finance', '9 role turns so far; 5-hour usage 31%.'),
         (39, 'you', 'developer', 'note', 'Keep the CLI dependency-free please — standard library only.'),
@@ -563,7 +569,8 @@ def build_crews(claude_home, now, m):
     w.say('Here are four ideas, scored honestly — the last one is not novel.', after=240)
     w.save(folder)
     opts = dict(tester=True, plan_approval=True, milestone_approval=False, policy='safe', max_attempts=3,
-                quota_pause=90, check='python3 -m pytest -q', check_timeout=900, commit=True, push=False)
+                quota_pause=90, check='python3 -m pytest -q', check_timeout=900, commit=True, push=False, pr=True, ci=True,
+                ci_command='', ci_timeout=1800)
     table = {'id': 'c7ab1e5f0', 'name': 'tablefmt', 'mode': 'goal', 'dir': table_dir, 'options': opts,
              'goal': crew_board(now, m)[0]['text'], 'theme': '', 'created_at': int(now - 95 * m), 'updated_at': int(now - 5.9 * m),
              'phase': 'building', 'reason': None, 'roles': roles, 'primed': {r: True for r in roles},
@@ -572,7 +579,8 @@ def build_crews(claude_home, now, m):
                       'check_command': 'python3 -m pytest -q', 'milestones': crew_milestones(now, m)},
              'ideas': [], 'current': 2, 'step': 'develop', 'wait': {'role': 'developer', 'step': 'develop', 'sent_at': (now - 5.8 * m) / 1000},
              'feedback': None, 'plan_feedback': None, 'notes': [], 'board': crew_board(now, m), 'attention': None,
-             'resume_at': None, 'paused_from': None, 'stats': {'turns': 16, 'checks': 3}, 'template': 'secure', 'team': team}
+             'resume_at': None, 'paused_from': None, 'stats': {'turns': 16, 'checks': 3}, 'template': 'secure', 'team': team,
+             'git': {'forge': 'github', 'base': 'main', 'branch': 'kovan/tablefmt', 'pr_url': 'https://github.com/example/tablefmt/pull/3'}}
     idea_board = [
         {'id': 'i0', 'ts': int(now - 31 * m), 'speaker': 'you', 'to': None, 'kind': 'goal', 'milestone': None,
          'text': 'Suggest projects: developer tools for small teams; command line; Python; no paid services.'},
@@ -584,7 +592,7 @@ def build_crews(claude_home, now, m):
         {'id': 'i9', 'ts': int(now - 21.5 * m), 'speaker': 'kovan', 'to': None, 'kind': 'waiting', 'milestone': None,
          'text': 'Pick an idea to build, or ask for more.'}]
     weekend = {'id': 'c0dea1dea', 'name': 'Weekend idea', 'mode': 'ideas', 'dir': idea_dir,
-               'options': dict(opts, tester=False, check=''), 'goal': '',
+               'options': dict(opts, tester=False, check='', pr=False, ci=False), 'goal': '',
                'theme': 'developer tools for small teams; command line; Python; no paid services',
                'created_at': int(now - 31 * m), 'updated_at': int(now - 21.5 * m), 'phase': 'choosing',
                'reason': 'pick an idea', 'roles': {'ideator': ideator}, 'primed': {'ideator': True}, 'plan': None,

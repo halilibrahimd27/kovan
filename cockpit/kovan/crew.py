@@ -19,7 +19,7 @@ import subprocess
 import threading
 import time
 
-from . import server
+from . import ci, server
 
 ROLES = ('ideator', 'planner', 'developer', 'tester', 'reviewer')
 TITLES = {'ideator': 'Ideator', 'planner': 'Planner', 'developer': 'Developer', 'tester': 'Tester',
@@ -29,7 +29,9 @@ WAITING_ON_YOU = ('choosing', 'plan_review', 'milestone_review', 'blocked')
 FINISHED = ('done', 'stopped')
 DEFAULT_OPTIONS = {'tester': False, 'plan_approval': True, 'milestone_approval': False, 'policy': 'safe',
                    'max_attempts': 3, 'quota_pause': 90, 'check': '', 'check_timeout': 900, 'commit': True,
-                   'push': False, 'lang': 'en'}
+                   'push': False, 'lang': 'en', 'pr': False, 'ci': False, 'ci_command': '', 'ci_timeout': 1800}
+CI_POLL = 20                # seconds between two looks at the CI
+CI_FIRST_SEEN = 300         # give up when no CI result at all appears for a commit within this many seconds
 BOARD_LIMIT = 800
 REPLY_TIMEOUT = 3 * 3600
 
@@ -93,6 +95,11 @@ TR_LINES = [
     (r'^Commit blocked — (\d+) finding\(s\) at ([a-z ]+?) severity\. ?',
      lambda m: 'Commit durduruldu — %s düzeyinde %s bulgu. ' % (' ya da '.join(SEVERITY_TR.get(x, x) for x in m.group(2).split(' or ')), m.group(1))),
     (r'^No blocking findings\. ?', 'Engelleyici bulgu yok. '), (r'^Problems: ', 'Sorunlar: '),
+    (r'^Committed (\w+) and pushed — waiting for the CI\.$', r'\1 commit’lendi ve push edildi — CI bekleniyor.'),
+    (r'^CI passed on (\w+) ', r'CI geçti (\1) '), (r'^CI failed on (\w+) ', r'CI başarısız (\1) '),
+    (r'^Opened a draft pull request: ', 'Taslak pull request açıldı: '), (r'^Opened a pull request: ', 'Pull request açıldı: '),
+    (r'^Opened a merge request: ', 'Merge request açıldı: '), (r'^Could not open the (pull|merge) request: ', r'\1 request açılamadı: '),
+    (r'^Pushed (\S+)\. Open the merge request in GitLab\.$', r'\1 push edildi. Merge request’i GitLab’de aç.'),
     (r'^Files changed after the review; running the check and the review again\.$',
      'İncelemeden sonra dosyalar değişti; denetim ve inceleme yeniden çalışıyor.'),
 ]
@@ -107,6 +114,9 @@ TR_REASONS = [(re.compile(p), r) for p, r in [
     (r'^(.+?) did not return the JSON it was asked for$', lambda m: _role(m) + ' istenen JSON’u döndürmedi'),
     (r'^(.+?) has been working for over (\d+) hours$', lambda m: _role(m) + ' ' + m.group(2) + ' saatten uzun süredir çalışıyor'),
     (r'^files keep changing after the review$', 'inceleme sonrasında dosyalar değişmeye devam ediyor'),
+    (r'^CI: no CI result appeared for (\w+) within (\d+) minutes$', r'CI: \1 için \2 dakikada hiçbir CI sonucu gelmedi'),
+    (r'^CI: the CI did not finish within (\d+) minutes$', r'CI: CI \1 dakikada bitmedi'),
+    (r'^push failed: ', 'push başarısız: '),
     (r'^(.+?) needs you: ', lambda m: ({'Developer': 'Geliştirici'}.get(m.group(1), m.group(1))) + ' seni bekliyor: '),
     (r'^the Ideator returned no ideas$', 'Fikir üretici hiç fikir döndürmedi'),
     (r'^the Planner returned no milestones$', 'Planlayıcı hiç kilometre taşı döndürmedi'),
@@ -390,11 +400,12 @@ def pipeline(crew):
     steps = ['develop'] + (['test'] if crew['options']['tester'] else [])
     steps += ['extra:' + r['key'] for r in team if r['stage'] == 'build']
     steps += ['check', 'review'] + ['gate:' + r['key'] for r in team if r['stage'] == 'gate'] + ['commit']
-    return steps
+    return steps + (['ci'] if crew['options'].get('ci') else [])
 
 
 def next_step(crew, step):
     steps = pipeline(crew)
+    steps = steps[:steps.index('commit') + 1]
     return steps[steps.index(step) + 1] if step in steps[:-1] else 'commit'
 
 
@@ -701,7 +712,7 @@ class Crews:
                 'progress': {'done': done, 'total': len(plan)},
                 'current': {'title': cur['title'], 'step': crew.get('step'), 'attempts': cur['attempts']} if cur else None,
                 'attention': crew.get('attention'), 'roles': crew.get('roles') or {}, 'options': crew['options'],
-                'template': crew.get('template') or 'feature',
+                'template': crew.get('template') or 'feature', 'git': crew.get('git'),
                 'team': [{k: r.get(k) for k in ('key', 'title', 'stage', 'block_on', 'about', 'preset')} for r in crew.get('team') or []],
                 'created_at': crew['created_at'], 'updated_at': crew.get('updated_at'), 'busy': self.busy.get(crew['id']),
                 'last': last}
@@ -748,6 +759,8 @@ class Crews:
         opts['quota_pause'] = max(50, min(opts['quota_pause'], 100))
         opts['check_timeout'] = max(30, min(opts['check_timeout'], 7200))
         opts['check'] = opts['check'].strip()[:500]
+        opts['ci_command'] = opts['ci_command'].strip()[:500]
+        opts['ci_timeout'] = max(300, min(opts['ci_timeout'], 4 * 3600))
         template = str(template or 'feature')
         if template not in TEMPLATES:
             raise server.KovanError('unknown template')
@@ -766,8 +779,10 @@ class Crews:
         os.makedirs(directory, exist_ok=True)
         if opts['commit'] and not is_git_repo(directory):
             git(directory, 'init', '-q', '-b', 'main')
+        git_info = ci.prepare(directory, opts, name)
         crew = {'id': 'c' + secrets.token_hex(4), 'name': name, 'goal': goal, 'theme': str(theme or '').strip()[:2000],
                 'mode': mode, 'dir': directory, 'options': opts, 'created_at': now_ms(), 'template': template, 'team': team,
+                'git': git_info,
                 'phase': 'ideating' if mode == 'ideas' else 'planning', 'reason': None, 'roles': {}, 'primed': {},
                 'plan': None, 'ideas': [], 'current': 0, 'step': None, 'wait': None, 'feedback': None,
                 'plan_feedback': None, 'notes': [], 'board': [], 'attention': None, 'resume_at': None,
@@ -816,7 +831,12 @@ class Crews:
                 self.interrupt_active(crew)
                 crew['wait'] = None
                 plan = (crew.get('plan') or {}).get('milestones') or []
-                if crew.get('plan') and plan:
+                if crew.get('plan') and plan and crew.get('step') in ('ci', 'commit') and crew['current'] < len(plan) \
+                        and crew.get('git'):
+                    crew.update(phase='building', reason=None, attention=None)      # push / wait for the CI again
+                elif crew.get('plan') and plan and crew['current'] >= len(plan):
+                    crew.update(phase='building', reason=None, attention=None)      # e.g. open the pull request again
+                elif crew.get('plan') and plan:
                     cur = plan[crew['current']]
                     cur['attempts'] = 0
                     cur['rechecks'] = 0
@@ -830,7 +850,7 @@ class Crews:
                     crew['feedback'] = str(feedback)[:4000]
             elif action == 'skip' and phase in ('blocked', 'building', 'milestone_review') and crew.get('plan') \
                     and crew['current'] < len(crew['plan']['milestones']):
-                if crew['id'] in self.busy:
+                if crew['id'] in self.busy and self.busy[crew['id']] != 'ci':
                     raise server.KovanError('wait a moment — kovan is running the %s step' % self.busy[crew['id']], 409)
                 self.interrupt_active(crew)
                 crew.update(wait=None, attention=None, reason=None, phase='building')
@@ -1188,6 +1208,8 @@ class Crews:
         plan = crew['plan']['milestones']
         i = crew['current']
         if i >= len(plan):          # the last commit already posted the finance report
+            if crew['options'].get('pr') and crew.get('git') and not crew['git'].get('pr_done'):
+                return self.run_background(crew, 'pr', self.do_pr, None)
             crew.update(phase='done', reason=None, step=None)
             self.say(crew, 'kovan', 'All milestones are done.', kind='done')
             return
@@ -1215,6 +1237,8 @@ class Crews:
             self.run_background(crew, 'diff', self.do_review, m)
         elif step == 'commit':
             self.run_background(crew, 'commit', self.do_commit, m)
+        elif step == 'ci':
+            self.run_background(crew, 'ci', self.do_ci, m)
         elif step == 'replan':
             outcome = 'committed %s after %d attempt(s). Developer: %s' % (
                 m.get('commit') or '(no commit)', m['attempts'] + 1, server.clip(m.get('dev_summary', ''), 600))
@@ -1429,6 +1453,10 @@ class Crews:
             code, out, err = git(crew['dir'], 'commit', '-q', '-m', m.get('commit_message') or m['title'], '-m', body)
             if code == 0:
                 sha = git(crew['dir'], 'rev-parse', '--short', 'HEAD')[1].strip()
+                m.setdefault('commits', []).append(sha)
+            if crew.get('git') and (code == 0 or 'nothing to commit' in (out + err)):
+                return self.after_commit(crew, m, sha)
+            if code == 0:
                 if crew['options']['push'] and git(crew['dir'], 'remote', 'get-url', 'origin')[0] == 0:
                     pc, _, perr = git(crew['dir'], 'push', '-q', 'origin', 'HEAD', timeout=180)
                     note = ' and pushed' if pc == 0 else ' (push failed: %s)' % server.clip(perr, 200)
@@ -1437,15 +1465,99 @@ class Crews:
             else:
                 note = ' (commit failed: %s)' % server.clip(err or out, 300)
         with self.lock:
-            m.update(status='done', commit=sha)
-            self.say(crew, 'kovan', '“%s” is done%s%s.' % (m['title'], ' — committed %s' % sha if sha else '', note),
-                     kind='milestone', milestone=m['id'], save=False)
-            self.finance_report(crew)
-            more = any(x['status'] == 'pending' for x in crew['plan']['milestones'])
-            crew['step'] = 'replan' if more else None
-            if not more:
-                crew['current'] = len(crew['plan']['milestones'])
-            self.save(crew)
+            self.complete(crew, m, sha, note)
+
+    def complete(self, crew, m, sha, note=''):
+        """The milestone counts as done: report it and move on to the replan (or the end)."""
+        m.update(status='done', commit=sha or m.get('commit'))
+        self.say(crew, 'kovan', '“%s” is done%s%s.' % (m['title'], ' — committed %s' % m['commit'] if m['commit'] else '', note),
+                 kind='milestone', milestone=m['id'], save=False)
+        self.finance_report(crew)
+        more = any(x['status'] == 'pending' for x in crew['plan']['milestones'])
+        crew['step'] = 'replan' if more else None
+        if not more:
+            crew['current'] = len(crew['plan']['milestones'])
+        self.save(crew)
+
+    def after_commit(self, crew, m, sha):
+        """A crew with a branch (pull request / CI gate): push, open the PR/MR early, then wait for the CI."""
+        g = crew['git']
+        if crew['options'].get('pr') and g['forge'] == 'gitlab' and not g.get('mr_pushed'):
+            url, err, ok = ci.open_request(crew['dir'], crew)            # the first push carries the MR options
+            if ok:
+                g.update(mr_pushed=True, pr_url=url)
+                self.say(crew, 'kovan', ('Opened a merge request: %s' % url) if url else
+                         'Pushed %s. Open the merge request in GitLab.' % g['branch'], kind='status', milestone=m['id'])
+        else:
+            ok, err = ci.push(crew['dir'], g)
+        with self.lock:
+            if not ok:
+                if crew['options'].get('ci'):
+                    crew.update(phase='blocked', reason='push failed: %s' % err)
+                    self.say(crew, 'kovan', 'Blocked: push failed: %s — retry, skip or stop when you are ready.' % err,
+                             kind='blocked', milestone=m['id'])
+                    return
+                return self.complete(crew, m, sha, ' (push failed: %s)' % err)
+            if not crew['options'].get('ci'):
+                return self.complete(crew, m, sha, ' and pushed')
+            m['commit'] = sha or m.get('commit')
+            crew['step'] = 'ci'
+            self.say(crew, 'kovan', 'Committed %s and pushed — waiting for the CI.' % (m['commit'] or 'HEAD'), kind='check',
+                     milestone=m['id'])
+        if crew['options'].get('pr') and g['forge'] == 'github' and not g.get('pr_url'):
+            url, msg, _ = ci.open_request(crew['dir'], crew, draft=True)  # pull_request workflows need a PR to run
+            with self.lock:
+                if url:
+                    g['pr_url'] = url
+                    self.say(crew, 'kovan', 'Opened a draft pull request: %s' % url, kind='status', milestone=m['id'])
+
+    def do_ci(self, crew, m):
+        sha = git(crew['dir'], 'rev-parse', 'HEAD')[1].strip()
+        st = ci.wait(crew['dir'], crew['options'], crew['git'], sha,
+                     lambda: crew['phase'] == 'building' and crew.get('step') == 'ci', poll=CI_POLL,
+                     first_seen_limit=CI_FIRST_SEEN)
+        with self.lock:
+            if st is None:
+                return                      # paused, stopped or skipped meanwhile
+            m['ci'] = {'state': st.state, 'summary': st.summary, 'sha': sha[:12]}
+            if st.state == 'green':
+                self.say(crew, 'kovan', 'CI passed on %s (%s).' % (sha[:8], st.summary), kind='check', milestone=m['id'],
+                         save=False)
+                return self.complete(crew, m, None)
+            if st.state == 'red':
+                self.say(crew, 'kovan', 'CI failed on %s (%s):\n%s' % (sha[:8], st.summary, server.clip(st.details, 1800)),
+                         kind='check', to='developer', milestone=m['id'], save=False)
+                return self.fail_attempt(crew, m, 'kovan', 'The CI failed on commit %s (%s). Fix it; your fix becomes a '
+                                         'new commit on the same branch.\n%s' % (sha[:8], st.summary, st.details[-4000:]))
+            crew.update(phase='blocked', reason='CI: ' + st.summary)
+            self.say(crew, 'kovan', 'Blocked: CI: %s — retry, skip or stop when you are ready.' % st.summary, kind='blocked',
+                     milestone=m['id'])
+
+    def do_pr(self, crew, _):
+        g = crew['git']
+        kind = 'pull' if g['forge'] == 'github' else 'merge'
+        ok, err = ci.push(crew['dir'], g)
+        said = None
+        if g['forge'] == 'gitlab' and g.get('mr_pushed'):
+            url, msg = g.get('pr_url'), ''                        # opened with the first push; pushes keep it current
+            said = 'Opened a merge request: %s' % url if url else 'Pushed %s. Open the merge request in GitLab.' % g['branch']
+        elif g.get('pr_url'):
+            ci.mark_ready(crew['dir'], crew)
+            url, msg = g['pr_url'], ''
+        elif ok:
+            url, msg, _ = ci.open_request(crew['dir'], crew)
+        else:
+            url, msg = None, 'push failed: %s' % err
+        with self.lock:
+            g.update(pr_done=True, pr_url=url or g.get('pr_url'))
+            if said:
+                pass                                              # already said when the branch was first pushed
+            elif url:
+                self.say(crew, 'kovan', 'Opened a %s request: %s' % (kind, url), kind='milestone', save=False)
+            else:
+                self.say(crew, 'kovan', 'Could not open the %s request: %s' % (kind, msg or err), kind='status', save=False)
+            crew.update(phase='done', reason=None, step=None)
+            self.say(crew, 'kovan', 'All milestones are done.', kind='done')
 
     def on_replan(self, crew, data, raw):
         action = str(data.get('action') or 'continue').lower()
@@ -1467,7 +1579,10 @@ class Crews:
         crew['current'] = self.next_pending(crew)
         crew['step'] = 'develop'
         crew['feedback'] = None
-        if crew['current'] >= len(crew['plan']['milestones']):
+        if crew['current'] >= len(crew['plan']['milestones']) and crew['options'].get('pr') and crew.get('git'):
+            crew.update(phase='building', step=None)          # build_step opens the pull request, then finishes
+            self.save(crew)
+        elif crew['current'] >= len(crew['plan']['milestones']):
             crew.update(phase='done', reason=None, step=None)
             self.say(crew, 'kovan', 'All milestones are done.', kind='done')
         elif crew['options']['milestone_approval']:

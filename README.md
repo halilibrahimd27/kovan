@@ -29,7 +29,8 @@ One Python package, no dependencies, nothing leaves `127.0.0.1`.
   milestones; the Developer builds them one by one. After each milestone kovan runs your tests, the Reviewer
   reads the real diff, and what passes becomes a commit. You approve the plan and get asked whenever a human
   should decide. Add a **Security auditor** that can block any commit, a Documenter, or roles you define
-  yourself — or start from a template (feature, secure feature, bug fix, security audit).
+  yourself — or start from a template (feature, secure feature, bug fix, security audit). A crew can also work on
+  its own branch, wait for your project's real CI after every commit and open a pull or merge request at the end.
 - **Lets you sit in on the meeting.** The boardroom seats everyone at a table, shows who is working and who
   just spoke to whom, and lets you speak up.
 - **Runs for days, if you want it to.** This repository also holds the **swarm engine** (formerly
@@ -148,7 +149,7 @@ More for the swarm engine: [troubleshooting](docs/swarm.md#troubleshooting).
 
 | | Runs locally | Your own Claude Code sessions | Tests gate every step | You approve the plan | Watch the agents talk |
 |---|---|---|---|---|---|
-| **kovan crews** | ✅ | ✅ | ✅ your check command | ✅ | ✅ boardroom |
+| **kovan crews** | ✅ | ✅ | ✅ your check command, optional security gate and real CI | ✅ (also from Telegram) | ✅ boardroom |
 | **Swarm engine** | ✅ (Docker) | — (API key) | ✅ lint, types, tests | ✅ optional | ✅ web panel + boardroom |
 | Plain Claude Code | ✅ | ✅ | manual | — | — |
 | Hosted coding agents | — | — | varies | varies | partly |

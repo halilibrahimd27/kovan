@@ -671,7 +671,10 @@ dialog .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
       <label class="opt"><input type="checkbox" name="milestone_approval"> Pause after every milestone</label>
       <label class="opt"><input type="checkbox" name="commit" checked> Commit each milestone</label>
       <label class="opt"><input type="checkbox" name="push"> Push after each commit</label>
+      <label class="opt"><input type="checkbox" name="pr"> Open a pull / merge request at the end</label>
+      <label class="opt"><input type="checkbox" name="ci"> Wait for the project’s CI after each commit</label>
     </div>
+    <label data-ci-row hidden>CI status command <small>optional — without it kovan reads GitHub (gh) or GitLab (glab); exit 0 = green, 75 = still running, else red; {sha} is the commit</small><input name="ci_command" placeholder="e.g. ./scripts/jenkins-status {sha}" autocomplete="off" spellcheck="false"></label>
     <div class="row3">
       <label>Permissions<select name="policy"><option value="safe" selected>Safe — edits in the workspace, tests and read-only git run by themselves; anything else asks you</option><option value="ask">Ask — every permission prompt comes to you</option><option value="trusted">Trusted — never ask (bypass permissions)</option></select></label>
       <label>Attempts<input name="max_attempts" type="number" min="1" max="10" value="3"></label>
@@ -825,7 +828,14 @@ const TR={
   'reads every diff before the commit; blocks it on critical findings':'commit’ten önce her diff’i okur; kritik bulguda durdurur',
   'Security auditor':'Güvenlik denetçisi','Documenter':'Belgeleyici','Performance reviewer':'Performans inceleyici','Extra roles:':'Ek roller:',
   'Give the role a name and a sentence or two about its job.':'Role bir ad ver ve görevini bir iki cümleyle yaz.','Up to 4 extra roles':'En fazla 4 ek rol',
-  'Notifications:':'Bildirimler:','permission prompts too':'izin istemleri de',
+  'Notifications:':'Bildirimler:','Open a pull / merge request at the end':'Sonunda pull / merge request aç','Wait for the project’s CI after each commit':'Her commit’ten sonra projenin CI’ını bekle',
+  'CI status command':'CI durum komutu','optional — without it kovan reads GitHub (gh) or GitLab (glab); exit 0 = green, 75 = still running, else red; {sha} is the commit':'isteğe bağlı — yoksa kovan GitHub’ı (gh) ya da GitLab’i (glab) okur; çıkış 0 = yeşil, 75 = sürüyor, diğerleri kırmızı; {sha} commit’tir',
+  'e.g. ./scripts/jenkins-status {sha}':'örn. ./scripts/jenkins-durum {sha}','Branch':'Dal','Pull request':'Pull request','at the end':'sonunda','CI gate':'CI kapısı','Pull request ↗':'Pull request ↗','Merge request ↗':'Merge request ↗',
+  'pull requests and the CI gate need “Commit each milestone”':'pull request ve CI kapısı “Her kilometre taşını commit’le” seçeneğini ister',
+  'pull requests and the CI gate need a git repository with an “origin” remote':'pull request ve CI kapısı “origin” uzak deposu olan bir git deposu ister',
+  'pull requests need a repository with at least one commit to branch from':'pull request için dallanılacak en az bir commit’i olan depo gerekir',
+  'install the GitHub CLI (gh) and run “gh auth login” for pull requests and the CI gate':'pull request ve CI kapısı için GitHub CLI’yi (gh) kurup “gh auth login” çalıştır',
+  'for the CI gate on GitLab install glab (and run “glab auth login”), or give a status command':'GitLab’de CI kapısı için glab kur (ve “glab auth login” çalıştır) ya da bir durum komutu ver','permission prompts too':'izin istemleri de',
   'Could not save the role':'Rol kaydedilemedi','Role forgotten':'Rol unutuldu','findings':'bulgu','finding':'bulgu',
   'at most 4 extra roles':'en fazla 4 ek rol','a role needs a name':'rolün bir adı olmalı','describe what the role does (a sentence or two)':'rolün ne yaptığını yaz (bir iki cümle)',
   'unknown template':'bilinmeyen şablon','unknown role':'bilinmeyen rol','an audit crew needs a folder with code in it':'denetim ekibi içinde kod olan bir klasör ister',
@@ -1528,7 +1538,7 @@ function crewRoles(c){const t=c.team||[],r=['planner','developer'];if(c.options&
   if(c.mode==='ideas')r.unshift('ideator');return r;}
 function crewSteps(c){const t=c.team||[],s=[['develop','Develop']];if(c.options.tester)s.push(['test','Test']);
   t.filter(x=>x.stage==='build').forEach(x=>s.push(['extra:'+x.key,x.title]));s.push(['check','Check'],['review','Review']);
-  t.filter(x=>x.stage==='gate').forEach(x=>s.push(['gate:'+x.key,x.title]));s.push(['commit','Commit']);return s;}
+  t.filter(x=>x.stage==='gate').forEach(x=>s.push(['gate:'+x.key,x.title]));s.push(['commit','Commit']);if(c.options.ci)s.push(['ci','CI']);return s;}
 function registerTeams(crews){crews.forEach(c=>(c.team||[]).forEach(r=>{ROLE_T[roleKey(r.key)]=tt(r.title);ROLE_DO[r.key]=r.about;}));}
 function crewRoom(c){
   const h=S.crewDetail&&S.crewDetail.id===c.id?S.crewDetail.d:null;const roles=crewRoles(c),wait=h&&h.wait;
@@ -1659,7 +1669,7 @@ function msHTML(m,i,c,d){const cur=i===d.current&&c.phase!=='done';const st=m.st
   const lg=(m.log||[]).slice(-4).map(x=>'<li><b>'+esc(roleName(x.who))+'</b> '+esc(x.result)+(x.text?' — '+esc(clip1(plain(x.text),180)):'')+'</li>').join('');
   return '<li class="'+esc(m.status)+(cur?' cur':'')+'"><span class="st">'+st+'</span><div><b class="no-i18n">'+esc(m.title)+'</b>'+(m.goal?'<div class="muted g no-i18n">'+inl(m.goal)+'</div>':'')+pipe+
     (m.acceptance&&m.acceptance.length?'<details data-k="acc-'+m.id+'"'+(S.open.has('acc-'+m.id)?' open':'')+'><summary>'+m.acceptance.length+' acceptance criteria'+(lg?' · history':'')+'</summary><ul class="no-i18n">'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>'+(lg?'<ul class="lg no-i18n">'+lg+'</ul>':'')+'</details>':'')+
-    '</div><span class="ms-r">'+Object.keys(m.findings||{}).map(k=>{const f=m.findings[k]||[];return '<span class="ck '+(f.length?'warn':'ok')+'" title="'+esc(f.map(x=>'['+x.severity+'] '+(x.file?x.file+': ':'')+x.note).join('\n'))+'">'+esc(roleName(k))+(f.length?' · '+f.length+' '+tt(f.length===1?'finding':'findings'):' ✓')+'</span>';}).join('')+(m.commit?'<code title="Commit">'+esc(m.commit)+'</code>':'')+(m.check?'<span class="ck '+(m.check.code===0?'ok':'bad')+'" title="Check command">'+(m.check.code===0?'check ✓':'check ✗')+'</span>':'')+'</span></li>';}
+    '</div><span class="ms-r">'+Object.keys(m.findings||{}).map(k=>{const f=m.findings[k]||[];return '<span class="ck '+(f.length?'warn':'ok')+'" title="'+esc(f.map(x=>'['+x.severity+'] '+(x.file?x.file+': ':'')+x.note).join('\n'))+'">'+esc(roleName(k))+(f.length?' · '+f.length+' '+tt(f.length===1?'finding':'findings'):' ✓')+'</span>';}).join('')+(m.commit?'<code title="Commit">'+esc(m.commit)+'</code>':'')+(m.check?'<span class="ck '+(m.check.code===0?'ok':'bad')+'" title="Check command">'+(m.check.code===0?'check ✓':'check ✗')+'</span>':'')+(m.ci?'<span class="ck '+({green:'ok',red:'bad'}[m.ci.state]||'warn')+'" title="'+esc(m.ci.summary||'')+'">'+({green:'CI ✓',red:'CI ✗'}[m.ci.state]||'CI ?')+'</span>':'')+'</span></li>';}
 function renderCrews(){
   const el=$('#crews');const crews=(S.d&&S.d.crews)||[];
   const c=S.crew&&crewOf(S.crew);
@@ -1676,12 +1686,14 @@ function renderCrews(){
   const o=c.options,yes=b=>b?'yes':'no';
   el.innerHTML='<button class="link back" data-crew-back>← All crews</button>'+
     '<div class="crew-top"><span class="hex">⬢</span><div class="ct-main"><h2 class="no-i18n">'+esc(c.name)+'</h2><div class="muted">'+esc(c.dir)+'</div></div>'+phasePill(c.phase)+
-      '<div class="acts"><button class="btn" data-room="crew:'+c.id+'">Boardroom</button>'+(fin?'':'<button class="btn" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">■ Stop</button>')+'<button class="btn" data-crew-delete="'+c.id+'">Delete</button></div></div>'+
+      '<div class="acts">'+(c.git&&c.git.pr_url?'<a class="btn" href="'+esc(c.git.pr_url)+'" target="_blank" rel="noopener">'+(c.git.forge==='gitlab'?'Merge request ↗':'Pull request ↗')+'</a>':'')+'<button class="btn" data-room="crew:'+c.id+'">Boardroom</button>'+(fin?'':'<button class="btn" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">■ Stop</button>')+'<button class="btn" data-crew-delete="'+c.id+'">Delete</button></div></div>'+
     (h.goal?'<div class="goal md">'+md(h.goal)+'</div>':'')+needHTML(c,h,false)+
     '<div class="crew-cols"><div><h2 class="section">Milestones'+(plan.length?' · '+c.progress.done+'/'+plan.length:'')+'</h2>'+(plan.length?'<ol class="box ms">'+plan.map((m,i)=>msHTML(m,i,c,h)).join('')+'</ol>':'<div class="box empty">'+(c.phase==='ideating'||c.phase==='choosing'?'The plan comes after you pick an idea.':'The Planner is writing the plan…')+'</div>')+
       (h.plan&&h.plan.summary?'<h2 class="section">Plan</h2><div class="box pad md">'+md(h.plan.summary+(h.plan.stack?'\n\n**Stack:** '+h.plan.stack:''))+'</div>':'')+'</div>'+
     '<div><h2 class="section">Team</h2><div class="box">'+team+'</div>'+
-      '<h2 class="section">Settings</h2><div class="box kv"><span>Template</span><b>'+esc(TEMPLATE_T[c.template]||c.template||'—')+'</b><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push?' + push':''):'no commits')+'</b></div>'+
+      '<h2 class="section">Settings</h2><div class="box kv"><span>Template</span><b>'+esc(TEMPLATE_T[c.template]||c.template||'—')+'</b><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push||c.git?' + push':''):'no commits')+'</b>'+(c.git?'<span>Branch</span><b class="no-i18n"><code>'+esc(c.git.branch)+'</code>'+(c.git.branch!==c.git.base?' → <code>'+esc(c.git.base)+'</code>':'')+'</b>':'')+
+      (o.pr?'<span>Pull request</span><b>'+(c.git&&c.git.pr_url?'<a href="'+esc(c.git.pr_url)+'" target="_blank" rel="noopener">'+esc(c.git.pr_url.replace(/^https?:\/\//,''))+'</a>':'at the end')+'</b>':'')+
+      (o.ci?'<span>CI gate</span><b>'+(o.ci_command?'<code>'+esc(o.ci_command)+'</code>':(c.git&&c.git.forge==='gitlab'?'GitLab (glab)':'GitHub (gh)'))+'</b>':'')+'</div>'+
       (h.board&&h.board.length?'<h2 class="section">Latest in the boardroom</h2><div class="box mini-board">'+h.board.slice(-5).map(e=>'<div><b style="color:'+roleColor(e.speaker)+'">'+esc(roleName(e.speaker))+'</b>'+(e.to?' → '+esc(roleName(e.to)):'')+' <span class="muted no-i18n">'+esc(clip1(plain(e.text),140))+'</span></div>').join('')+'<button class="link" data-room="crew:'+c.id+'">Open the boardroom →</button></div>':'')+'</div></div>';}
 
 /* ---- actions */
@@ -1689,7 +1701,7 @@ function feedbackNear(btn){const card=btn.closest('.need,.card-ask');const t=car
 async function crewAct(id,action,extra){try{const d=await post('/api/crew/action',Object.assign({id,action},extra||{}));if(d&&d.id){S.crewDetail={id,d};}S.rev='';refresh(0);return d;}
   catch(e){toast('Could not do that',e.message,null,'err');}}
 function crewDialog(){const d=$('#crew-dialog'),f=$('#crew-form');f.reset();f.dataset.dirTouched='';setCrewMode(f,'goal');
-  CD.draft=[];CD.checked=new Set();f.querySelector('[data-role-form]').hidden=true;renderTeam(f);d.showModal();f.elements.name.focus();
+  CD.draft=[];CD.checked=new Set();f.querySelector('[data-role-form]').hidden=true;f.querySelector('[data-ci-row]').hidden=true;renderTeam(f);d.showModal();f.elements.name.focus();
   loadCatalog().then(()=>{fillTemplates(f);applyTemplate(f,'feature');});}
 /* ---- crew templates and extra roles (the New crew dialog) */
 const CD={catalog:null,draft:[],checked:new Set(),uid:0};
@@ -1814,6 +1826,7 @@ document.addEventListener('submit',e=>{
     const body={name:E('name').value.trim(),mode,goal:E('goal').value.trim(),theme:E('theme').value.trim(),directory:E('directory').value.trim(),
       options:{check:E('check').value.trim(),plan_approval:E('plan_approval').checked,tester:E('tester').checked,milestone_approval:E('milestone_approval').checked,commit:E('commit').checked,push:E('push').checked,policy:E('policy').value,max_attempts:+E('max_attempts').value||3,quota_pause:+E('quota_pause').value||90,lang:LANG},
       template:E('template').value||'feature',team:chosenTeam()};
+    Object.assign(body.options,{pr:E('pr').checked,ci:E('ci').checked,ci_command:E('ci_command').value.trim()});
     if(mode==='goal'&&!body.goal){toast('Describe the goal','Or choose “Suggest ideas”.',null,'ask');return;}
     if(body.team.length>4){toast('Up to 4 extra roles','',null,'ask');return;}
     const b=f.querySelector('[type=submit]');b.disabled=true;
@@ -1842,6 +1855,7 @@ document.addEventListener('change',e=>{
   if(t.id==='show-sub'){S.showSub=t.checked;renderMessages();}
   if(t.name==='mode'&&t.closest('#crew-form'))setCrewMode(t.closest('form'),t.value);
   if(t.name==='template'&&t.closest('#crew-form'))applyTemplate(t.closest('form'),t.value);
+  if(t.name==='ci'&&t.closest('#crew-form'))t.closest('form').querySelector('[data-ci-row]').hidden=!t.checked;
   if(t.dataset&&t.dataset.team){if(t.checked)CD.checked.add(t.dataset.team);else CD.checked.delete(t.dataset.team);}
   if(t.name==='r_stage')t.closest('form').elements.namedItem('r_block').disabled=t.value!=='gate';
   if(t.id==='feed-session'){S.feedSession=t.value;renderFeed();}
