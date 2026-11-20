@@ -13,5 +13,5 @@ First public release.
 - Per-session controls: model, effort, permission mode, context meter with one-click compact, rename,
   rewind files to a prompt (with a preview), usage limits.
 - ⌘K palette: jump to sessions and search every session and note.
-- Sessions live in a small holder process, so restarting pano never interrupts them.
-- `pano --demo` with synthetic data; zero dependencies (Python 3.9+ standard library).
+- Sessions live in a small holder process, so restarting kovan never interrupts them.
+- `kovan --demo` with synthetic data; zero dependencies (Python 3.9+ standard library).

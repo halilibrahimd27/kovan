@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pano"
+name = "kovan"
 dynamic = ["version"]
 description = "A local, zero-dependency control room for parallel Claude Code sessions."
 readme = "README.md"
@@ -24,17 +24,17 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/halilibrahimd27/pano"
-Issues = "https://github.com/halilibrahimd27/pano/issues"
+Homepage = "https://github.com/halilibrahimd27/kovan"
+Issues = "https://github.com/halilibrahimd27/kovan/issues"
 
 [project.scripts]
-pano = "pano.server:main"
+kovan = "kovan.server:main"
 
 [tool.setuptools]
-packages = ["pano"]
+packages = ["kovan"]
 
 [tool.setuptools.package-data]
-pano = ["static/*.html"]
+kovan = ["static/*.html"]
 
 [tool.setuptools.dynamic]
-version = { attr = "pano.__version__" }
+version = { attr = "kovan.__version__" }

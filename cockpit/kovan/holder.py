@@ -1,7 +1,7 @@
-"""pano holder: a tiny, stable process that owns the Claude Code processes started from pano.
+"""kovan holder: a tiny, stable process that owns the Claude Code processes started from kovan.
 
-The web server can restart (upgrade, crash, ``pano --stop``) without killing your sessions,
-because the ``claude`` child processes live here instead. pano starts the holder on demand.
+The web server can restart (upgrade, crash, ``kovan --stop``) without killing your sessions,
+because the ``claude`` child processes live here instead. kovan starts the holder on demand.
 
 It only listens on a Unix socket (never on the network):
     <state dir>/holder-<port>.sock      (directory 0700, socket 0600 — current user only)
@@ -288,7 +288,7 @@ class Holder:
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if '--socket' not in argv:
-        sys.exit('usage: python -m pano.holder --socket PATH')
+        sys.exit('usage: python -m kovan.holder --socket PATH')
     socket_path = os.path.abspath(argv[argv.index('--socket') + 1])
     state_dir = os.path.dirname(socket_path)
     os.makedirs(state_dir, mode=0o700, exist_ok=True)

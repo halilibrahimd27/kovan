@@ -1,13 +1,13 @@
-"""pano server: watches Claude Code sessions, drives the ones you hand to it, serves the web UI.
+"""kovan server: watches Claude Code sessions, drives the ones you hand to it, serves the web UI.
 
-Run ``pano --help`` for options. Everything stays on this machine:
+Run ``kovan --help`` for options. Everything stays on this machine:
 
 * WATCH   — reads ``~/.claude/sessions/<pid>.json`` (live status) and
             ``~/.claude/projects/<dir>/*.jsonl`` (transcripts) and pushes changes to the browser
             over Server-Sent Events. Sessions running in VS Code or a terminal are watched read-only.
-* DRIVE   — "Continue in pano" / "New session" start ``claude`` in stream-json mode (the same
+* DRIVE   — "Continue in kovan" / "New session" start ``claude`` in stream-json mode (the same
             mode the official IDE integrations and the Agent SDK use). The processes live in a
-            separate holder (``pano.holder``) so restarting this server never kills a session.
+            separate holder (``kovan.holder``) so restarting this server never kills a session.
 * SECURE  — binds 127.0.0.1 only, checks the Host header, requires Origin + a per-start token
             for every state-changing request, masks likely secrets in tool output, and never
             writes message content to its log.
@@ -44,8 +44,8 @@ from urllib.parse import parse_qs, urlparse
 from . import __version__
 
 HOME = os.path.expanduser('~')
-CONFIG_DIR = os.path.join(os.environ.get('XDG_CONFIG_HOME') or os.path.join(HOME, '.config'), 'pano')
-STATE_DIR = os.path.join(os.environ.get('XDG_STATE_HOME') or os.path.join(HOME, '.local', 'state'), 'pano')
+CONFIG_DIR = os.path.join(os.environ.get('XDG_CONFIG_HOME') or os.path.join(HOME, '.config'), 'kovan')
+STATE_DIR = os.path.join(os.environ.get('XDG_STATE_HOME') or os.path.join(HOME, '.local', 'state'), 'kovan')
 SETTINGS_PATH = os.path.join(CONFIG_DIR, 'settings.json')   # managed by the UI
 CONFIG_PATH = os.path.join(CONFIG_DIR, 'config.json')       # optional, hand-edited defaults
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -219,7 +219,7 @@ def tool_label(name, inp):
     return name
 
 
-class PanoError(Exception):
+class KovanError(Exception):
     def __init__(self, message, status=400):
         super().__init__(message)
         self.status = status
@@ -282,7 +282,7 @@ class Settings:
 
     def set_quick_prompts(self, items):
         if not isinstance(items, list) or len(items) > 30:
-            raise PanoError('at most 30 quick prompts')
+            raise KovanError('at most 30 quick prompts')
         clean = [str(x).strip()[:4000] for x in items if str(x).strip()]
         with self.lock:
             self.data['quick_prompts'] = clean
@@ -635,7 +635,7 @@ class Store:
             elif status == 'working':
                 status, current = 'your_turn', None
         entry = (c or {}).get('entrypoint') or ''
-        place = 'pano' if s else ('vscode' if c and 'vscode' in entry else ('elsewhere' if c else 'closed'))
+        place = 'kovan' if s else ('vscode' if c and 'vscode' in entry else ('elsewhere' if c else 'closed'))
         name = self.name(t, c)
         former = []
         for n in ([x.get('name') for x in (c or {}).get('formerNames', [])] + t.titles[:-1] + ([c.get('name')] if c else [])):
@@ -799,7 +799,7 @@ class Store:
             self.scan(live)
             t = self.transcripts.get(sid)
             if not t:
-                raise PanoError('session not found', 404)
+                raise KovanError('session not found', 404)
             c = live.get(sid) or {}
             s = MANAGER.owned(sid) if MANAGER else None
             rev = '%d:%s:%s:%s:%d:%d' % (t.offset, c.get('status'), c.get('name'), s.signature() if s else '-',
@@ -820,7 +820,7 @@ class Store:
         with self.lock:
             t = self.transcripts.get(sid)
             if not t or (tid not in t.inputs and tid not in t.results):
-                raise PanoError('no record of this tool call', 404)
+                raise KovanError('no record of this tool call', 404)
             name, inp = t.inputs.get(tid, (None, None))
             loc = t.results.get(tid)
             path = t.path
@@ -889,7 +889,7 @@ class Store:
 
     def task_output(self, sid, task_id):
         if not TASK_ID_OK.match(task_id or ''):
-            raise PanoError('invalid task id')
+            raise KovanError('invalid task id')
         with self.lock:
             t = self.transcripts.get(sid)
             task = dict(t.tasks.get(task_id) or {}) if t else {}
@@ -1020,22 +1020,22 @@ def find_claude():
 
 
 def child_env():
-    """Environment for pano's own child processes: makes the package importable without clobbering PYTHONPATH."""
+    """Environment for kovan's own child processes: makes the package importable without clobbering PYTHONPATH."""
     env = dict(os.environ)
-    if 'PANO_ORIG_PYTHONPATH' not in env:
-        env['PANO_ORIG_PYTHONPATH'] = env.get('PYTHONPATH', '')
+    if 'KOVAN_ORIG_PYTHONPATH' not in env:
+        env['KOVAN_ORIG_PYTHONPATH'] = env.get('PYTHONPATH', '')
     pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    env['PYTHONPATH'] = os.pathsep.join(x for x in (pkg_parent, env['PANO_ORIG_PYTHONPATH']) if x)
+    env['PYTHONPATH'] = os.pathsep.join(x for x in (pkg_parent, env['KOVAN_ORIG_PYTHONPATH']) if x)
     return env
 
 
 def session_env():
     """Child sessions never inherit this shell's Claude/VS Code variables (messaging tokens, session ids…)."""
     env = {k: v for k, v in os.environ.items()
-           if not k.startswith(('CLAUDE', 'VSCODE_', 'ELECTRON_', 'PANO_')) and k not in ('MCP_CONNECTION_NONBLOCKING', 'PYTHONPATH')}
-    if os.environ.get('PANO_ORIG_PYTHONPATH'):
-        env['PYTHONPATH'] = os.environ['PANO_ORIG_PYTHONPATH']
-    elif 'PANO_ORIG_PYTHONPATH' not in os.environ and os.environ.get('PYTHONPATH'):
+           if not k.startswith(('CLAUDE', 'VSCODE_', 'ELECTRON_', 'KOVAN_')) and k not in ('MCP_CONNECTION_NONBLOCKING', 'PYTHONPATH')}
+    if os.environ.get('KOVAN_ORIG_PYTHONPATH'):
+        env['PYTHONPATH'] = os.environ['KOVAN_ORIG_PYTHONPATH']
+    elif 'KOVAN_ORIG_PYTHONPATH' not in os.environ and os.environ.get('PYTHONPATH'):
         env['PYTHONPATH'] = os.environ['PYTHONPATH']
     env.update({'CLAUDE_CODE_ENTRYPOINT': 'sdk-cli', 'MCP_CONNECTION_NONBLOCKING': 'true',
                 'CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING': 'true', 'CLAUDE_CODE_QUESTION_PREVIEW_FORMAT': 'markdown'})
@@ -1043,7 +1043,7 @@ def session_env():
 
 
 class HolderClient:
-    """Talks to ``pano.holder`` over its Unix socket."""
+    """Talks to ``kovan.holder`` over its Unix socket."""
 
     def __init__(self, socket_path):
         self.socket_path = socket_path
@@ -1066,7 +1066,7 @@ class HolderClient:
     def spawn_holder(self):
         os.makedirs(STATE_DIR, mode=0o700, exist_ok=True)
         logf = open(os.path.join(STATE_DIR, 'holder.log'), 'ab')
-        subprocess.Popen([sys.executable, '-m', 'pano.holder', '--socket', self.socket_path], stdout=logf,
+        subprocess.Popen([sys.executable, '-m', 'kovan.holder', '--socket', self.socket_path], stdout=logf,
                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True, cwd=HOME,
                          env=child_env())
         log('holder started')
@@ -1097,25 +1097,25 @@ class HolderClient:
         data = (json.dumps(obj, ensure_ascii=False) + '\n').encode('utf-8')
         with self.write_lock:
             if not self.connected or not self.sock:
-                raise PanoError('not connected to the session holder', 503)
+                raise KovanError('not connected to the session holder', 503)
             try:
                 self.sock.sendall(data)
             except OSError:
                 self.connected = False
-                raise PanoError('could not write to the session holder', 503)
+                raise KovanError('could not write to the session holder', 503)
 
     def start_session(self, sid, args, cwd, env, info):
         if not self.connect(spawn=True):
-            raise PanoError('could not start the session holder', 500)
+            raise KovanError('could not start the session holder', 500)
         ev, box = threading.Event(), []
         self.waiting[sid] = (ev, box)
         self.send({'op': 'start', 'sid': sid, 'args': args, 'cwd': cwd, 'env': env, 'info': info})
         if not ev.wait(15):
             self.waiting.pop(sid, None)
-            raise PanoError('the session holder did not answer in time', 504)
+            raise KovanError('the session holder did not answer in time', 504)
         r = box[0]
         if r.get('event') == 'error':
-            raise PanoError(r.get('message') or 'could not start the session', 500)
+            raise KovanError(r.get('message') or 'could not start the session', 500)
         return r.get('pid')
 
     def reader(self, s):
@@ -1180,7 +1180,7 @@ class HolderClient:
 
 
 class ManagedSession:
-    """A session whose claude process pano drives (through the holder)."""
+    """A session whose claude process kovan drives (through the holder)."""
 
     def __init__(self, sid, name, resume, directory, pid=None):
         self.sid, self.name, self.resume, self.directory, self.pid = sid, name, resume, directory, pid
@@ -1232,7 +1232,7 @@ class ManagedSession:
     def start(self):
         binary = find_claude()
         if not binary:
-            raise PanoError('could not find the claude executable (set --claude-bin)', 500)
+            raise KovanError('could not find the claude executable (set --claude-bin)', 500)
         args = [binary, '--output-format', 'stream-json', '--verbose', '--input-format', 'stream-json',
                 '--permission-prompt-tool=stdio', '--setting-sources=user,project,local',
                 '--permission-mode=' + CFG.permission_mode, '--include-partial-messages', '--replay-user-messages',
@@ -1256,7 +1256,7 @@ class ManagedSession:
         HOLDER.send({'op': 'write', 'sid': self.sid, 'data': json.dumps(obj, ensure_ascii=False)})
 
     def request(self, subtype, params=None, timeout=20):
-        rid = 'pano-' + secrets.token_hex(6)
+        rid = 'kovan-' + secrets.token_hex(6)
         ev, box = threading.Event(), []
         self.waiting[rid] = (ev, box)
         req = {'subtype': subtype}
@@ -1264,10 +1264,10 @@ class ManagedSession:
         self.write({'type': 'control_request', 'request_id': rid, 'request': req})
         if not ev.wait(timeout):
             self.waiting.pop(rid, None)
-            raise PanoError('the session did not answer in time (%s)' % subtype, 504)
+            raise KovanError('the session did not answer in time (%s)' % subtype, 504)
         r = box[0]
         if r.get('subtype') != 'success':
-            raise PanoError('the session refused: %s' % (r.get('error') or subtype), 409)
+            raise KovanError('the session refused: %s' % (r.get('error') or subtype), 409)
         return r.get('response') or {}
 
     def refresh_context(self):
@@ -1343,7 +1343,7 @@ class ManagedSession:
                 self.publish('permission', request=item)
             elif not self.replaying:
                 self.write({'type': 'control_response', 'response': {
-                    'subtype': 'error', 'request_id': rid, 'error': 'pano does not support %s' % req.get('subtype')}})
+                    'subtype': 'error', 'request_id': rid, 'error': 'kovan does not support %s' % req.get('subtype')}})
             return
         if kind == 'control_cancel_request':
             if self.permissions.pop(d.get('request_id'), None):
@@ -1440,7 +1440,7 @@ class ManagedSession:
     def answer_permission(self, rid, decision, answers, message):
         item = self.permissions.get(rid)
         if not item:
-            raise PanoError('this request is no longer pending', 409)
+            raise KovanError('this request is no longer pending', 409)
         if decision == 'allow':
             new_input = dict(item['input'])
             if answers is not None:
@@ -1543,7 +1543,7 @@ class Manager:
         with self.lock:
             if sid:
                 if not UUID_RE.match(sid):
-                    raise PanoError('invalid session id')
+                    raise KovanError('invalid session id')
                 if self.owned(sid):
                     return self.owned(sid)
                 with STORE.lock:
@@ -1551,17 +1551,17 @@ class Manager:
                     STORE.scan(live)
                     t = STORE.transcripts.get(sid)
                     if not t or not os.path.exists(t.path):
-                        raise PanoError('no transcript for this session in the watched directories', 404)
+                        raise KovanError('no transcript for this session in the watched directories', 404)
                 c = live.get(sid)
                 if c:
                     where = 'in VS Code' if 'vscode' in (c.get('entrypoint') or '') else 'somewhere else'
-                    raise PanoError('This session is open %s (pid %s). Close it there first, then continue in pano.'
+                    raise KovanError('This session is open %s (pid %s). Close it there first, then continue in kovan.'
                                     % (where, c.get('pid')), 409)
                 s = ManagedSession(sid, None, True, t.directory)
             else:
                 directory = os.path.abspath(os.path.expanduser(directory)) if directory else self.dirs[0]
                 if directory not in self.dirs:
-                    raise PanoError('that directory is not watched by pano')
+                    raise KovanError('that directory is not watched by kovan')
                 s = ManagedSession(str(uuid.uuid4()), (name or '').strip()[:80] or None, False, directory)
             self.sessions[s.sid] = s      # register first so the holder's 'session' event is not adopted twice
             try:
@@ -1575,7 +1575,7 @@ class Manager:
     def get(self, sid):
         s = self.owned(sid)
         if not s:
-            raise PanoError('This session is not open in pano.', 409)
+            raise KovanError('This session is not open in kovan.', 409)
         return s
 
 
@@ -1603,29 +1603,29 @@ CSP = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline
 
 def validate_images(items):
     if not isinstance(items, list) or len(items) > 6:
-        raise PanoError('at most 6 images')
+        raise KovanError('at most 6 images')
     out = []
     for i in items:
         if not isinstance(i, dict) or i.get('type') not in IMAGE_TYPES or not isinstance(i.get('data'), str):
-            raise PanoError('unsupported image (png, jpeg, gif, webp)')
+            raise KovanError('unsupported image (png, jpeg, gif, webp)')
         try:
             raw = base64.b64decode(i['data'], validate=True)
         except (binascii.Error, ValueError):
-            raise PanoError('corrupt image')
+            raise KovanError('corrupt image')
         if len(raw) > 5 * 1024 * 1024:
-            raise PanoError('image larger than 5 MB')
+            raise KovanError('image larger than 5 MB')
         out.append({'type': i['type'], 'data': i['data']})
     return out
 
 
 def valid_sid(sid):
     if not UUID_RE.match(sid or ''):
-        raise PanoError('invalid session id')
+        raise KovanError('invalid session id')
     return sid
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = 'pano/' + __version__
+    server_version = 'kovan/' + __version__
 
     def log_message(self, *args):
         pass
@@ -1695,7 +1695,7 @@ class Handler(BaseHTTPRequestHandler):
                 data = STORE.search(arg('q')[:200])
             else:
                 return self.reply(404, 'not found', 'text/plain; charset=utf-8')
-        except PanoError as e:
+        except KovanError as e:
             return self.reply_json(e.status, {'error': str(e)})
         except Exception as e:  # noqa: BLE001
             log('GET error %s: %r' % (u.path, e))
@@ -1726,7 +1726,7 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         if (self.headers.get('Origin') not in self.server.allowed_origins
                 or self.headers.get('Sec-Fetch-Site') not in (None, 'same-origin')
-                or not hmac.compare_digest(self.headers.get('X-Pano-Token', ''), TOKEN)):
+                or not hmac.compare_digest(self.headers.get('X-Kovan-Token', ''), TOKEN)):
             log('POST rejected %s (origin/token)' % u.path)
             return self.reply_json(403, {'error': 'forbidden'})
         if not (self.headers.get('Content-Type') or '').startswith('application/json'):
@@ -1745,11 +1745,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply_json(400, {'error': 'could not parse request body'})
         try:
             if CFG.demo and u.path not in ('/api/archive', '/api/quick-prompts', '/api/rename'):
-                raise PanoError('Demo mode is read-only. Run pano without --demo to drive real sessions.', 403)
+                raise KovanError('Demo mode is read-only. Run kovan without --demo to drive real sessions.', 403)
             data = self.post(u.path, body)
             if data is None:
                 return self.reply_json(404, {'error': 'not found'})
-        except PanoError as e:
+        except KovanError as e:
             return self.reply_json(e.status, {'error': str(e)})
         except Exception as e:  # noqa: BLE001
             log('POST error %s: %r' % (u.path, e))
@@ -1761,10 +1761,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/send':
             text = str(b.get('text') or '')
             if len(text) > 200000:
-                raise PanoError('message too long')
+                raise KovanError('message too long')
             images = validate_images(b.get('images') or [])
             if not text.strip() and not images:
-                raise PanoError('empty message')
+                raise KovanError('empty message')
             MANAGER.get(sid).send(text, images)
             return {'ok': True}
         if path == '/api/takeover':
@@ -1782,7 +1782,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/permission':
             answers = b.get('answers')
             if answers is not None and not isinstance(answers, dict):
-                raise PanoError('answers must be an object')
+                raise KovanError('answers must be an object')
             MANAGER.get(sid).answer_permission(str(b.get('id') or ''), 'allow' if b.get('decision') == 'allow' else 'deny',
                                                answers, str(b.get('message') or ''))
             return {'ok': True}
@@ -1792,17 +1792,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/model':
             model = str(b.get('model') or '')
             if not MODEL_OK.match(model):
-                raise PanoError('invalid model')
+                raise KovanError('invalid model')
             return {'ok': True, 'model': MANAGER.get(sid).set_model(model)}
         if path == '/api/permission-mode':
             mode = str(b.get('mode') or '')
             if mode not in PERMISSION_MODES:
-                raise PanoError('invalid permission mode')
+                raise KovanError('invalid permission mode')
             return {'ok': True, 'mode': MANAGER.get(sid).set_permission_mode(mode)}
         if path == '/api/effort':
             effort = str(b.get('effort') or '')
             if effort not in EFFORTS:
-                raise PanoError('invalid effort')
+                raise KovanError('invalid effort')
             MANAGER.get(sid).send('/effort ' + effort, [])
             return {'ok': True}
         if path == '/api/compact':
@@ -1818,18 +1818,18 @@ class Handler(BaseHTTPRequestHandler):
                 return {'ok': True, 'where': 'session'}
             with STORE.lock:
                 if sid not in STORE.transcripts:
-                    raise PanoError('session not found', 404)
+                    raise KovanError('session not found', 404)
             SETTINGS.set_alias(sid, name or None)
-            return {'ok': True, 'where': 'pano'}
+            return {'ok': True, 'where': 'kovan'}
         if path == '/api/rewind':
             msg_uuid = str(b.get('uuid') or '')
             if not UUID_RE.match(msg_uuid):
-                raise PanoError('invalid message id')
+                raise KovanError('invalid message id')
             return MANAGER.get(sid).rewind(msg_uuid, bool(b.get('dry_run', True)))
         if path == '/api/stop-task':
             task_id = str(b.get('id') or '')
             if not TASK_ID_OK.match(task_id):
-                raise PanoError('invalid task id')
+                raise KovanError('invalid task id')
             MANAGER.get(sid).stop_task(task_id)
             STORE.mark_task(sid, task_id, 'killed')
             return {'ok': True}
@@ -1865,13 +1865,13 @@ def watcher():
 def is_running(port):
     try:
         with urllib.request.urlopen('http://127.0.0.1:%d/api/health' % port, timeout=1.5) as r:
-            return r.headers.get('Server', '').startswith('pano')
+            return r.headers.get('Server', '').startswith('kovan')
     except Exception:  # noqa: BLE001
         return False
 
 
 def pid_file(port):
-    return os.path.join(STATE_DIR, 'pano-%d.pid' % port)
+    return os.path.join(STATE_DIR, 'kovan-%d.pid' % port)
 
 
 def holder_socket(port):
@@ -1933,7 +1933,7 @@ def serve(args):
         log('connected to the session holder; %d session(s) still running' % len(MANAGER.owned_items()))
     t0 = time.time()
     STORE.state('', False)
-    log('pano %s: %d session(s) read in %.1fs from %s; claude: %s' % (
+    log('kovan %s: %d session(s) read in %.1fs from %s; claude: %s' % (
         __version__, len(STORE.transcripts), time.time() - t0, ', '.join(tilde(d) for d in CFG.dirs),
         tilde(find_claude() or 'NOT FOUND') if not args.demo else 'demo'))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
@@ -1965,24 +1965,24 @@ def load_config():
 
 
 def build_parser(defaults):
-    p = argparse.ArgumentParser(prog='pano', description='A local control room for parallel Claude Code sessions.')
+    p = argparse.ArgumentParser(prog='kovan', description='A local control room for parallel Claude Code sessions.')
     p.add_argument('--dir', action='append', default=None, metavar='PATH',
                    help='project directory whose sessions to show (repeatable; default: current directory)')
     p.add_argument('--note', action='append', default=None, metavar='FILE',
                    help='markdown file to show in the Notes tab, e.g. a journal or TODO (repeatable)')
     p.add_argument('--port', type=int, default=None, help='port on 127.0.0.1 (default %d, demo %d)' % (DEFAULT_PORT, DEMO_PORT))
     p.add_argument('--permission-mode', choices=PERMISSION_MODES, default=defaults.get('permission_mode', 'default'),
-                   help='permission mode for sessions pano starts (default: default = ask before acting)')
+                   help='permission mode for sessions kovan starts (default: default = ask before acting)')
     p.add_argument('--claude-bin', default=defaults.get('claude_bin'), help='path to the claude executable')
-    p.add_argument('--claude-home', default=defaults.get('claude_home') or os.environ.get('PANO_CLAUDE_HOME') or
+    p.add_argument('--claude-home', default=defaults.get('claude_home') or os.environ.get('KOVAN_CLAUDE_HOME') or
                    os.path.join(HOME, '.claude'), help=argparse.SUPPRESS)
     p.add_argument('--demo', action='store_true', help='run with synthetic sessions (read-only; nothing real is touched)')
     p.add_argument('--window', action='store_true', help='open in a chromeless browser window')
     p.add_argument('--no-browser', action='store_true', help='do not open a browser')
     p.add_argument('--foreground', action='store_true', help='run in this terminal instead of in the background')
     p.add_argument('--stop', action='store_true', help='stop the web server (sessions keep running in the holder)')
-    p.add_argument('--stop-all', action='store_true', help='release pano sessions, stop the holder and the web server')
-    p.add_argument('--version', action='version', version='pano ' + __version__)
+    p.add_argument('--stop-all', action='store_true', help='release kovan sessions, stop the holder and the web server')
+    p.add_argument('--version', action='version', version='kovan ' + __version__)
     return p
 
 
@@ -1996,17 +1996,17 @@ def main(argv=None):
 
     if args.stop or args.stop_all:
         if args.stop_all:
-            print('pano sessions released' if close_holder(args.port) else 'holder was not running')
+            print('kovan sessions released' if close_holder(args.port) else 'holder was not running')
         try:
             with open(pid_file(args.port)) as f:
                 pid = int(f.read().strip())
         except (OSError, ValueError):
-            print('pano is not running on port %d' % args.port)
+            print('kovan is not running on port %d' % args.port)
             return
         if is_running(args.port):
             os.kill(pid, signal.SIGTERM)
             holder_up = os.path.exists(holder_socket(args.port))
-            print('pano stopped (pid %d)%s' % (pid, '; pano sessions keep running in the holder'
+            print('kovan stopped (pid %d)%s' % (pid, '; kovan sessions keep running in the holder'
                                                     if holder_up and not args.stop_all else ''))
         else:
             print('stale pid file, left alone (pid %d)' % pid)
@@ -2016,8 +2016,8 @@ def main(argv=None):
 
     if not is_running(args.port):
         os.makedirs(STATE_DIR, mode=0o700, exist_ok=True)
-        logf = open(os.path.join(STATE_DIR, 'pano.log'), 'ab')
-        cmd = [sys.executable, '-m', 'pano', '--foreground', '--port', str(args.port),
+        logf = open(os.path.join(STATE_DIR, 'kovan.log'), 'ab')
+        cmd = [sys.executable, '-m', 'kovan', '--foreground', '--port', str(args.port),
                '--permission-mode', args.permission_mode, '--claude-home', args.claude_home]
         for d in args.dir:
             cmd += ['--dir', d]
@@ -2034,7 +2034,7 @@ def main(argv=None):
                 break
             time.sleep(0.5)
         else:
-            print('pano did not start; see %s' % os.path.join(STATE_DIR, 'pano.log'))
+            print('kovan did not start; see %s' % os.path.join(STATE_DIR, 'kovan.log'))
             sys.exit(1)
     print(url)
     if args.window:

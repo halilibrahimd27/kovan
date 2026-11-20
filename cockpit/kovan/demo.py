@@ -1,8 +1,8 @@
-"""Synthetic sessions for ``pano --demo``: a small team working on a fictional shop.
+"""Synthetic sessions for ``kovan --demo``: a small team working on a fictional shop.
 
 Everything here is made up. The transcripts are written in the same on-disk format Claude Code
 uses, into a throwaway directory, so the demo exercises the real reader, store and UI code. Two
-of the sessions are "driven by pano" and simulated in-process (one streams text, one waits for
+of the sessions are "driven by kovan" and simulated in-process (one streams text, one waits for
 an answer); write actions are disabled in demo mode.
 """
 import json
@@ -131,7 +131,7 @@ STREAM_TEXT = (
 
 def build():
     random.seed(7)
-    root = tempfile.mkdtemp(prefix='pano-demo-')
+    root = tempfile.mkdtemp(prefix='kovan-demo-')
     claude_home = os.path.join(root, 'claude')
     project = os.path.join(os.path.expanduser('~'), 'code', 'acme-shop')
     folder = server.project_folder(claude_home, project)
@@ -141,7 +141,7 @@ def build():
     m = 60 * 1000
     ids = {n: sid_for(n) for n in ('api', 'release', 'infra', 'security', 'docs', 'perf', 'deps', 'onboarding')}
 
-    # -- API refactor (driven by pano, streaming)
+    # -- API refactor (driven by kovan, streaming)
     w = Writer(ids['api'], now - 52 * m, 'API refactor')
     w.user('Move the /orders endpoints onto the new service layer. Keep the public API identical and make sure the tests pass.')
     w.say("I'll start by reading the current handlers and the service layer, then move one endpoint at a time so the "
@@ -190,7 +190,7 @@ def build():
     w.save(folder)
     api_context = w.context
 
-    # -- Release prep (driven by pano, waiting for an answer)
+    # -- Release prep (driven by kovan, waiting for an answer)
     w = Writer(ids['release'], now - 34 * m, 'Release prep')
     w.user('Prepare the 2.4 release: changelog, version bump, and a draft announcement.')
     w.bash('List merged pull requests since v2.3.1', 'gh pr list --state merged --search "merged:>2026-11-01" --json number,title',
@@ -333,16 +333,16 @@ def build():
 
 
 class DemoSession(server.ManagedSession):
-    """A pano-driven session simulated in-process (no claude process)."""
+    """A kovan-driven session simulated in-process (no claude process)."""
 
     def write(self, obj):
-        raise server.PanoError('Demo mode is read-only.', 403)
+        raise server.KovanError('Demo mode is read-only.', 403)
 
     def request(self, subtype, params=None, timeout=20):
-        raise server.PanoError('Demo mode is read-only.', 403)
+        raise server.KovanError('Demo mode is read-only.', 403)
 
     def release(self):
-        raise server.PanoError('Demo mode is read-only.', 403)
+        raise server.KovanError('Demo mode is read-only.', 403)
 
 
 DEMO_MODELS = [{'value': 'default', 'name': 'Default (recommended)'}, {'value': 'opus', 'name': 'Opus 5.5'},

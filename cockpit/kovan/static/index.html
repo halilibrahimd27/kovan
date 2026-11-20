@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>pano</title>
+<title>kovan</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='14' height='14' rx='4' fill='%231f1d1a'/%3E%3Ccircle cx='5' cy='5.5' r='1.6' fill='%23d97757'/%3E%3Ccircle cx='5' cy='10.5' r='1.6' fill='%234f8fdc'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -101,7 +101,7 @@ h2.section:first-child{margin-top:0}
 @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--busy) 60%,transparent)}100%{box-shadow:0 0 0 7px transparent}}
 @media (prefers-reduced-motion:reduce){.pill.busy i,.dot.busy{animation:none}}
 .place{font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
-.place.p-pano{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));background:var(--accent-soft)}
+.place.p-kovan{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));background:var(--accent-soft)}
 .swatch{width:10px;height:10px;border-radius:3px;flex:none;display:inline-block}
 .swatch.big{width:14px;height:14px;border-radius:4px}
 /* chat */
@@ -400,7 +400,7 @@ dialog.palette{padding:0;width:min(640px,94vw);top:12vh;margin-top:0;overflow:hi
 <div class="app">
   <aside class="side" id="side">
     <div class="side-top">
-      <div class="brand" title="Watching: __DIRS__"><svg width="20" height="20" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="4" fill="var(--text)"/><circle cx="5" cy="5.5" r="1.6" fill="#d97757"/><rect x="7.6" y="4.7" width="5" height="1.6" rx=".8" fill="var(--bg)"/><circle cx="5" cy="10.5" r="1.6" fill="#4f8fdc"/><rect x="7.6" y="9.7" width="3.6" height="1.6" rx=".8" fill="var(--bg)"/></svg>pano<small id="dirs">__DIRS__</small></div>
+      <div class="brand" title="Watching: __DIRS__"><svg width="20" height="20" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="4" fill="var(--text)"/><circle cx="5" cy="5.5" r="1.6" fill="#d97757"/><rect x="7.6" y="4.7" width="5" height="1.6" rx=".8" fill="var(--bg)"/><circle cx="5" cy="10.5" r="1.6" fill="#4f8fdc"/><rect x="7.6" y="9.7" width="3.6" height="1.6" rx=".8" fill="var(--bg)"/></svg>kovan<small id="dirs">__DIRS__</small></div>
       <div class="side-buttons"><button class="new-btn" data-new>＋ New session</button><button class="search-btn" data-palette title="Jump to a session, run an action, search everything">🔍 <kbd>⌘K</kbd></button></div>
     </div>
     <div class="side-list" id="side-list"></div>
@@ -479,7 +479,7 @@ window.addEventListener('error',e=>{window.__errors=(window.__errors||[]).concat
 const TOKEN='__TOKEN__';
 const COLORS=['#d97757','#4f8fdc','#2fa872','#a979d6','#cf9a2e','#2fabb3','#d9668f','#7f9a2f','#8193ad','#c0703a','#5c7ae0','#b05fb8'];
 const STATUS={working:['Working','busy'],awaiting:['Needs your answer','ask'],starting:['Starting','idle'],your_turn:['Your turn','wait'],idle:['Idle','idle'],closed:['Closed','off'],other:['Waiting','wait']};
-const PLACE={pano:'In pano',vscode:'In VS Code',elsewhere:'Elsewhere',closed:'Closed',archive:'Archive'};
+const PLACE={kovan:'In kovan',vscode:'In VS Code',elsewhere:'Elsewhere',closed:'Closed',archive:'Archive'};
 const VIEWS=['chat','overview','messages','feed','notes'];
 const KINDS=[['prompt','Your prompts'],['reply','Replies'],['sent','Sent messages'],['received','Received messages'],['notice','Notices'],['tool','Tool calls']];
 const KIND_LABEL={prompt:'your prompt',reply:'reply',sent:'message sent',received:'message received',tool:'tool call',notice:'notice',note:'note'};
@@ -491,10 +491,10 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
 function storeJson(k,d){try{return JSON.parse(store(k)||'')||d;}catch(e){return d;}}
-const S={d:null,rev:'',view:store('pano.view')||'chat',sel:store('pano.sel')||null,detail:null,detailRev:'',
-  live:{},pending:{},drafts:{},atts:[],seen:storeJson('pano.seen',{}),
+const S={d:null,rev:'',view:store('kovan.view')||'chat',sel:store('kovan.sel')||null,detail:null,detailRev:'',
+  live:{},pending:{},drafts:{},atts:[],seen:storeJson('kovan.seen',{}),
   open:new Set(),closed:new Set(),openTools:new Set(),toolCache:{},feedKinds:new Set(['prompt','reply','sent','received','notice']),feedSession:'',msgSession:'',showSub:false,
-  notes:null,notesAt:0,err:null,info:store('pano.info')==='1',notify:store('pano.notify')==='1',allClosed:false,archiveOpen:false,connected:false,slashSel:0,
+  notes:null,notesAt:0,err:null,info:store('kovan.info')==='1',notify:store('kovan.notify')==='1',allClosed:false,archiveOpen:false,connected:false,slashSel:0,
   renaming:null,headSig:'',focus:null};
 if(!VIEWS.includes(S.view))S.view='chat';
 
@@ -539,7 +539,7 @@ function md(src){const L=String(src||'').split('\n'),o=[];let code=null,list=nul
 
 /* ---------------- server */
 async function get(path){const r=await fetch(path);let j={};try{j=await r.json();}catch(e){}if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
-async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Pano-Token':TOKEN},body:JSON.stringify(body)});let j={};try{j=await r.json();}catch(e){}if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
+async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Kovan-Token':TOKEN},body:JSON.stringify(body)});let j={};try{j=await r.json();}catch(e){}if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
 
 /* ---------------- toasts, notifications, confirm */
 function toast(title,text,sid,kind){
@@ -590,7 +590,7 @@ function connect(){
   es.onerror=()=>{S.connected=false;renderConn();};
 }
 function renderConn(){const bad=!S.connected||S.err;$('#live-dot').classList.toggle('down',!!bad);
-  $('#conn').textContent=S.err?S.err:(S.connected?(S.d&&!S.d.demo&&S.d.holder_connected===false&&S.d.sessions.some(o=>o.place==='pano')?'live · holder offline':'live'):'reconnecting…');
+  $('#conn').textContent=S.err?S.err:(S.connected?(S.d&&!S.d.demo&&S.d.holder_connected===false&&S.d.sessions.some(o=>o.place==='kovan')?'live · holder offline':'live'):'reconnecting…');
   $('#notify-btn').classList.toggle('on',S.notify);$('#demo-pill').hidden=!(S.d&&S.d.demo);renderLimits();}
 function renderLimits(){const l=S.d&&S.d.limit,el=$('#limits');if(!l||(!l.five_hour&&!l.seven_day)){el.hidden=true;return;}el.hidden=false;
   const w=(label,x)=>{if(!x||x.percent==null)return'';const r=x.resets_at?new Date(x.resets_at*1000):null;return '<span class="l" title="'+label+' usage limit'+(r?' · resets '+clock(r.getTime()):'')+'">'+label+' <span class="bar"><i class="'+level(x.percent)+'" style="width:'+Math.min(100,x.percent)+'%"></i></span> '+x.percent+'%</span>';};
@@ -609,7 +609,7 @@ async function refreshNow(){
     if(S.view==='chat'&&S.sel)await refreshDetail();
     if(S.view==='notes'&&await loadNotes())render();
     S.err=null;
-  }catch(e){S.err='cannot reach the pano server';}
+  }catch(e){S.err='cannot reach the kovan server';}
   finally{rBusy=false;renderConn();updateTitle();if(rAgain){rAgain=false;refresh(50);}}
 }
 function diffToasts(old,cur){
@@ -618,13 +618,13 @@ function diffToasts(old,cur){
   for(const m of cur.messages){if(had.has(m.id)||m.subagent)continue;const a=sess(m.from),b=sess(m.to);
     toast((a?a.name:(m.from_name||'?'))+' → '+(b?b.name:(m.to_name||'?')),m.summary||plain(m.text).slice(0,140),m.to||m.from,'msg');}
   const prev=new Map(old.sessions.map(o=>[o.sid,o]));
-  for(const o of cur.sessions){const p=prev.get(o.sid);if(!p||o.place==='pano')continue;
+  for(const o of cur.sessions){const p=prev.get(o.sid);if(!p||o.place==='kovan')continue;
     if(p.status==='working'&&o.status!=='working'&&o.live&&!visible(o.sid))toast(o.name+' ('+PLACE[o.place]+') replied',o.last_reply?plain(o.last_reply.text).slice(0,160):'',o.sid);}
 }
-function saveSeen(){store('pano.seen',JSON.stringify(S.seen));}
+function saveSeen(){store('kovan.seen',JSON.stringify(S.seen));}
 function unread(o){return o.sid!==S.sel&&o.last_reply&&o.last_reply.ts>(S.seen[o.sid]||0);}
 function markSeen(){const o=sess(S.sel);if(o&&visible(o.sid)&&o.last_reply&&S.seen[o.sid]!==o.last_reply.ts){S.seen[o.sid]=o.last_reply.ts;saveSeen();}}
-function updateTitle(){const os=S.d?S.d.sessions:[];const n=os.filter(o=>unread(o)||o.status==='awaiting').length;document.title=(n?'('+n+') ':'')+'pano';}
+function updateTitle(){const os=S.d?S.d.sessions:[];const n=os.filter(o=>unread(o)||o.status==='awaiting').length;document.title=(n?'('+n+') ':'')+'kovan';}
 
 /* ---------------- render */
 function render(){
@@ -648,15 +648,15 @@ function itemHTML(o){
   const t=o.status==='working'&&o.turn_started_at?relSpan(o.turn_started_at,'dur'):relSpan(o.last_activity,'short');
   return '<button class="item'+(o.sid===S.sel&&S.view==='chat'?' selected':'')+(unread(o)?' unread':'')+'" data-open="'+o.sid+'" title="'+esc(o.name)+'"><span class="dot '+cls+'" style="--c:'+colorI(o.color)+'"></span><span class="i-name">'+esc(o.name)+'</span><span class="i-time">'+t+'</span><span class="i-sub">'+sub+'</span></button>';
 }
-function sideGroups(){const os=S.d?S.d.sessions:[];const g={pano:[],vscode:[],elsewhere:[],closed:[],archive:[]};os.forEach(o=>{const k=(o.archived&&o.place==='closed')?'archive':o.place;(g[k]||g.closed).push(o);});return g;}
+function sideGroups(){const os=S.d?S.d.sessions:[];const g={kovan:[],vscode:[],elsewhere:[],closed:[],archive:[]};os.forEach(o=>{const k=(o.archived&&o.place==='closed')?'archive':o.place;(g[k]||g.closed).push(o);});return g;}
 function renderSide(){
   if(!S.d){$('#side-list').innerHTML='<div class="empty">Loading…</div>';return;}
   const g=sideGroups();let h='';
-  for(const k of ['pano','vscode','elsewhere','closed','archive']){
-    let l=g[k];if(!l.length&&k!=='pano')continue;
+  for(const k of ['kovan','vscode','elsewhere','closed','archive']){
+    let l=g[k];if(!l.length&&k!=='kovan')continue;
     if(k==='archive'){h+='<div class="group click" data-archive><span>'+(S.archiveOpen?'▾':'▸')+' Archive</span><span>'+l.length+'</span></div>'+(S.archiveOpen?l.map(itemHTML).join(''):'');continue;}
     let more='';if(k==='closed'&&!S.allClosed&&l.length>8){more='<button class="more" data-all-closed>+ '+(l.length-8)+' more closed sessions</button>';l=l.slice(0,8);}
-    h+='<div class="group"><span>'+PLACE[k]+'</span><span>'+g[k].length+'</span></div>'+(l.length?l.map(itemHTML).join(''):'<div class="group-empty">Nothing running in pano yet. Pick a closed session and choose “Continue in pano”, or start a new one.</div>')+more;
+    h+='<div class="group"><span>'+PLACE[k]+'</span><span>'+g[k].length+'</span></div>'+(l.length?l.map(itemHTML).join(''):'<div class="group-empty">Nothing running in kovan yet. Pick a closed session and choose “Continue in kovan”, or start a new one.</div>')+more;
   }
   $('#side-list').innerHTML=h;
 }
@@ -666,13 +666,13 @@ function renderChat(){
   const o=sess(S.sel);
   $('#welcome').hidden=!!o;$('#chat').hidden=!o;
   if(!o){renderWelcome();return;}
-  $('#chat').classList.toggle('driven',o.place==='pano');
+  $('#chat').classList.toggle('driven',o.place==='kovan');
   renderHead(o);renderComposer(o);renderLive();renderCards();
   if(S.detail&&S.detail.summary&&S.detail.summary.sid===o.sid&&S.info)$('#info').innerHTML=infoHTML(S.detail);
 }
 function renderWelcome(){
   const live=S.d.sessions.filter(o=>o.live);
-  $('#welcome').innerHTML='<h1>Welcome to pano</h1><p>Pick a session on the left, press <kbd>⌘K</kbd> to search, or start a new one. Sessions you close in VS Code can continue here, right where they left off.</p><button class="btn primary" data-new>＋ New session</button>'+
+  $('#welcome').innerHTML='<h1>Welcome to kovan</h1><p>Pick a session on the left, press <kbd>⌘K</kbd> to search, or start a new one. Sessions you close in VS Code can continue here, right where they left off.</p><button class="btn primary" data-new>＋ New session</button>'+
     (live.length?'<div class="w-grid">'+live.map(o=>'<div class="w-card" data-open="'+o.sid+'"><b><span class="swatch" style="background:'+colorI(o.color)+';margin-right:6px"></span>'+esc(o.name)+'</b><small>'+esc((STATUS[o.status]||['?'])[0])+' · '+PLACE[o.place]+'</small></div>').join('')+'</div>':'');
 }
 function managedOf(o){return (S.detail&&S.detail.summary&&S.detail.summary.sid===o.sid&&S.detail.managed)||o.managed||{};}
@@ -687,11 +687,11 @@ function ctxHTML(o,m){let p,tip,approx='';
   return '<span class="ctx" title="'+esc(tip)+'">context <span class="bar"><i class="'+level(p)+'" style="width:'+Math.max(2,Math.min(100,p))+'%"></i></span>'+approx+p+'%</span>';}
 function renderHead(o){
   if(S.renaming===o.sid&&document.activeElement&&document.activeElement.id==='name-input')return;
-  const m=managedOf(o),tasks=runningTasks(o),driven=o.place==='pano';
+  const m=managedOf(o),tasks=runningTasks(o),driven=o.place==='kovan';
   const sig=JSON.stringify([o.sid,o.name,o.status,o.place,o.model,o.effort,o.archived,o.context_tokens,o.turn_started_at,m.permission_mode,m.context,(m.models||[]).length,tasks,S.info,S.renaming]);
   if(sig===S.headSig&&$('#c-head').innerHTML)return;S.headSig=sig;
   const[label,cls]=STATUS[o.status]||['?','idle'];
-  const title=S.renaming===o.sid?'<input class="name-input" id="name-input" value="'+esc(o.name)+'" maxlength="80" title="Enter to save · Esc to cancel">':'<h2 title="'+esc(o.name)+'">'+esc(o.name)+'</h2><button class="pencil" data-rename title="'+(driven?'Rename the session':'Rename (shown in pano only)')+'">✎</button>';
+  const title=S.renaming===o.sid?'<input class="name-input" id="name-input" value="'+esc(o.name)+'" maxlength="80" title="Enter to save · Esc to cancel">':'<h2 title="'+esc(o.name)+'">'+esc(o.name)+'</h2><button class="pencil" data-rename title="'+(driven?'Rename the session':'Rename (shown in kovan only)')+'">✎</button>';
   let c='';
   if(driven){c+=selectHTML('model','Model',modelOptions(m,o));
     c+=selectHTML('effort','Effort',EFFORTS.map(([v,l])=>({v,l,on:o.effort===v})).concat(o.effort&&!EFFORTS.some(e=>e[0]===o.effort)?[{v:o.effort,l:o.effort,on:true}]:[]).concat(!o.effort?[{v:'',l:'—',on:true}]:[]));
@@ -701,9 +701,9 @@ function renderHead(o){
   if(driven)c+='<button class="btn small" data-compact title="Summarize the conversation to free context (/compact)">Compact</button>';
   if(tasks)c+='<button class="chip on" data-tasks title="Show background tasks">⚙ '+tasks+' background task'+(tasks>1?'s':'')+'</button>';
   $('#c-head').innerHTML='<span class="swatch big" style="background:'+colorI(o.color)+'"></span><div class="c-title"><div class="c-row">'+title+'<span class="pill '+cls+'"><i></i>'+label+(o.status==='working'&&o.turn_started_at?' · '+relSpan(o.turn_started_at,'dur'):'')+'</span><span class="place p-'+o.place+'">'+PLACE[o.place]+'</span></div><div class="c-controls">'+c+'</div></div>'+
-    '<div class="c-actions">'+(o.place==='closed'?'<button class="btn primary" data-takeover>Continue in pano</button><button class="btn hide-narrow" data-archive-toggle>'+(o.archived?'Unarchive':'Archive')+'</button>':'')+
+    '<div class="c-actions">'+(o.place==='closed'?'<button class="btn primary" data-takeover>Continue in kovan</button><button class="btn hide-narrow" data-archive-toggle>'+(o.archived?'Unarchive':'Archive')+'</button>':'')+
     '<button class="btn icon'+(S.info?' on':'')+'" data-info title="Details: files, background tasks, subagents, messages">ⓘ</button>'+
-    (driven?'<button class="btn hide-narrow" data-release title="Stop driving this session from pano (you can open it in VS Code afterwards)">Release</button>':'')+'</div>';
+    (driven?'<button class="btn hide-narrow" data-release title="Stop driving this session from kovan (you can open it in VS Code afterwards)">Release</button>':'')+'</div>';
   $('#info').hidden=!S.info;
   if(S.renaming===o.sid){const i=$('#name-input');i.focus();i.select();}
 }
@@ -711,15 +711,15 @@ function renderComposer(o){
   const busy=o.status==='working'||o.status==='awaiting';
   $('#warn').innerHTML=o.conflict?'<div class="warn"><b>Careful:</b> this session is also open somewhere else (probably VS Code). Writing from two places will tangle the history — close one of them.</div>':'';
   const banner=$('#banner'),comp=$('#composer'),quick=$('#quick');
-  if(o.place==='pano'){banner.hidden=true;comp.hidden=false;
+  if(o.place==='kovan'){banner.hidden=true;comp.hidden=false;
     $('#input').placeholder=o.status==='starting'?'Starting… you can type already':(busy?'It is working — messages you send now are queued…':'Message '+o.name+'…');
     $('#stop-btn').hidden=!busy;$('#send-btn').textContent=busy?'Queue':'Send';updateSend();
     const items=(S.d&&S.d.quick_prompts)||[];quick.hidden=false;
     const sig=JSON.stringify(items);if(quick.dataset.sig!==sig){quick.dataset.sig=sig;quick.innerHTML=items.map((x,i)=>'<button class="qp" data-quick="'+i+'" title="'+esc(x)+'">'+esc(x)+'</button>').join('')+'<button class="qp edit" data-quick-edit title="Edit quick prompts">✎ edit</button>';}
   }else{comp.hidden=true;quick.hidden=true;banner.hidden=false;
-    if(o.place==='vscode')banner.innerHTML='<span>This session is open <b>in VS Code</b> and is watched live. To write from here, close its tab in VS Code — a <b>Continue in pano</b> button appears the moment it closes.</span>';
+    if(o.place==='vscode')banner.innerHTML='<span>This session is open <b>in VS Code</b> and is watched live. To write from here, close its tab in VS Code — a <b>Continue in kovan</b> button appears the moment it closes.</span>';
     else if(o.place==='elsewhere')banner.innerHTML='<span>This session is open somewhere else (a terminal, for example). Close it there to continue here.</span>';
-    else banner.innerHTML='<span>This session is closed. Continue it in pano with its full history and memory.</span><button class="btn primary" data-takeover>Continue in pano</button>';
+    else banner.innerHTML='<span>This session is closed. Continue it in kovan with its full history and memory.</span><button class="btn primary" data-takeover>Continue in kovan</button>';
   }
 }
 function eventHTML(e){
@@ -821,8 +821,8 @@ function renderPending(){const l=S.pending[S.sel]||[];
 function renderLive(){
   const o=sess(S.sel);const box=$('#c-live');if(!o){box.innerHTML='';return;}
   const l=S.live[S.sel];let h='';
-  if(o.place==='pano'&&l&&l.permissions&&l.permissions.length){h='<div class="working" style="color:var(--ask)">⏳ <span>Waiting for your answer — see the card below.</span></div>';}
-  else if(o.place==='pano'&&l){
+  if(o.place==='kovan'&&l&&l.permissions&&l.permissions.length){h='<div class="working" style="color:var(--ask)">⏳ <span>Waiting for your answer — see the card below.</span></div>';}
+  else if(o.place==='kovan'&&l){
     if(l.text)h+='<div class="m m-claude streaming"><div class="md">'+md(l.text)+(l.ended?'':'<span class="caret-blink"></span>')+'</div></div>';
     if((l.status==='working'||o.status==='working')&&!(l.text&&!l.ended)){
       h+='<div class="working">'+(l.tool?'<span class="spinner"></span><span>'+esc(l.tool.text)+'</span>':'<span class="dots"><i></i><i></i><i></i></span><span>'+(l.statusText?esc(l.statusText):(l.thinking?'Thinking':'Working'))+'</span>')+' '+relSpan(l.turn||o.turn_started_at,'dur')+'</div>';}
@@ -832,7 +832,7 @@ function renderLive(){
 }
 /* permission & question cards */
 function renderCards(){
-  const box=$('#cards');const o=sess(S.sel);const l=S.live[S.sel];const items=(o&&o.place==='pano'&&l&&l.permissions)||[];
+  const box=$('#cards');const o=sess(S.sel);const l=S.live[S.sel];const items=(o&&o.place==='kovan'&&l&&l.permissions)||[];
   const sig=S.sel+'|'+items.map(x=>x.id).join(',');if(box.dataset.sig===sig)return;box.dataset.sig=sig;
   box.innerHTML=items.map(cardHTML).join('');
 }
@@ -855,7 +855,7 @@ function taskHTML(t,driven){const running=t.status==='running';const cls=running
   const label={running:'running',completed:'done',failed:'failed',killed:'stopped',unknown:'unknown'}[t.status]||t.status;
   return '<li class="task"><div class="tr"><span class="pill '+cls+'" style="font-size:11px;padding:1px 7px"><i></i>'+esc(label)+'</span><code>'+esc(t.id)+'</code>'+(t.ts?relSpan(t.ts,'short'):'')+'</div><span class="s" style="font-size:12.5px">'+esc(t.text||t.summary||'')+'</span><div class="tr"><button class="btn small" data-task-output="'+esc(t.id)+'">Output</button>'+(driven&&running?'<button class="btn small danger" data-task-stop="'+esc(t.id)+'">Stop</button>':'')+'</div></li>';}
 function infoHTML(j){
-  const o=j.summary,driven=o.place==='pano';
+  const o=j.summary,driven=o.place==='kovan';
   const meta='<div class="meta">'+[['Started',clock(o.started_at)],['Last activity',relSpan(o.last_activity)||'—'],['Prompts',o.prompt_count],['Tool calls',o.tool_count],['Files',o.file_count],['Context',tok(o.context_tokens)],['Model',esc(o.model||'—')],['Session','<code>'+o.sid.slice(0,8)+'</code>']].map(([a,b])=>'<div><span>'+a+'</span><b>'+b+'</b></div>').join('')+'</div>';
   const tasks=(j.tasks||[]);const tl=tasks.length?'<ul>'+tasks.slice(0,15).map(t=>taskHTML(t,driven)).join('')+'</ul>':'<div class="muted">No background tasks.</div>';
   const files=j.files.length?'<ul>'+j.files.slice(0,50).map(f=>'<li title="'+esc(f.path)+'"><span class="p">'+esc(shortPath(f.path))+'</span>'+relSpan(f.ts,'short')+'</li>').join('')+'</ul>':'<div class="muted">No files edited.</div>';
@@ -888,7 +888,7 @@ function addFiles(files){
     const r=new FileReader();r.onload=()=>{const u=String(r.result);S.atts.push({type:f.type,data:u.slice(u.indexOf(',')+1),url:u});renderAtts();};r.readAsDataURL(f);}
 }
 async function send(){
-  const t=$('#input'),text=t.value.trim(),o=sess(S.sel);if((!text&&!S.atts.length)||!o||o.place!=='pano')return;
+  const t=$('#input'),text=t.value.trim(),o=sess(S.sel);if((!text&&!S.atts.length)||!o||o.place!=='kovan')return;
   const atts=S.atts.slice(),p={text,images:atts.length,ts:Date.now()};
   (S.pending[o.sid]=S.pending[o.sid]||[]).push(p);
   t.value='';S.atts=[];S.drafts[o.sid]='';renderAtts();grow();closeSlash();stick=true;renderPending();stickDown();
@@ -897,7 +897,7 @@ async function send(){
 }
 async function act(path,body,ok){try{const r=await post(path,Object.assign({sid:S.sel},body||{}));if(ok)toast(ok);refresh(0);return r;}catch(e){toast('Could not do that',e.message,null,'err');}}
 function interrupt(){if(S.sel)act('/api/interrupt');}
-async function takeover(sid){try{await post('/api/takeover',{sid});toast('Opening in pano',(sess(sid)||{}).name||'',sid);refresh(0);}catch(e){toast('Could not open it',e.message,sid,'err');}}
+async function takeover(sid){try{await post('/api/takeover',{sid});toast('Opening in kovan',(sess(sid)||{}).name||'',sid);refresh(0);}catch(e){toast('Could not open it',e.message,sid,'err');}}
 function release(){const o=sess(S.sel);if(!o)return;
   const go=async()=>{try{await post('/api/release',{sid:o.sid});toast(o.name+' released','You can open it in VS Code now, or continue here again later.',o.sid);}catch(e){toast('Could not release it',e.message,null,'err');}};
   if(o.status==='working'||o.status==='awaiting')confirmBox('Release this session?','<p><b>'+esc(o.name)+'</b> is working right now. Releasing it may cut the current task short.</p>','Release anyway',go);else go();}
@@ -929,7 +929,7 @@ function pickSlash(name){const t=$('#input');t.value='/'+name+' ';closeSlash();t
 const P={items:[],sel:0,timer:null,result:null,q:''};
 function openPalette(){const d=$('#palette');if(!d.open)d.showModal();const i=$('#p-input');i.value='';P.q='';P.result=null;P.sel=0;renderPalette();i.focus();}
 function paletteItems(){
-  const q=folded(P.q.trim());const g=sideGroups();const order=[].concat(g.pano,g.vscode,g.elsewhere,g.closed,g.archive);
+  const q=folded(P.q.trim());const g=sideGroups();const order=[].concat(g.kovan,g.vscode,g.elsewhere,g.closed,g.archive);
   const ss=order.filter(o=>!q||folded(o.name+' '+(o.topic||'')+' '+o.former_names.join(' ')).includes(q)).slice(0,q?12:9);
   const acts=[['Start a new session','new'],['Overview','v:overview'],['Messages','v:messages'],['Activity','v:feed']].concat(S.d&&S.d.notes_available?[['Notes','v:notes']]:[]).concat([['Edit quick prompts','quick'],['Toggle theme','theme']]).filter(([a])=>!q||folded(a).includes(q));
   const l=[];ss.forEach(o=>l.push({kind:'session',o}));acts.forEach(([a,k])=>l.push({kind:'action',a,k}));
@@ -1007,26 +1007,26 @@ function renderFeed(){
 }
 async function loadNotes(force){if(!force&&S.notes&&Date.now()-S.notesAt<30000)return false;S.notes=(await get('/api/notes')).notes;S.notesAt=Date.now();return true;}
 function renderNotes(){if(!S.notes){$('#notes').innerHTML='<div class="empty">Loading…</div>';loadNotes().then(()=>S.view==='notes'&&renderNotes());return;}
-  if(!S.notes.length){$('#notes').innerHTML='<div class="empty">No notes configured. Start pano with <code>--note JOURNAL.md</code> to show files here.</div>';return;}
+  if(!S.notes.length){$('#notes').innerHTML='<div class="empty">No notes configured. Start kovan with <code>--note JOURNAL.md</code> to show files here.</div>';return;}
   $('#notes').innerHTML=S.notes.map(n=>'<div class="box note-card"><div class="note-head"><b>'+esc(n.title)+'</b><span>'+esc(n.path)+(n.modified?' · updated '+relSpan(n.modified):'')+'</span></div>'+
     (n.kind==='journal'?n.entries.map((x,i)=>{const k='n-'+n.title+'-'+x.heading;const open=S.open.has(k)||(i===0&&!S.closed.has(k));return '<details class="entry" data-k="'+esc(k)+'"'+(open?' open':'')+'><summary>'+inl(x.heading)+'</summary><div class="md">'+md(x.body)+'</div></details>';}).join(''):'<div class="doc md">'+md(n.content)+'</div>')+'</div>').join('');}
 
 /* ---------------- navigation */
 function writeHash(){let h='#'+S.view;if(S.view==='chat'&&S.sel)h='#chat/'+S.sel;try{history.replaceState(null,'',location.search+h);}catch(e){}}
-function showView(v){S.view=v;store('pano.view',v);S.rev='';writeHash();render();refresh(0);document.body.classList.remove('side-open');}
+function showView(v){S.view=v;store('kovan.view',v);S.rev='';writeHash();render();refresh(0);document.body.classList.remove('side-open');}
 function openSession(sid){
   const t=$('#input');if(S.sel)S.drafts[S.sel]=t.value;
-  const changed=S.sel!==sid;S.sel=sid;store('pano.sel',sid);S.view='chat';store('pano.view','chat');
+  const changed=S.sel!==sid;S.sel=sid;store('kovan.sel',sid);S.view='chat';store('kovan.view','chat');
   if(changed){S.detail=null;S.detailRev='';S.headSig='';S.renaming=null;$('#c-list').innerHTML='';$('#c-live').innerHTML='';$('#cards').innerHTML='';$('#cards').dataset.sig='';$('#c-truncated').innerHTML='';S.atts=[];renderAtts();t.value=S.drafts[sid]||'';grow();closeSlash();}
   writeHash();render();renderPending();refreshDetail(true).catch(()=>{});document.body.classList.remove('side-open');
-  setTimeout(()=>{const o=sess(sid);if(o&&o.place==='pano'&&!S.focus)t.focus();},0);
+  setTimeout(()=>{const o=sess(sid);if(o&&o.place==='kovan'&&!S.focus)t.focus();},0);
 }
 function readHash(){const h=decodeURIComponent(location.hash.slice(1));const m=h.match(/^chat\/([0-9a-f-]{36})$/);
   if(m){S.sel=m[1];S.view='chat';}else if(VIEWS.includes(h))S.view=h;}
 function toggle(set,k){set.has(k)?set.delete(k):set.add(k);}
 function newDialog(){const d=$('#new-dialog');const dirs=(S.d&&S.d.dirs)||[];$('#dir-label').hidden=dirs.length<2;$('#dir-select').innerHTML=dirs.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');d.showModal();d.querySelector('[name=name]').focus();}
 function quickDialog(){const d=$('#quick-dialog');d.querySelector('[name=items]').value=((S.d&&S.d.quick_prompts)||[]).join('\n');d.showModal();}
-function toggleTheme(){const c=document.documentElement.dataset.theme;const dark=c?c==='dark':matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=dark?'light':'dark';store('pano.theme',document.documentElement.dataset.theme);}
+function toggleTheme(){const c=document.documentElement.dataset.theme;const dark=c?c==='dark':matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=dark?'light':'dark';store('kovan.theme',document.documentElement.dataset.theme);}
 function useQuick(i){const x=((S.d&&S.d.quick_prompts)||[])[i];if(x==null)return;const t=$('#input');t.value=t.value.trim()?t.value.replace(/\s*$/,'\n')+x:x;grow();updateSend();t.focus();}
 
 /* ---------------- listeners */
@@ -1044,7 +1044,7 @@ document.addEventListener('click',e=>{
   if(t.closest('[data-release]')){release();return;}
   if(t.closest('[data-archive-toggle]')){const o=sess(S.sel);if(o)act('/api/archive',{archived:!o.archived},o.archived?'Unarchived':'Archived');return;}
   if(t.closest('[data-compact]')){const o=sess(S.sel);confirmBox('Compact the context?','<p>The conversation of <b>'+esc(o?o.name:'')+'</b> will be summarized to free up context (<code>/compact</code>). The full transcript stays on disk, but Claude will only remember the summary.</p>','Compact',()=>act('/api/compact',null,'Compacting…'));return;}
-  if(t.closest('[data-tasks]')){if(!S.info){S.info=true;store('pano.info','1');S.headSig='';}const o=sess(S.sel);if(o)renderHead(o);if(S.detail)$('#info').innerHTML=infoHTML(S.detail);$('#info').hidden=false;const b=$('#info-tasks');if(b)b.scrollIntoView({block:'start'});return;}
+  if(t.closest('[data-tasks]')){if(!S.info){S.info=true;store('kovan.info','1');S.headSig='';}const o=sess(S.sel);if(o)renderHead(o);if(S.detail)$('#info').innerHTML=infoHTML(S.detail);$('#info').hidden=false;const b=$('#info-tasks');if(b)b.scrollIntoView({block:'start'});return;}
   if(t.closest('[data-rename]')){S.renaming=S.sel;S.headSig='';renderHead(sess(S.sel));return;}
   const rw=t.closest('[data-rewind]');if(rw){rewind(rw.dataset.rewind);return;}
   const to=t.closest('[data-task-output]');if(to){taskOutput(to.dataset.taskOutput);return;}
@@ -1052,7 +1052,7 @@ document.addEventListener('click',e=>{
   const qp=t.closest('[data-quick]');if(qp){useQuick(+qp.dataset.quick);return;}
   if(t.closest('[data-quick-edit]')){quickDialog();return;}
   if(t.closest('[data-tool-open]')){toggleTool(t.closest('li.call'));return;}
-  if(t.closest('[data-info]')){S.info=!S.info;store('pano.info',S.info?'1':'0');S.headSig='';$('#info').hidden=!S.info;if(S.info&&S.detail)$('#info').innerHTML=infoHTML(S.detail);renderHead(sess(S.sel));return;}
+  if(t.closest('[data-info]')){S.info=!S.info;store('kovan.info',S.info?'1':'0');S.headSig='';$('#info').hidden=!S.info;if(S.info&&S.detail)$('#info').innerHTML=infoHTML(S.detail);renderHead(sess(S.sel));return;}
   if(t.closest('[data-all-closed]')){S.allClosed=true;renderSide();return;}
   if(t.closest('[data-archive]')){S.archiveOpen=!S.archiveOpen;renderSide();return;}
   const ar=t.closest('[data-att-remove]');if(ar){S.atts.splice(+ar.dataset.attRemove,1);renderAtts();return;}
@@ -1060,7 +1060,7 @@ document.addEventListener('click',e=>{
   const dn=t.closest('[data-deny]');if(dn){const card=dn.closest('.card-ask');const m=card&&card.querySelector('[data-deny-text]');answer(dn.dataset.deny,'deny',null,m?m.value:'');return;}
   const al=t.closest('[data-allow]');if(al){answer(al.dataset.allow,'allow',null,'');return;}
   if(t.id==='theme-btn'){toggleTheme();return;}
-  if(t.id==='notify-btn'){if(!S.notify&&'Notification' in window){Notification.requestPermission().then(p=>{S.notify=p==='granted';store('pano.notify',S.notify?'1':'0');renderConn();if(S.notify)toast('Notifications on','When this tab is in the background you will hear about replies and questions.');});}else{S.notify=false;store('pano.notify','0');renderConn();}return;}
+  if(t.id==='notify-btn'){if(!S.notify&&'Notification' in window){Notification.requestPermission().then(p=>{S.notify=p==='granted';store('kovan.notify',S.notify?'1':'0');renderConn();if(S.notify)toast('Notifications on','When this tab is in the background you will hear about replies and questions.');});}else{S.notify=false;store('kovan.notify','0');renderConn();}return;}
   if(t.id==='attach-btn'){$('#file').click();return;}
   if(t.id==='send-btn'){send();return;}
   if(t.id==='stop-btn'){interrupt();return;}
@@ -1099,7 +1099,7 @@ document.addEventListener('focusin',e=>{if(e.target.classList&&e.target.classLis
 document.addEventListener('keydown',e=>{
   if(e.target&&e.target.id==='name-input'){if(e.key==='Enter'){e.preventDefault();saveName();}else if(e.key==='Escape'){e.preventDefault();S.renaming=null;S.headSig='';renderHead(sess(S.sel));}return;}
   if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){e.preventDefault();openPalette();return;}
-  if(e.ctrlKey&&!e.metaKey&&/^[1-9]$/.test(e.key)){const g=sideGroups();const l=[].concat(g.pano,g.vscode,g.elsewhere,g.closed);const o=l[+e.key-1];if(o){e.preventDefault();openSession(o.sid);}return;}
+  if(e.ctrlKey&&!e.metaKey&&/^[1-9]$/.test(e.key)){const g=sideGroups();const l=[].concat(g.kovan,g.vscode,g.elsewhere,g.closed);const o=l[+e.key-1];if(o){e.preventDefault();openSession(o.sid);}return;}
   if(e.target&&e.target.id==='p-input'){
     if(e.key==='ArrowDown'){e.preventDefault();P.sel=Math.min(P.sel+1,P.items.length-1);renderPalette();}
     else if(e.key==='ArrowUp'){e.preventDefault();P.sel=Math.max(P.sel-1,0);renderPalette();}
@@ -1134,11 +1134,11 @@ window.addEventListener('hashchange',()=>{const s=S.sel;readHash();if(S.view==='
 window.addEventListener('resize',grow);
 
 /* ---------------- start */
-const theme=store('pano.theme');if(theme)document.documentElement.dataset.theme=theme;
+const theme=store('kovan.theme');if(theme)document.documentElement.dataset.theme=theme;
 const POLL=new URLSearchParams(location.search).has('poll');
 readHash();render();
 if(POLL){S.connected=true;setInterval(()=>{if(!document.hidden)refresh(0);},2500);}else connect();
-refreshNow().then(()=>{if(!S.d)return;if(!S.sel||!sess(S.sel)){const first=S.d.sessions.find(o=>o.place==='pano');if(first)openSession(first.sid);else{S.sel=null;render();}}else if(S.view==='chat')openSession(S.sel);});
+refreshNow().then(()=>{if(!S.d)return;if(!S.sel||!sess(S.sel)){const first=S.d.sessions.find(o=>o.place==='kovan');if(first)openSession(first.sid);else{S.sel=null;render();}}else if(S.view==='chat')openSession(S.sel);});
 setInterval(()=>{tickTimes();if(!document.hidden&&!S.connected)refresh(0);},5000);
 setInterval(()=>{if(!document.hidden)refresh(0);},20000);
 </script>

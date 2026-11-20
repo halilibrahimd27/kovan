@@ -9,8 +9,10 @@ name: verify
 on:
   push:
     branches: [main]
+    paths-ignore: ["cockpit/**", ".github/workflows/cockpit.yml"]
   pull_request:
     branches: [main]
+    paths-ignore: ["cockpit/**", ".github/workflows/cockpit.yml"]
 
 permissions:
   contents: read

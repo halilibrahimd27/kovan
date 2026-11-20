@@ -1,11 +1,19 @@
-name: CI
+# Kovan Cockpit — the zero-dependency control room under cockpit/.
+# Independent of the swarm gauntlet (verify.yml): no Postgres, no uv, no Docker.
+name: cockpit
 
 on:
   push:
+    paths: ["cockpit/**", ".github/workflows/cockpit.yml"]
   pull_request:
+    paths: ["cockpit/**", ".github/workflows/cockpit.yml"]
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    working-directory: cockpit
 
 jobs:
   test:
@@ -31,11 +39,11 @@ jobs:
       - name: Check the UI script parses
         run: |
           python - <<'EOF'
-          s = open('pano/static/index.html').read()
+          s = open('kovan/static/index.html').read()
           open('ui.js', 'w').write(s[s.index('<script>') + 8:s.index('</script>')])
           EOF
           node --check ui.js
       - name: Package installs and runs
         run: |
           python -m pip install .
-          pano --version
+          kovan --version

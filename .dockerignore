@@ -25,3 +25,5 @@ docs
 PROGRESS.md
 BLOCKERS.md
 OPERATOR_HANDBOOK.md
+# Kovan Cockpit lives outside the swarm image (it has its own tiny image)
+cockpit

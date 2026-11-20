@@ -12,7 +12,7 @@ from http.server import ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pano import demo, server  # noqa: E402
+from kovan import demo, server  # noqa: E402
 
 
 def setup_demo():
@@ -65,7 +65,7 @@ class StoreTests(unittest.TestCase):
 
     def test_sessions_places_and_statuses(self):
         self.assertEqual(len(self.state['sessions']), 8)
-        self.assertEqual(self.by_name['API refactor']['place'], 'pano')
+        self.assertEqual(self.by_name['API refactor']['place'], 'kovan')
         self.assertEqual(self.by_name['Release prep']['status'], 'awaiting')
         self.assertEqual(self.by_name['Infra']['place'], 'vscode')
         self.assertEqual(self.by_name['Infra']['status'], 'working')
@@ -102,7 +102,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(detail['tasks'][0]['status'], 'running')
         out = server.STORE.task_output(sid, detail['tasks'][0]['id'])
         self.assertIn('GET /customers', out['text'])
-        with self.assertRaises(server.PanoError):
+        with self.assertRaises(server.KovanError):
             server.STORE.task_output(sid, '../../etc/passwd')
 
     def test_search_finds_messages_and_notes(self):
@@ -151,7 +151,7 @@ class HttpTests(unittest.TestCase):
     def post(self, path, body, token=True, origin=True, extra=None):
         h = {'Content-Type': 'application/json'}
         if token:
-            h['X-Pano-Token'] = server.TOKEN
+            h['X-Kovan-Token'] = server.TOKEN
         if origin:
             h['Origin'] = 'http://127.0.0.1:%d' % self.port
         h.update(extra or {})

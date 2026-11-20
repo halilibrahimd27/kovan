@@ -1,6 +1,6 @@
-// Regenerates docs/screenshots/*.png from `pano --demo` (synthetic data only).
+// Regenerates docs/screenshots/*.png from `kovan --demo` (synthetic data only).
 //
-//   python3 -m pano --demo --no-browser      # serves on 127.0.0.1:8789
+//   python3 -m kovan --demo --no-browser      # serves on 127.0.0.1:8789
 //   node scripts/take-screenshots.mjs [chrome-path]
 //
 // Needs Node 22+ (built-in fetch/WebSocket) and Chrome or Chromium.
@@ -19,7 +19,7 @@ if (!CHROME) throw new Error('Chrome not found; pass its path as the first argum
 mkdirSync(OUT, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const profile = mkdtempSync(join(tmpdir(), 'pano-shots-'));
+const profile = mkdtempSync(join(tmpdir(), 'kovan-shots-'));
 const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
   '--hide-scrollbars', '--remote-debugging-port=9334', `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore' });
 
@@ -56,7 +56,7 @@ const open = async (hash, settle = 1500) => {
 };
 await theme('dark');
 
-// 1. A pano-driven session streaming its reply
+// 1. A kovan-driven session streaming its reply
 await open(`chat/${sid('API refactor')}`, 800);
 await until('(S.live[S.sel]||{}).text && S.live[S.sel].text.length > 260 && S.live[S.sel].text.length < 420', 30000);
 await shot('chat.png');
