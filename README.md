@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
 </p>
 
-![The boardroom: the Reviewer sends a milestone back to the Developer](cockpit/docs/screenshots/boardroom.png)
+![The boardroom replayed: hand-offs, the check, the Reviewer, the Security auditor and the CI](cockpit/docs/boardroom.gif)
 
 *Kovan* is Turkish for beehive. It is a local control room for [Claude Code](https://claude.com/claude-code):
 all your sessions on one page, the messages they send each other, and **crews** — a Planner, a Developer and

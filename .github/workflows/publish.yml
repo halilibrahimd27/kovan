@@ -1,0 +1,53 @@
+# Publish the kovan package (cockpit/) to PyPI with trusted publishing — no API token in the repository.
+# One-time setup on PyPI: add a trusted publisher for project "kovan", repository halilibrahimd27/kovan,
+# workflow publish.yml, environment "pypi". Then run this workflow by hand for a release tag.
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag to publish, e.g. v0.3.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cockpit
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Tests
+        run: python -m unittest discover -s tests
+      - name: Build and check
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check --strict dist/*
+          test "$(python -c 'import sys; sys.path.insert(0, "."); import kovan; print("v" + kovan.__version__)')" = "${{ inputs.ref }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: cockpit/dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

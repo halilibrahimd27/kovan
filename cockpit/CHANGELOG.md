@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-11-21
+
+Crews get extra roles, templates, a real CI gate and pull requests; kovan can reach you on your phone.
 
 - **Extra crew roles**: up to four per crew, ready-made (Security auditor, Documenter, Performance reviewer) or
   your own — a name, its job, and whether it works after the Developer (may edit files) or reads the staged
@@ -13,6 +15,8 @@
   and the review again.
 - The boardroom seats extra roles; milestones show each gate's findings; the New crew dialog has templates and a
   role editor (English and Turkish).
+- README: a boardroom GIF (`scripts/make-gif.mjs`) and fresh screenshots; the package is ready for PyPI (absolute
+  image links, metadata, a trusted-publishing workflow).
 - **Pull requests and the CI gate**: a crew can work on its own branch and open a pull request (GitHub, `gh`) or a
   merge request (GitLab, push options), and wait for the project's real CI after every commit — GitHub check runs
   and commit statuses (Jenkins…), GitLab pipelines (`glab`), or your own status command. Red CI goes back to the

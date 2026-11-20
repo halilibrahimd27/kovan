@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/icon.png" width="112" alt=""></p>
+<p align="center"><img src="https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/icon.png" width="112" alt=""></p>
 
 <h1 align="center">kovan</h1>
 
@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
 </p>
 
-![The boardroom: a crew's Reviewer sends a milestone back to the Developer](docs/screenshots/boardroom.png)
+![The boardroom replayed: hand-offs, the check, the Reviewer, the Security auditor and the CI](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/boardroom.gif)
 
 When you run several Claude Code sessions side by side — one on the API, one on infrastructure, one doing a
 security review — they end up in a row of editor tabs. You can only look at one at a time, you can't see what
@@ -108,17 +108,17 @@ you watch them talk in the **boardroom**. It is a single Python package with no 
 
 | | |
 |---|---|
-| ![Tool call details with a masked secret and a diff](docs/screenshots/tool-details.png) | ![Answering a question card](docs/screenshots/question.png) |
+| ![Tool call details with a masked secret and a diff](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/tool-details.png) | ![Answering a question card](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/question.png) |
 | **Tool call details** — commands, output with secrets masked, diffs | **Question cards** — answer without leaving the page |
-| ![Messages between sessions](docs/screenshots/messages.png) | ![Command palette search](docs/screenshots/palette.png) |
+| ![Messages between sessions](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/messages.png) | ![Command palette search](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/palette.png) |
 | **Who talks to whom** — messages between sessions | **⌘K** — jump anywhere, search everything |
-| ![Overview of all sessions](docs/screenshots/overview.png) | ![Light theme with background tasks](docs/screenshots/light.png) |
+| ![Overview of all sessions](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/overview.png) | ![Light theme with background tasks](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/light.png) |
 | **Overview** — every session at a glance | **Light theme**, background tasks and session details |
-| ![A crew's milestones, team and settings](docs/screenshots/crew.png) | ![Picking one of the Ideator's ideas](docs/screenshots/ideas.png) |
+| ![A crew's milestones, team and settings](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/crew.png) | ![Picking one of the Ideator's ideas](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/ideas.png) |
 | **A crew** — milestones with their pipeline, the team, settings | **Ideas mode** — scored ideas, pick one or ask for more |
-| ![A session streaming its reply](docs/screenshots/chat.png) | ![The swarm engine's boardroom](docs/screenshots/swarm-room.png) |
+| ![A session streaming its reply](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/chat.png) | ![The swarm engine's boardroom](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/swarm-room.png) |
 | **Driving a session** — replies stream in as they are written | **The swarm's boardroom**, with `--swarm` |
-| ![The boardroom in Turkish](docs/screenshots/turkish.png) | |
+| ![The boardroom in Turkish](https://raw.githubusercontent.com/halilibrahimd27/kovan/main/cockpit/docs/screenshots/turkish.png) | |
 | **Türkçe** — the whole interface, and crews that speak it | |
 
 ## Quick start
@@ -291,11 +291,14 @@ model and how to report a vulnerability.
 python -m unittest discover -s tests -v           # synthetic data and fake role sessions; no Claude Code needed
 python3 -m kovan --demo --no-browser                 # then:
 node scripts/take-screenshots.mjs                   # regenerates docs/screenshots (Node 22+, Chrome)
+node scripts/make-gif.mjs                           # regenerates docs/boardroom.gif (also needs ffmpeg)
 ```
 
 ```
 kovan/server.py         transcript reader, store, session driver, HTTP API, CLI
-kovan/crew.py           crews: role charters, the plan → build → check → review loop, permission policy
+kovan/crew.py           crews: role charters, extra roles and templates, the plan → build → check → review loop
+kovan/ci.py             pull / merge requests and the CI gate (gh, glab, git push options, a status command)
+kovan/notify.py         webhook and Telegram notifications, Telegram buttons
 kovan/swarm.py          client for the swarm engine's API (the boardroom's swarm rooms)
 kovan/holder.py         the process that owns claude subprocesses
 kovan/demo.py           synthetic sessions for --demo and the tests
@@ -304,6 +307,12 @@ kovan/static/index.html the whole UI (no build step, no external assets)
 
 The UI is served from disk on every request, so you can edit `index.html` and reload. Issues and pull
 requests are welcome — please keep the zero-dependency rule.
+
+**Releasing.** Bump `kovan/__init__.py` and the changelog, tag `vX.Y.Z`, and publish a GitHub release. The
+*Publish to PyPI* workflow (`.github/workflows/publish.yml`, run by hand) builds the sdist and wheel, checks them
+and uploads them with PyPI trusted publishing — no token in the repository. It needs a one-time setup on PyPI: a
+trusted publisher for the project `kovan`, repository `halilibrahimd27/kovan`, workflow `publish.yml`,
+environment `pypi`.
 
 ## License
 

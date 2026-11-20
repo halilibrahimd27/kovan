@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,33 +8,43 @@ dynamic = ["version"]
 description = "A local, zero-dependency control room for parallel Claude Code sessions, crews of AI roles, and the boardroom where they meet."
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "halilibrahimd27" }]
-keywords = ["claude-code", "claude", "ai-agents", "multi-agent", "dashboard", "developer-tools"]
+keywords = ["claude-code", "claude", "ai-agents", "multi-agent", "dashboard", "developer-tools", "code-review",
+            "telegram"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development",
+    "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/halilibrahimd27/kovan"
+Documentation = "https://github.com/halilibrahimd27/kovan/tree/main/cockpit#readme"
+Changelog = "https://github.com/halilibrahimd27/kovan/blob/main/cockpit/CHANGELOG.md"
 Issues = "https://github.com/halilibrahimd27/kovan/issues"
 
 [project.scripts]
 kovan = "kovan.server:main"
 
 [tool.setuptools]
-packages = ["kovan"]
+packages = ["kovan", "kovan.static"]
 
 [tool.setuptools.package-data]
-kovan = ["static/*.html"]
+"kovan.static" = ["*.html"]
 
 [tool.setuptools.dynamic]
 version = { attr = "kovan.__version__" }
