@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pano"
+dynamic = ["version"]
+description = "A local, zero-dependency control room for parallel Claude Code sessions."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "halilibrahimd27" }]
+keywords = ["claude-code", "claude", "ai-agents", "dashboard", "developer-tools"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/halilibrahimd27/pano"
+Issues = "https://github.com/halilibrahimd27/pano/issues"
+
+[project.scripts]
+pano = "pano.server:main"
+
+[tool.setuptools]
+packages = ["pano"]
+
+[tool.setuptools.package-data]
+pano = ["static/*.html"]
+
+[tool.setuptools.dynamic]
+version = { attr = "pano.__version__" }
