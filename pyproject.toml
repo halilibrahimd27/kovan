@@ -53,14 +53,19 @@ dev = [
   "types-requests>=2.32,<3.0",
   # Phase 3 verification gauntlet
   "bandit>=1.7,<2.0",
-  "semgrep>=1.90,<2.0",
+  # semgrep runs as an isolated tool (`uv tool run`, see Makefile verify-l1): installed into this venv
+  # it pinned opentelemetry-sdk 1.37 and blocked security upgrades of the runtime deps (crewai).
   "pip-audit>=2.7,<3.0",
-  "safety>=3.2,<4.0",
+  # safety is likewise not installed here: it pins filelock<4 and blocked the filelock security fix.
+  # It was only ever a soft probe next to pip-audit; run it ad hoc with `uv tool run safety scan`.
   "mutmut>=2.5,<3.0",
   "radon>=6.0,<7.0",
   "xenon>=0.9,<1.0",
   "import-linter>=2.1,<3.0",
   "respx>=0.21,<1.0",
+  # Starlette >=1.10 runs its TestClient on httpx2 and raises a deprecation (an error under
+  # filterwarnings=error) when only httpx is installed. Runtime code keeps using httpx.
+  "httpx2>=2.16,<3.0",
 ]
 
 [project.scripts]

@@ -6,6 +6,8 @@ COMPOSE    ?= docker compose -f docker/compose.yml
 SRC        := src/aidevswarm
 TESTS      := tests
 COV_FAIL   ?= 85
+# semgrep is pinned and isolated from the project venv (its otel pins clash with crewai)
+SEMGREP_VERSION ?= 1.163.0
 
 .PHONY: help install lint format typecheck test smoke up down logs ps clean \
         migrate migration \
@@ -78,16 +80,16 @@ verify-l0: ## L0 — ruff + mypy --strict.
 
 verify-l1: ## L1 — bandit (HIGH-only) + semgrep.
 	$(UV) run bandit -c ci/bandit.yml -r $(SRC) -ll
-	$(UV) run semgrep --quiet --config p/python --severity ERROR $(SRC)
+	$(UV) tool run --from semgrep==$(SEMGREP_VERSION) semgrep --quiet --config p/python --severity ERROR $(SRC)
 
-verify-l2: ## L2 — pip-audit + safety (allowlisted CVEs in ci/audit_allowlist.txt).
+verify-l2: ## L2 — pip-audit (allowlisted CVEs in ci/audit_allowlist.txt); safety is an optional ad-hoc probe.
 	@ignore_args=""; \
 	while read -r vuln _rest; do \
 	  case "$$vuln" in ""|\#*) continue;; esac; \
 	  ignore_args="$$ignore_args --ignore-vuln $$vuln"; \
 	done < ci/audit_allowlist.txt; \
 	$(UV) run pip-audit --skip-editable $$ignore_args
-	@true  # safety left as a soft probe; CVE feed often duplicates pip-audit.
+	@true  # safety stays a soft probe (`uv tool run safety scan`); its CVE feed largely duplicates pip-audit.
 
 verify-l3: ## L3 — pytest with --cov-fail-under (default $(COV_FAIL)%).
 	$(UV) run pytest --cov=$(SRC) --cov-report=term --cov-fail-under=$(COV_FAIL) -q
