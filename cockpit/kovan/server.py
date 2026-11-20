@@ -232,13 +232,13 @@ class Settings:
         self.path = path
         self.read_only = read_only
         self.lock = threading.Lock()
-        self.data = {'archived': [], 'aliases': {}, 'quick_prompts': list(DEFAULT_QUICK_PROMPTS)}
+        self.data = {'archived': [], 'aliases': {}, 'quick_prompts': list(DEFAULT_QUICK_PROMPTS), 'dirs': []}
         self.revision = 0
         try:
             with open(path, encoding='utf-8') as f:
                 loaded = json.load(f)
             if isinstance(loaded, dict):
-                for key in ('archived', 'aliases', 'quick_prompts'):
+                for key in ('archived', 'aliases', 'quick_prompts', 'dirs'):
                     if key in loaded:
                         self.data[key] = loaded[key]
         except (OSError, ValueError):
@@ -256,6 +256,13 @@ class Settings:
 
     def is_archived(self, sid):
         return sid in self.data['archived']
+
+    def add_dir(self, directory):
+        """A directory you started a session in from the UI; watched again after a restart."""
+        with self.lock:
+            if directory not in self.data['dirs']:
+                self.data['dirs'] = self.data['dirs'] + [directory]
+                self._save()
 
     def set_archived(self, sid, archived):
         with self.lock:
@@ -958,7 +965,24 @@ class Store:
                     return {'q': q, 'results': out}
         return {'q': q, 'results': out}
 
-    def read_notes(self, limit_entries=40):
+    def dir_suggestions(self, limit=400):
+        """Folders to offer for a new session: the watched ones, then the folders directly inside them."""
+        with self.lock:
+            dirs = list(self.dirs)
+        out = list(dirs)
+        for d in dirs:
+            try:
+                names = sorted(os.listdir(d), key=str.lower)
+            except OSError:
+                continue
+            out += [os.path.join(d, n) for n in names if not n.startswith('.') and os.path.isdir(os.path.join(d, n))]
+        seen = []
+        for x in out:
+            if x not in seen:
+                seen.append(x)
+        return [tilde(x) for x in seen[:limit]]
+
+    def read_notes(self, limit_entries=60):
         notes = []
         for path in self.notes_paths:
             try:
@@ -969,20 +993,47 @@ class Store:
                 continue
             if text.startswith('---'):
                 text = text.split('---', 2)[-1].strip()
-            sections = re.split(r'(?m)^## ', text)
             title = os.path.basename(path)
-            if len(sections) > 2:
-                entries = []
-                for part in sections[1:]:
-                    heading, _, body = part.partition('\n')
-                    entries.append({'heading': heading.strip(), 'body': clip(body.strip(), 8000)})
-                entries = entries[::-1]
-                if limit_entries:
-                    entries = entries[:limit_entries]
-                notes.append({'title': title, 'path': tilde(path), 'modified': modified, 'kind': 'journal', 'entries': entries})
+            entries = journal_entries(text)
+            if entries is not None:
+                notes.append({'title': title, 'path': tilde(path), 'modified': modified, 'kind': 'journal',
+                              'entries': entries[:limit_entries] if limit_entries else entries})
             else:
                 notes.append({'title': title, 'path': tilde(path), 'modified': modified, 'kind': 'doc', 'content': text})
         return notes
+
+
+DATED_HEADING = re.compile(r'^(?:\d|(?:mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|'
+                           r'pazartesi|sal[ıi]|çarşamba|carsamba|perşembe|persembe|cuma|cumartesi|pazar)\w*\b)', re.I)
+
+
+def journal_entries(text):
+    """Entries of a journal-style markdown file, newest first; None when the file is a plain document.
+
+    A journal has dated `##`/`###` headings ("## 12 Kasım 2026", "### 20 Nov 15:02 — …", "## Mon — …"). Each
+    `###` is an entry, labelled with the bare `##` above it (the day); a `##` with its own text is an entry.
+    Headings inside fenced code blocks are ignored."""
+    lines, in_code, heads = text.split('\n'), False, []
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith('```'):
+            in_code = not in_code
+        elif not in_code:
+            m = re.match(r'^(#{2,3}) (.+)$', line)
+            if m:
+                heads.append((i, len(m.group(1)), m.group(2).strip()))
+    if sum(1 for _, _, h in heads if DATED_HEADING.match(h)) < 2:
+        return None
+    entries, group = [], None
+    for n, (i, level, heading) in enumerate(heads):
+        stop = heads[n + 1][0] if n + 1 < len(heads) else len(lines)
+        body = '\n'.join(lines[i + 1:stop]).strip()
+        if level == 2:            # a bare "## 12 Kasım 2026" groups what follows; a "##" with text is an entry
+            group = None if body else heading
+            if body:
+                entries.append({'heading': heading, 'group': None, 'body': clip(body, 8000)})
+        else:
+            entries.append({'heading': heading, 'group': group, 'body': clip(body, 8000)})
+    return entries[::-1]
 
 
 # ============================================================================ live push (SSE)
@@ -1502,6 +1553,23 @@ class ManagedSession:
         HOLDER.send({'op': 'close', 'sid': self.sid})
 
 
+def session_directory(directory):
+    """Where a new session runs: any existing directory you pick. One that is not watched yet joins the watched
+    list (and stays there), so the session shows up and survives restarts."""
+    directory = os.path.abspath(os.path.expanduser(str(directory).strip()))
+    if directory == '/' or not os.path.isdir(directory):
+        raise KovanError('no such directory: %s' % tilde(directory))
+    if directory not in (MANAGER.dirs if MANAGER else []):
+        if STORE:
+            STORE.add_dir(directory)
+        if MANAGER:
+            MANAGER.add_dir(directory)
+        if SETTINGS:
+            SETTINGS.add_dir(directory)
+        log('action: watching %s' % tilde(directory))
+    return directory
+
+
 class Manager:
     def __init__(self, dirs):
         self.dirs = [os.path.abspath(d) for d in dirs]
@@ -1579,9 +1647,7 @@ class Manager:
                                     % (where, c.get('pid')), 409)
                 s = ManagedSession(sid, None, True, t.directory, permission_mode=permission_mode)
             else:
-                directory = os.path.abspath(os.path.expanduser(directory)) if directory else self.dirs[0]
-                if directory not in self.dirs:
-                    raise KovanError('that directory is not watched by kovan')
+                directory = session_directory(directory) if directory else self.dirs[0]
                 s = ManagedSession(str(uuid.uuid4()), (name or '').strip()[:80] or None, False, directory,
                                    permission_mode=permission_mode)
             self.sessions[s.sid] = s      # register first so the holder's 'session' event is not adopted twice
@@ -1607,6 +1673,7 @@ class Config:
     notes = []
     port = DEFAULT_PORT
     permission_mode = 'default'
+    lang = ''           # UI language when the browser has no choice saved yet ('' = follow the browser)
     claude_bin = None
     demo = False
 
@@ -1689,7 +1756,7 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 return self.reply(500, 'index.html missing', 'text/plain; charset=utf-8')
             dirs = ', '.join(tilde(d) for d in CFG.dirs)
-            page = page.replace('__TOKEN__', TOKEN).replace('__DIRS__', html.escape(dirs))
+            page = page.replace('__TOKEN__', TOKEN).replace('__DIRS__', html.escape(dirs)).replace('__LANG__', CFG.lang)
             return self.reply(200, page, 'text/html; charset=utf-8')
         if not u.path.startswith('/api/'):
             return self.reply(404, 'not found', 'text/plain; charset=utf-8')
@@ -1718,6 +1785,8 @@ class Handler(BaseHTTPRequestHandler):
                 data = {'entries': self.swarm().board(arg('project'), arg('all') == '1')}
             elif u.path == '/api/session':
                 data = STORE.session(valid_sid(arg('id')), arg('revision'))
+            elif u.path == '/api/dirs':
+                data = {'dirs': STORE.dir_suggestions()}
             elif u.path == '/api/notes':
                 data = {'notes': STORE.read_notes()}
             elif u.path == '/api/tool':
@@ -1990,6 +2059,7 @@ def serve(args):
     CFG.port = args.port
     CFG.permission_mode = args.permission_mode
     CFG.claude_bin = args.claude_bin
+    CFG.lang = args.lang or ''
     CFG.demo = args.demo
     task_roots = None
     if args.demo:
@@ -2006,7 +2076,8 @@ def serve(args):
     MANAGER = Manager(CFG.dirs)
     HOLDER = HolderClient(holder_socket(args.port))
     CREWS = crew.Crews(STATE_DIR, read_only=args.demo)
-    for d in CREWS.directories():     # watch crew workspaces before the holder hands back their sessions
+    extra = CREWS.directories() + [d for d in SETTINGS.data.get('dirs', []) if isinstance(d, str) and os.path.isdir(d)]
+    for d in extra:     # crew workspaces and folders you started sessions in, before the holder hands sessions back
         STORE.add_dir(d)
         MANAGER.add_dir(d)
     if args.swarm:
@@ -2045,6 +2116,32 @@ def serve(args):
             pass
 
 
+MINIMAL_PATH = {'/usr/bin', '/bin', '/usr/sbin', '/sbin'}
+
+
+def login_path(environ=None, runner=subprocess.run):
+    """A PATH for sessions when kovan was started from the Dock or launchd, which only pass /usr/bin:/bin….
+
+    Asks the user's login shell for its PATH (Homebrew, ~/.local/bin, nvm…). Returns None when the current PATH
+    is already a real one or the shell does not answer."""
+    environ = os.environ if environ is None else environ
+    if set(filter(None, environ.get('PATH', '').split(':'))) - MINIMAL_PATH:
+        return None
+    shell = environ.get('SHELL') or '/bin/sh'
+    try:
+        r = runner([shell, '-l', '-c', 'printf %s "$PATH"'], capture_output=True, text=True, timeout=8,
+                   stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    parts = [x for x in (r.stdout or '').strip().split(':') if x] if r.returncode == 0 else []
+    if '/usr/bin' not in parts:
+        return None
+    local = os.path.join(environ.get('HOME') or HOME, '.local', 'bin')
+    if local not in parts and os.path.isdir(local):
+        parts.append(local)
+    return ':'.join(parts)
+
+
 def load_config():
     try:
         with open(CONFIG_PATH, encoding='utf-8') as f:
@@ -2064,6 +2161,8 @@ def build_parser(defaults):
     p.add_argument('--permission-mode', choices=PERMISSION_MODES, default=defaults.get('permission_mode', 'default'),
                    help='permission mode for sessions kovan starts (default: default = ask before acting)')
     p.add_argument('--claude-bin', default=defaults.get('claude_bin'), help='path to the claude executable')
+    p.add_argument('--lang', choices=['en', 'tr'], default=defaults.get('lang') if defaults.get('lang') in ('en', 'tr') else None,
+                   help='UI language until you pick one in the page (default: follow the browser)')
     p.add_argument('--claude-home', default=defaults.get('claude_home') or os.environ.get('KOVAN_CLAUDE_HOME') or
                    os.path.join(HOME, '.claude'), help=argparse.SUPPRESS)
     p.add_argument('--swarm', default=defaults.get('swarm'), metavar='URL',
@@ -2080,6 +2179,9 @@ def build_parser(defaults):
 
 
 def main(argv=None):
+    path = login_path()
+    if path:
+        os.environ['PATH'] = path
     defaults = load_config()
     args = build_parser(defaults).parse_args(argv)
     args.port = args.port or (DEMO_PORT if args.demo else defaults.get('port', DEFAULT_PORT))
@@ -2126,6 +2228,8 @@ def main(argv=None):
             cmd += ['--claude-bin', args.claude_bin]
         if args.swarm:
             cmd += ['--swarm', args.swarm]
+        if args.lang:
+            cmd += ['--lang', args.lang]
         if args.demo:
             cmd.append('--demo')
         subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True,

@@ -312,6 +312,7 @@ select{font-size:12.5px;border:1px solid var(--line);background:var(--panel);bor
 .ev.k-tool{opacity:.8}.ev.k-tool .txt{font-size:12.5px;color:var(--muted)}
 .ev.k-notice .txt{color:var(--muted)}
 .note-card{margin-bottom:18px}
+details.entry summary .grp{margin-left:10px;font-size:11.5px;font-weight:500;color:var(--faint)}
 .note-head{display:flex;gap:10px;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)}
 .note-head b{font-size:14px}
 .note-head span{font-size:12px;color:var(--faint)}
@@ -550,7 +551,7 @@ dialog small{font-weight:400;color:var(--faint);font-size:12px}
     <div class="side-foot">
       <div class="limits" id="limits" hidden></div>
       <div class="foot-row"><span class="live-dot" id="live-dot"></span><span id="conn">connecting…</span><span class="demo-pill" id="demo-pill" hidden>demo</span>
-        <span class="right"><button id="notify-btn" title="Desktop notifications">🔔</button><button id="theme-btn" title="Theme">◐</button></span></div>
+        <span class="right"><button id="notify-btn" title="Desktop notifications">🔔</button><button id="lang-btn" title="Language">EN</button><button id="theme-btn" title="Theme">◐</button></span></div>
     </div>
   </aside>
   <main class="main">
@@ -620,7 +621,7 @@ dialog small{font-weight:400;color:var(--faint);font-size:12px}
   <form id="new-form">
     <h3>New session</h3>
     <label>Name<input name="name" maxlength="60" required placeholder="e.g. Release prep" autocomplete="off"></label>
-    <label id="dir-label" hidden>Directory<select name="directory" id="dir-select"></select></label>
+    <label>Directory<input name="directory" id="dir-input" list="dir-list" required autocomplete="off" spellcheck="false"><datalist id="dir-list"></datalist><small>Any folder on this computer; a new one joins the watched list.</small></label>
     <label>First message<textarea name="text" placeholder="What should it do? (optional)"></textarea></label>
     <p class="muted" style="font-size:12.5px;margin:-4px 0 14px">Starts with your normal Claude Code settings and memory.</p>
     <div class="ask-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Start</button></div>
@@ -669,7 +670,226 @@ const KIND_LABEL={prompt:'your prompt',reply:'reply',sent:'message sent',receive
 const EFFORTS=[['low','Low'],['medium','Medium'],['high','High'],['xhigh','Extra high'],['max','Max']];
 const MODES=[['default','Ask before acting'],['acceptEdits','Auto-accept edits'],['plan','Plan mode'],['bypassPermissions','Never ask']];
 const FALLBACK_MODELS=[{value:'default',name:'Default'},{value:'opus',name:'Opus'},{value:'sonnet',name:'Sonnet'},{value:'haiku',name:'Haiku'}];
-const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+/* ---------------- language (English source strings; Turkish via a dictionary applied to the rendered page) */
+const LANG=(()=>{const s=store('kovan.lang');if(s==='tr'||s==='en')return s;const d='__LANG__';if(d==='tr'||d==='en')return d;return /^tr\b/i.test(navigator.language||'')?'tr':'en';})();
+document.documentElement.lang=LANG;
+const TR={
+  // navigation and chrome
+  'Chat':'Sohbet','Boardroom':'Toplantı odası','Crews':'Ekipler','Overview':'Genel bakış','Messages':'Mesajlar','Activity':'Etkinlik','Notes':'Notlar',
+  '＋ New session':'＋ Yeni oturum','New session':'Yeni oturum','Desktop notifications':'Masaüstü bildirimleri','Theme':'Tema','Toggle theme':'Temayı değiştir','Language':'Dil',
+  'connecting…':'bağlanıyor…','live':'canlı','reconnecting…':'yeniden bağlanıyor…','live · holder offline':'canlı · taşıyıcı çevrimdışı','cannot reach the kovan server':'kovan sunucusuna ulaşılamıyor',
+  'demo':'demo','Sessions':'Oturumlar','Jump to a session, run an action, search everything':'Bir oturuma git, bir eylem çalıştır, her yerde ara',
+  'Jump to a session, run an action, or search everything…':'Bir oturuma git, bir eylem çalıştır ya da her yerde ara…',
+  '↑↓ select · Enter open · Esc close · type 2+ characters to search every session and note':'↑↓ seç · Enter aç · Esc kapat · bütün oturumlarda ve notlarda aramak için en az 2 karakter yaz',
+  'In kovan':'kovan’da','In VS Code':'VS Code’da','in VS Code':'VS Code’da','Elsewhere':'Başka yerde','Closed':'Kapalı','Archive':'Arşiv',
+  'Working':'Çalışıyor','Needs your answer':'Cevabını bekliyor','needs your answer':'cevabını bekliyor','Starting':'Başlıyor','Your turn':'Sıra sende','your turn':'sıra sende','Idle':'Boşta','Waiting':'Bekliyor',
+  'writing…':'yazıyor…','thinking…':'düşünüyor…','working…':'çalışıyor…','starting…':'başlıyor…','no messages yet':'henüz mesaj yok','waiting for your answer':'cevabını bekliyor',
+  // welcome, composer, chat
+  'Welcome to kovan':'kovan’a hoş geldin','Pick a session on the left, press':'Soldan bir oturum seç,',
+  'to search, or start a new one. Sessions you close in VS Code can continue here, right where they left off.':'ile ara ya da yeni bir tane başlat. VS Code’da kapattığın oturumlar burada kaldıkları yerden devam edebilir.',
+  'Nothing running in kovan yet. Pick a closed session and choose “Continue in kovan”, or start a new one.':'kovan’da henüz çalışan bir şey yok. Kapalı bir oturum seçip “kovan’da devam et”e bas ya da yeni bir tane başlat.',
+  'Message…':'Mesaj…','It is working — messages you send now are queued…':'Çalışıyor — şimdi gönderdiklerin sıraya girer…','Send':'Gönder','Queue':'Sıraya koy','■ Stop':'■ Durdur','Stop':'Durdur',
+  'Enter to send · Shift+Enter new line · / commands · Esc to stop · ⌘K search':'Enter gönder · Shift+Enter yeni satır · / komutlar · Esc durdur · ⌘K ara',
+  'Attach images (you can also paste or drop them)':'Görsel ekle (yapıştırabilir ya da sürükleyebilirsin)','Remove':'Kaldır','↓ new messages':'↓ yeni mesajlar',
+  'Starting… you can type already':'Başlıyor… şimdiden yazabilirsin','Waiting for your answer — see the card below.':'Cevabını bekliyor — aşağıdaki karta bak.',
+  'Continue in kovan':'kovan’da devam et','Release':'Bırak','Release anyway':'Yine de bırak','Release this session?':'Bu oturum bırakılsın mı?',
+  'Stop driving this session from kovan (you can open it in VS Code afterwards)':'Bu oturumu kovan’dan sürmeyi bırak (sonra VS Code’da açabilirsin)',
+  'is working right now. Releasing it may cut the current task short.':'şu anda çalışıyor. Bırakırsan elindeki iş yarıda kalabilir.',
+  'You can open it in VS Code now, or continue here again later.':'Artık VS Code’da açabilirsin ya da daha sonra burada devam edebilirsin.',
+  'This session is closed. Continue it in kovan with its full history and memory.':'Bu oturum kapalı. Tüm geçmişi ve hafızasıyla kovan’da devam ettirebilirsin.',
+  'This session is open somewhere else (a terminal, for example). Close it there to continue here.':'Bu oturum başka bir yerde açık (örneğin bir terminalde). Burada devam etmek için orada kapat.',
+  'This session is open':'Bu oturum açık','and is watched live. To write from here, close its tab in VS Code — a':'ve canlı izleniyor. Buradan yazmak için VS Code’daki sekmesini kapat —',
+  'button appears the moment it closes.':'düğmesi kapandığı anda çıkar.',
+  'Careful:':'Dikkat:','this session is also open somewhere else (probably VS Code). Writing from two places will tangle the history — close one of them.':'bu oturum başka bir yerde de açık (büyük ihtimalle VS Code). İki yerden yazmak geçmişi karıştırır — birini kapat.',
+  'Model':'Model','Effort':'Efor','Permissions':'İzinler','Context':'Bağlam','context':'bağlam','Compact':'Sıkıştır','Archived':'Arşivlendi','Unarchived':'Arşivden çıkarıldı','Unarchive':'Arşivden çıkar',
+  'Low':'Düşük','Medium':'Orta','High':'Yüksek','Extra high':'Çok yüksek','Max':'En yüksek','Default':'Varsayılan',
+  'Ask before acting':'Önce sor','Auto-accept edits':'Düzenlemeleri otomatik kabul et','Plan mode':'Plan kipi','Never ask':'Hiç sorma',
+  'Summarize the conversation to free context (/compact)':'Bağlamı boşaltmak için konuşmayı özetle (/compact)','Compact the context?':'Bağlam sıkıştırılsın mı?','Compacting…':'Sıkıştırılıyor…',
+  'The conversation of':'Şu oturumun konuşması özetlenecek:','will be summarized to free up context (':'— bağlamı boşaltmak için (',
+  '). The full transcript stays on disk, but Claude will only remember the summary.':'). Tam kayıt diskte kalır ama Claude yalnız özeti hatırlar.',
+  'Rename the session':'Oturumu yeniden adlandır','Rename (shown in kovan only)':'Yeniden adlandır (yalnız kovan’da görünür)','Enter to save · Esc to cancel':'Enter kaydet · Esc vazgeç','Renamed':'Adı değişti',
+  'Details: files, background tasks, subagents, messages':'Ayrıntılar: dosyalar, arka plan görevleri, alt ajanlar, mesajlar','Show background tasks':'Arka plan görevlerini göster',
+  'Model changed':'Model değişti','Effort set to':'Efor ayarlandı:','Permissions:':'İzinler:',
+  '❓ Claude is asking':'❓ Claude soruyor','Other':'Diğer','Your own answer…':'Kendi cevabın…','Skip':'Geç','Answer':'Cevapla','Answer every question':'Her soruyu cevapla',
+  'If you picked “Other”, type your answer.':'“Diğer”i seçtiysen cevabını yaz.','📋 Approve the plan?':'📋 Plan onaylansın mı?','Approve and start':'Onayla ve başla','Reject':'Reddet',
+  'If you reject it, say what should change (optional)':'Reddedersen neyin değişmesi gerektiğini yaz (isteğe bağlı)','🔐 Wants to use':'🔐 Kullanmak istiyor:','Allow':'İzin ver','Deny':'Reddet',
+  'Reason if you deny (optional)':'Reddedersen nedeni (isteğe bağlı)','Could not send your answer':'Cevabın gönderilemedi',
+  '↶ rewind files to here':'↶ dosyaları buraya geri al','Restore files to how they were when this message was sent (shows a preview first)':'Dosyaları bu mesaj gönderildiği andaki hâline döndür (önce önizleme gösterir)',
+  'Rewind files?':'Dosyalar geri alınsın mı?','Rewind':'Geri al','Files restored':'Dosyalar geri alındı','Nothing to rewind':'Geri alınacak bir şey yok','Cannot rewind':'Geri alınamıyor',
+  'Could not preview the rewind':'Geri alma önizlenemedi','Could not rewind':'Geri alınamadı','No files changed after this message.':'Bu mesajdan sonra değişen dosya yok.','No file history for this point.':'Bu nokta için dosya geçmişi yok.',
+  'will go back to how they were when this message was sent (':'bu mesaj gönderildiği andaki hâline dönecek (','lines).':'satır).',
+  'Only local files are restored; the conversation stays as it is. Changes made on other machines (over ssh, for example) are not undone.':'Yalnız yerel dosyalar geri alınır; konuşma olduğu gibi kalır. Başka makinelerde (örneğin ssh ile) yapılanlar geri alınmaz.',
+  'Input':'Girdi','Command':'Komut','Pattern':'Desen','Output':'Çıktı','Error':'Hata','Close':'Kapat','(empty)':'(boş)','(no output yet)':'(henüz çıktı yok)',
+  'likely secrets masked':'muhtemel sır gizlendi','likely secret':'muhtemel sır','… diff truncated':'… fark kısaltıldı','Not in the visible range':'Görünen aralıkta değil',
+  'This event is older than the last 900 events shown.':'Bu olay gösterilen son 900 olaydan daha eski.','older events not shown':'eski olay gösterilmiyor',
+  'No result yet (it may still be running).':'Henüz sonuç yok (hâlâ çalışıyor olabilir).','No output file (the task may have finished and been cleaned up).':'Çıktı dosyası yok (görev bitip temizlenmiş olabilir).',
+  'Stop the background task?':'Arka plan görevi durdurulsun mu?','will be stopped.':'durdurulacak.','Background task stopped':'Arka plan görevi durduruldu','Background tasks':'Arka plan görevleri','Background task':'Arka plan görevi',
+  'No background tasks.':'Arka plan görevi yok.','Files':'Dosyalar','No files edited.':'Düzenlenen dosya yok.','Messages with other sessions':'Diğer oturumlarla mesajlar','Subagents ·':'Alt ajanlar ·',
+  'Files edited ·':'Düzenlenen dosyalar ·','Started':'Başladı','Last activity':'Son etkinlik','Previously:':'Önceki adları:','Session':'Oturum','DETAILS':'AYRINTILAR','Actions':'Eylemler',
+  '↗ wrote to':'↗ yazdı:','wrote':'yazdı','Thinking':'Düşünüyor','Tool':'Araç','Notice':'Bildirim','Claude':'Claude',
+  'Image too large':'Görsel çok büyük','Unsupported file':'Desteklenmeyen dosya','(png, jpeg, gif or webp only)':'(yalnız png, jpeg, gif veya webp)','is over 5 MB':'5 MB’tan büyük',
+  'not sent:':'gönderilmedi:','Could not start it':'Başlatılamadı','Could not release it':'Bırakılamadı','Could not do that':'Bu yapılamadı','Could not save':'Kaydedilemedi','Could not open it':'Açılamadı',
+  'Could not load:':'Yüklenemedi:','Could not load details:':'Ayrıntılar yüklenemedi:','Opening in kovan':'kovan’da açılıyor','Session started':'Oturum başladı','session closed':'oturum kapandı',
+  // new session, quick prompts, palette
+  'Name':'Ad','e.g. Release prep':'örn. Sürüm hazırlığı','Directory':'Dizin','First message':'İlk mesaj','What should it do? (optional)':'Ne yapsın? (isteğe bağlı)','Starts with your normal Claude Code settings and memory.':'Normal Claude Code ayarların ve hafızanla başlar.',
+  'Cancel':'Vazgeç','Start':'Başlat','Start a new session':'Yeni oturum başlat','Quick prompts':'Hazır komutlar','Save':'Kaydet','Quick prompts saved':'Hazır komutlar kaydedildi','✎ edit':'✎ düzenle','Edit quick prompts':'Hazır komutları düzenle',
+  'One prompt per line. They appear above the message box; clicking one puts it in the box.':'Her satıra bir komut. Mesaj kutusunun üstünde görünürler; birine tıklayınca kutuya yazılır.',
+  'OK':'Tamam','Searching…':'Aranıyor…','No results':'Sonuç yok','No matches in messages or notes':'Mesajlarda ve notlarda eşleşme yok','Found in messages and notes':'Mesajlarda ve notlarda bulunanlar',
+  // overview, messages, activity, notes
+  'Live sessions':'Canlı oturumlar','No live sessions right now.':'Şu anda canlı oturum yok.','Closed sessions ·':'Kapalı oturumlar ·','Now':'Şimdi','Your last prompt':'Son komutun','Last reply':'Son cevap',
+  'sent ·':'gönderildi ·','received':'alındı','context ':'bağlam ',
+  'Arrows show who wrote to whom; numbers are message counts. Click a session to filter the list.':'Oklar kimin kime yazdığını, sayılar mesaj sayısını gösterir. Listeyi süzmek için bir oturuma tıkla.',
+  'Messages between sessions':'Oturumlar arası mesajlar','Filter:':'Süzgeç:','clear':'temizle','include messages to subagents':'alt ajanlara giden mesajları da göster','No messages.':'Mesaj yok.','No messages yet.':'Henüz mesaj yok.',
+  '✓ delivered':'✓ iletildi','Seen in the receiving session’s transcript':'Alan oturumun kaydında görüldü',"Seen in the receiving session's transcript":'Alan oturumun kaydında görüldü',
+  'Your prompts':'Komutların','Replies':'Cevaplar','Sent messages':'Gönderilen mesajlar','Received messages':'Alınan mesajlar','Notices':'Bildirimler','Tool calls':'Araç çağrıları','All sessions':'Bütün oturumlar',
+  'Nothing matches this filter.':'Bu süzgece uyan bir şey yok.','Loading…':'Yükleniyor…','You':'Sen','Sent':'Gönderilen','No notes configured. Start kovan with':'Not dosyası ayarlı değil. Burada dosya göstermek için kovan’ı',
+  'to show files here.':'ile başlat.','updated':'güncellendi',
+  // boardroom
+  'Rooms':'Odalar','Any folder on this computer; a new one joins the watched list.':'Bu bilgisayardaki herhangi bir klasör; yeni bir klasör izlenenler listesine eklenir.','no such directory':'böyle bir klasör yok','Ideas about:':'Fikir konusu:','＋ New crew':'＋ Yeni ekip','New crew':'Yeni ekip','Start one':'Bir tane başlat','Graph view':'Grafik görünümü','Decisions':'Kararlar','Everything':'Her şey','Approve plan':'Planı onayla',
+  '❚❚ Pause':'❚❚ Duraklat','▶ Resume':'▶ Sürdür','Pause':'Duraklat','Milestones & settings':'Kilometre taşları ve ayarlar','Speak':'Konuş','Speak to':'Kime',
+  'To everyone':'Herkese','Speak in the room…':'Odada konuş…','Write to a session kovan drives…':'kovan’ın sürdüğü bir oturuma yaz…',
+  'Continue a session in kovan to speak to it from here':'Buradan konuşmak için bir oturumu kovan’da devam ettir',
+  'Speak to the crew — a steering note reaches a busy role right away, otherwise its next task':'Ekiple konuş — yönlendirme notu çalışan role hemen, değilse sıradaki görevine ulaşır',
+  'Speak in the swarm’s boardroom — the next agent step for this project reads your note':'Swarm’ın toplantı odasında konuş — bu projenin sıradaki ajan adımı notunu okur',
+  'This crew has finished':'Bu ekip işini bitirdi','The meeting is about to start…':'Toplantı başlamak üzere…','quiet so far':'şimdilik sessiz','joining…':'katılıyor…',
+  'Your Claude Code sessions talking to each other: every message one session sent another, with delivery confirmed from the receiving transcript.':'Claude Code oturumlarının birbiriyle konuşması: bir oturumun diğerine gönderdiği her mesaj, alan oturumun kaydından teyit edilen iletimle.',
+  'No messages between sessions yet. When one session uses SendMessage to reach another, the exchange appears here.':'Oturumlar arasında henüz mesaj yok. Bir oturum SendMessage ile diğerine ulaştığında konuşma burada görünür.',
+  'No decisions yet — they appear as the staff make calls.':'Henüz karar yok — ekip karar verdikçe burada görünür.',
+  'No crews yet. A crew is a Planner, a Developer and a Reviewer — real Claude Code sessions — building something in milestones while you watch the meeting.':'Henüz ekip yok. Ekip; bir Planlayıcı, bir Geliştirici ve bir İnceleyiciden oluşur — gerçek Claude Code oturumları — sen toplantıyı izlerken bir şeyi kilometre taşlarıyla inşa ederler.',
+  'Running the swarm engine too? Start kovan with':'Swarm motorunu da mı çalıştırıyorsun? Onun toplantı odasına buradan katılmak için kovan’ı','to sit in on its boardroom here.':'ile başlat.',
+  'Who is at the table and who spoke to whom':'Masada kim var, kim kime konuştu','Messages between sessions ':'Oturumlar arası mesajlar ',
+  'in session':'oturumda','not started yet':'henüz başlamadı','session closed':'oturum kapandı','has the floor':'söz onda','needs your OK':'onayını bekliyor','decides':'karar verir',
+  'plans the milestones and replans between them':'kilometre taşlarını planlar, aralarda yeniden planlar','builds one milestone at a time':'her seferinde bir kilometre taşı inşa eder',
+  'strengthens the tests':'testleri güçlendirir','approves or sends work back':'işi onaylar ya da geri gönderir','proposes and scores ideas':'fikir önerir ve puanlar',
+  'watches usage limits':'kullanım sınırlarını izler','runs the checks, commits, keeps order':'denetimleri çalıştırır, commit atar, düzeni sağlar','orchestrator':'orkestra şefi','operator':'operatör','usage & limits':'kullanım ve sınırlar','swarm':'swarm',
+  '· click to open the session':'· oturumu açmak için tıkla',
+  'goal':'hedef','plan':'plan','idea':'fikir','hand-off':'devir','verdict':'karar','check':'denetim','milestone':'kilometre taşı','replan':'yeniden plan','decision':'karar','finance':'finans',
+  'needs you':'seni bekliyor','needs your OK ':'onayını bekliyor ','your turn ':'sıra sende ','note':'not','done':'bitti',
+  // need cards
+  '⬢ The Planner proposes a plan — approve it to start building':'⬢ Planlayıcı bir plan öneriyor — inşaya başlamak için onayla','Stack':'Teknoloji','Check':'Denetim',
+  'none — only the Reviewer gates milestones':'yok — kilometre taşlarını yalnız İnceleyici denetler','Want changes? Describe them and press Revise.':'Değişiklik mi istiyorsun? Yaz ve Düzelt’e bas.',
+  'Revise':'Düzelt','Not quite? Say what you want instead and ask for more ideas.':'Tam değil mi? Ne istediğini yaz ve başka fikir iste.','More ideas':'Başka fikirler','Details & scores':'Ayrıntılar ve puanlar',
+  'Build this':'Bunu yap','Ideator score (pass ≥ 80)':'Fikir üretici puanı (geçer ≥ 80)','Stack:':'Teknoloji:','Novelty:':'Yenilik:','⬢ The crew is blocked':'⬢ Ekip takıldı',
+  'Optional hint for the next attempt':'Sonraki deneme için isteğe bağlı ipucu','Skip this milestone':'Bu kilometre taşını geç','Retry':'Yeniden dene',
+  '⬢ Milestone finished — continue?':'⬢ Kilometre taşı bitti — devam edilsin mi?','You asked the crew to pause after every milestone. Look at the commit, steer it with a note, then continue.':'Ekibin her kilometre taşından sonra durmasını istedin. Commit’e bak, gerekirse notla yönlendir, sonra devam et.',
+  'Continue':'Devam et','This is outside what the crew’s permission policy allows by itself. Answer it in the':'Bu, ekibin izin politikasının kendi başına izin verdiği şeylerin dışında. Cevabı şu oturumda ver:',
+  'session.':'oturumu.','Paused':'Duraklatıldı',
+  // crews page
+  'A crew turns a goal — yours, or one its Ideator proposes — into small milestones and builds them: a Planner, a Developer, an optional Tester and a Reviewer, each a real Claude Code session you can open. kovan runs your check after every milestone, commits what the Reviewer approves, pauses before the usage limit and asks you whenever a human should decide.':
+    'Ekip bir hedefi — seninkini ya da Fikir üreticinin önerdiğini — küçük kilometre taşlarına böler ve inşa eder: bir Planlayıcı, bir Geliştirici, isteğe bağlı bir Testçi ve bir İnceleyici; her biri açıp konuşabileceğin gerçek bir Claude Code oturumu. kovan her kilometre taşından sonra senin denetim komutunu çalıştırır, İnceleyicinin onayladığını commit’ler, kullanım sınırından önce durur ve bir insanın karar vermesi gerektiğinde sana sorar.',
+  'No crews yet.':'Henüz ekip yok.','＋ Start your first crew':'＋ İlk ekibini başlat','choosing what to build':'ne yapılacağı seçiliyor','planning':'planlanıyor','role sessions':'rol oturumu','Boardroom →':'Toplantı odası →',
+  '← All crews':'← Bütün ekipler','Delete':'Sil','Milestones':'Kilometre taşları','Plan':'Plan','Team':'Ekip','Settings':'Ayarlar','Latest in the boardroom':'Toplantı odasından son','Open the boardroom →':'Toplantı odasını aç →',
+  'The plan comes after you pick an idea.':'Plan, sen bir fikir seçtikten sonra gelir.','The Planner is writing the plan…':'Planlayıcı planı yazıyor…','acceptance criteria':'kabul ölçütü','· history':'· geçmiş',
+  'Develop':'Geliştir','Test':'Test','Review':'İnceleme','Commit':'Commit','check ✓':'denetim ✓','check ✗':'denetim ✗','Check command':'Denetim komutu',
+  'Safe (workspace edits, tests)':'Güvenli (çalışma alanında düzenleme, testler)','Ask for everything':'Her şeyi sor','Trusted (never ask)':'Güvenilir (hiç sorma)',
+  'Plan approval':'Plan onayı','Pause per milestone':'Her kilometre taşında dur','Tester':'Testçi','Attempts':'Deneme','Usage pause':'Kullanım duraklaması','Git':'Git','yes':'evet','no':'hayır',
+  'no commits':'commit yok','commit':'commit','commit + push':'commit + push','Not started':'Başlamadı',
+  // crew dialog
+  'I have a goal':'Bir hedefim var','Suggest ideas':'Fikir öner','Goal':'Hedef','optional':'isteğe bağlı','Workspace folder':'Çalışma klasörü',
+  'What should the crew build? Be concrete: who uses it, what it must do, constraints (language, no network, …).':'Ekip ne yapsın? Somut ol: kim kullanacak, ne yapmalı, kısıtlar (dil, ağ yok, …).',
+  'An empty folder or a clean git repository; kovan creates it if needed. Every accepted milestone becomes a commit.':'Boş bir klasör ya da temiz bir git deposu; gerekirse kovan oluşturur. Kabul edilen her kilometre taşı bir commit olur.',
+  "runs after every milestone — the crew's CI gate":'her kilometre taşından sonra çalışır — ekibin CI kapısı',
+  'e.g. python3 -m pytest -q (leave empty and the Planner proposes one for you to approve)':'örn. python3 -m pytest -q   (boş bırakırsan Planlayıcı onaylaman için bir tane önerir)',
+  'Ask me to approve the plan':'Planı onayıma sun','Add a Tester':'Testçi ekle','Pause after every milestone':'Her kilometre taşından sonra dur','Commit each milestone':'Her kilometre taşını commit’le','Push after each commit':'Her commit’ten sonra push et',
+  'Safe — edits in the workspace, tests and read-only git run by themselves; anything else asks you':'Güvenli — çalışma alanındaki düzenlemeler, testler ve salt okunur git kendiliğinden çalışır; gerisi sana sorulur',
+  'Ask — every permission prompt comes to you':'Sor — her izin istemi sana gelir','Trusted — never ask (bypass permissions)':'Güvenilir — hiç sorma (izinleri atla)','Usage pause %':'Duraklama %','Start crew':'Ekibi başlat',
+  'The Ideator proposes four scored ideas; you pick one, then the Planner takes over.':'Fikir üretici puanlanmış dört fikir önerir; sen birini seçersin, sonra Planlayıcı devralır.',
+  'The Planner reads the workspace, writes milestones with acceptance criteria and asks for your approval.':'Planlayıcı çalışma alanını okur, kabul ölçütlü kilometre taşları yazar ve onayını ister.',
+  'e.g. Markdown table formatter':'örn. Markdown tablo biçimlendirici','e.g. developer tools for data engineers; command line only; Python':'örn. veri mühendisleri için geliştirici araçları; yalnız komut satırı; Python',
+  'Describe the goal':'Hedefi yaz','Or choose “Suggest ideas”.':'Ya da “Fikir öner”i seç.','Crew started':'Ekip başladı','Could not start the crew':'Ekip başlatılamadı',
+  'Say what to change':'Neyin değişeceğini yaz','Type the changes you want in the box, then press Revise.':'İstediğin değişiklikleri kutuya yaz, sonra Düzelt’e bas.',
+  'Stop this crew?':'Bu ekip durdurulsun mu?','The working role is interrupted and the crew stops. Its sessions, commits and boardroom stay; you can delete it later.':'Çalışan rol kesilir ve ekip durur. Oturumları, commit’leri ve toplantı odası kalır; sonra silebilirsin.',
+  'kovan forgets the crew and its boardroom. The workspace, its commits and the role sessions’ transcripts stay on disk.':'kovan ekibi ve toplantı odasını unutur. Çalışma alanı, commit’leri ve rol oturumlarının kayıtları diskte kalır.',
+  'Also close its running role sessions':'Çalışan rol oturumlarını da kapat','Crew deleted':'Ekip silindi','Could not delete it':'Silinemedi',
+  'Note delivered':'Not iletildi','Note queued':'Not sıraya alındı','The working role got it right away.':'Çalışan rol hemen aldı.','It goes into the next task.':'Sıradaki göreve eklenecek.',
+  'Note sent to the swarm':'Not swarm’a gönderildi','The next agent step for this project reads it.':'Bu projenin sıradaki ajan adımı okuyacak.','Could not send it':'Gönderilemedi',
+  'Plan approved':'Plan onaylandı','Project paused':'Proje duraklatıldı','Project resumed':'Proje sürdürüldü','Done':'Tamam','The swarm refused':'Swarm reddetti',
+  'Notifications on':'Bildirimler açık','When this tab is in the background you will hear about replies and questions.':'Bu sekme arka plandayken cevaplardan ve sorulardan haberin olur.',
+  'Plan approval requested':'Plan onayı istendi',
+  // phases and steps
+  'Ideating':'Fikir üretiyor','Pick an idea':'Fikir seç','Planning':'Planlıyor','Approve the plan':'Planı onayla','Building':'İnşa ediyor','Waiting for you':'Seni bekliyor','Needs you':'Seni bekliyor','Stopped':'Durduruldu',
+  'develop':'geliştirme','test':'test','review':'inceleme','diff':'fark',
+  // roles (names come translated from roleName; these cover other places)
+  'Planner':'Planlayıcı','Developer':'Geliştirici','Reviewer':'İnceleyici','Ideator':'Fikir üretici','Finance':'Finans','Operator':'Operatör',
+  // server errors that reach a toast
+  'Demo mode is read-only. Run kovan without --demo to drive real sessions.':'Demo kipi salt okunur. Gerçek oturumları sürmek için kovan’ı --demo olmadan çalıştır.',
+  'Demo mode is read-only.':'Demo kipi salt okunur.','This session is not open in kovan.':'Bu oturum kovan’da açık değil.','empty message':'boş mesaj','message too long':'mesaj çok uzun',
+  'this request is no longer pending':'bu istek artık beklemede değil','a crew needs a name':'ekibin bir adı olmalı','describe the goal, or let the crew suggest ideas':'hedefi yaz ya da ekibin fikir önermesine izin ver',
+  'choose a workspace directory':'bir çalışma klasörü seç','another crew is already working in that folder':'o klasörde zaten başka bir ekip çalışıyor','invalid crew options':'geçersiz ekip seçenekleri',
+  'that folder has files but is not a git repository — choose an empty folder or a git repository, so every milestone is a reviewable commit':'o klasörde dosyalar var ama git deposu değil — her kilometre taşı incelenebilir bir commit olsun diye boş bir klasör ya da bir git deposu seç',
+  'that repository has uncommitted changes — commit or stash them first, so the crew’s commits contain only its own work':'o depoda commit’lenmemiş değişiklikler var — ekibin commit’leri yalnız kendi işini içersin diye önce commit’le ya da stash’le',
+  'crew not found':'ekip bulunamadı','empty note':'boş not','forbidden':'yasak',
+  // words passed to plural()
+  'prompt':'komut','file':'dosya','subagent':'alt ajan','background task':'arka plan görevi',
+  'pick an idea':'bir fikir seç','approve the plan':'planı onayla','continue to the next milestone':'sonraki kilometre taşına geç','paused by you':'senin tarafından duraklatıldı',
+  'usage limit':'kullanım sınırı','stopped by you':'senin tarafından durduruldu','Architect':'Mimar','Diagnostician':'Teşhisçi','PM':'PM',
+};
+const TR_RX=[
+  [/^Watching: (.*)$/,'İzlenen: $1'],[/^no such directory: (.*)$/,'böyle bir klasör yok: $1'],
+  [/^(\d+) messages? between sessions$/,'oturumlar arası $1 mesaj'],
+  [/^(.+) · (\d+)\/(\d+) milestones$/,(m,a,b,c)=>tt(a)+' · '+b+'/'+c+' kilometre taşı'],
+  [/^(\d+)\/(\d+) milestones$/,'$1/$2 kilometre taşı'],
+  [/^Milestones · (\d+)\/(\d+)$/,'Kilometre taşları · $1/$2'],
+  [/^attempt (\d+) of (\d+)$/,'deneme $1/$2'],
+  [/^(.*) · (develop|test|check|review|commit|replan|diff)( \(attempt (\d+)\))?$/,(m,a,s,_,n)=>a+' · '+({develop:'geliştirme',test:'test',check:'denetim',review:'inceleme',commit:'commit',replan:'yeniden plan',diff:'fark'}[s])+(n?' (deneme '+n+')':'')],
+  [/^(\d+) need you$/,'$1 seni bekliyor'],
+  [/^\+ (\d+) more closed sessions$/,'+ $1 kapalı oturum daha'],
+  [/^Crew (.+) needs you$/,'$1 ekibi seni bekliyor'],[/^Crew (.+) is done$/,'$1 ekibi bitirdi'],[/^(\d+) milestones$/,'$1 kilometre taşı'],
+  [/^(.+) needs your answer$/,'$1 cevabını bekliyor'],[/^(.+) \((.+)\) replied$/,'$1 ($2) cevap verdi'],[/^(.+) replied$/,'$1 cevap verdi'],[/^(.+) hit an error$/,'$1 hata aldı'],[/^(.+) closed$/,'$1 kapandı'],
+  [/^Permission to use (.+)$/,'$1 kullanma izni'],[/^Effort set to (.+)$/,'Efor: $1'],
+  [/^(.+) needs your OK$/,'$1 onayını bekliyor'],[/^Open the (.+) session$/,'$1 oturumunu aç'],[/^To the (.+)$/,'→ $1'],[/^To (.+)$/,'→ $1'],
+  [/^running the (\w+)…$/,(m,s)=>({check:'denetim',diff:'fark',commit:'commit'}[s]||s)+' çalışıyor…'],
+  [/^Delete the crew “(.+)”\?$/,'“$1” ekibi silinsin mi?'],
+  [/^⬢ The Ideator has (\d+) ideas? — pick one to build$/,'⬢ Fikir üreticinin $1 fikri var — inşa edilecek birini seç'],
+  [/^Swarm engine · (.*)$/,(m,r)=>'Swarm motoru · '+r.replace(/ milestones/,' kilometre taşı')],
+  [/^Ideas about: (.*)$/,'Fikir konusu: $1'],
+  [/^(.+) — the (Ideator|Planner) goes first$/,(m,a,r)=>a+' — önce '+(r==='Ideator'?'Fikir üretici':'Planlayıcı')],
+  [/^(\d+) prompts?\(s\)$/,'$1 komut'],[/^(\d+) files?$/,'$1 dosya'],
+  [/^Paused — (.*)$/,(m,r)=>'Duraklatıldı — '+tt(r)],
+  [/^at (\d+)% of the 5-hour window$/,'5 saatlik pencerenin %$1’inde'],[/^(\d+) per milestone$/,'kilometre taşı başına $1'],
+  [/^Background task (.+)$/,'Arka plan görevi $1'],
+  // tool summaries made by the server
+  [/^ran a command$/,'komut çalıştırdı'],[/^ran a command \(background\)$/,'komut çalıştırdı (arka planda)'],[/^(.+) \(background\)$/,'$1 (arka planda)'],
+  [/^read (.+)$/,'okudu: $1'],[/^edited (.+)$/,'düzenledi: $1'],[/^wrote (.+)$/,'yazdı: $1'],[/^searched for (.+)$/,'aradı: $1'],[/^listed (.+)$/,'listeledi: $1'],
+  [/^started subagent: (.*)$/,'alt ajan başlattı: $1'],[/^web search: (.*)$/,'web araması: $1'],[/^fetched (.+)$/,'getirdi: $1'],[/^skill: (.*)$/,'beceri: $1'],
+  [/^asked you a question$/,'sana bir soru sordu'],[/^asked to approve a plan$/,'plan onayı istedi'],[/^preparing (.+)…$/,'$1 hazırlanıyor…'],
+  [/^(\d+) tool calls?$/,'$1 araç çağrısı'],[/^(\d+) acceptance criteria( · history)?$/,(m,n,h)=>n+' kabul ölçütü'+(h?' · geçmiş':'')],[/^✎ (\d+) files?$/,'✎ $1 dosya'],[/^⚠ (\d+) failed$/,'⚠ $1 başarısız'],
+  // swarm project states
+  [/^(queued|planning|awaiting approval|building|replanning|integration|done|blocked|killed)( · .*)?$/,(m,st,rest)=>({queued:'sırada',planning:'planlanıyor','awaiting approval':'onay bekliyor',building:'inşa ediliyor',replanning:'yeniden planlanıyor',integration:'entegrasyon',done:'bitti',blocked:'takıldı',killed:'durduruldu'}[st])+(rest||'')],[/^Stack: (.*)$/,'Teknoloji: $1'],[/^Novelty: (.*)$/,'Yenilik: $1'],
+];
+function tt(s){
+  if(LANG!=='tr'||!s)return s;
+  const k=s.replace(/\s+/g,' ').trim();if(!k)return s;
+  let v=TR[k];
+  if(v==null)for(const[rx,rep]of TR_RX){if(rx.test(k)){v=k.replace(rx,rep);break;}}
+  if(v==null&&/ ·$/.test(k)){const h=TR[k.slice(0,-2)];if(h)v=h+' ·';}
+  if(v==null||v===k)return s;
+  const lead=s.match(/^\s*/)[0],trail=s.match(/\s*$/)[0];
+  return lead+v+trail;}
+// User content (messages, code, markdown, names) is never translated.
+// User content (messages, code, markdown, names) is never translated. Form fields keep their text but get
+// translated placeholders and titles.
+const I18N_USER='.md,pre,code,.bubble,.no-i18n,.i-name,.tag,.out,.d-path,.diff,.topic,.sum,.txt,.p-title,script,style,mark';
+const I18N_SKIP=I18N_USER+',textarea,input';
+function i18nText(n){const p=n.parentElement;if(!p||p.closest(I18N_SKIP))return;const v=tt(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v;}
+function i18nAttrs(el){if(!el.getAttribute||el.closest(I18N_USER))return;for(const a of ['title','placeholder','aria-label']){const v=el.getAttribute(a);if(v){const w=tt(v);if(w!==v)el.setAttribute(a,w);}}}
+function i18nTree(root){
+  if(root.nodeType===3){i18nText(root);return;}
+  if(root.nodeType!==1||(root.closest&&root.closest(I18N_USER)))return;
+  i18nAttrs(root);
+  if(root.matches(I18N_SKIP))return;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{acceptNode:n=>{if(n.nodeType!==1)return NodeFilter.FILTER_ACCEPT;
+    if(n.matches(I18N_USER))return NodeFilter.FILTER_REJECT;if(n.matches(I18N_SKIP)){i18nAttrs(n);return NodeFilter.FILTER_REJECT;}return NodeFilter.FILTER_ACCEPT;}});
+  let n;while((n=w.nextNode()))n.nodeType===3?i18nText(n):i18nAttrs(n);}
+function startI18n(){
+  const b=$('#lang-btn');if(b){b.textContent=LANG==='tr'?'TR':'EN';b.title=LANG==='tr'?'Dil: Türkçe (English için tıkla)':'Language: English (Türkçe için tıkla)';b.classList.add('no-i18n');}
+  if(LANG!=='tr')return;
+  i18nTree(document.body);
+  new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')i18nText(m.target);else if(m.type==='attributes')i18nAttrs(m.target);else m.addedNodes.forEach(i18nTree);}})
+    .observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['title','placeholder','aria-label']});}
+
+const MONTHS=LANG==='tr'?['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara']:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const U=LANG==='tr'?{s:' sn',m:' dk',h:' sa',d:' g',ago:' önce',now:'az önce',nowShort:'şimdi'}:{s:'s',m:'m',h:'h',d:'d',ago:' ago',now:'just now',nowShort:'now'};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
@@ -683,10 +903,10 @@ if(!VIEWS.includes(S.view))S.view='chat';
 
 /* ---------------- formatting */
 const two=n=>String(n).padStart(2,'0');
-function clock(ms){if(!ms)return'';const d=new Date(ms),t=new Date();const hm=two(d.getHours())+':'+two(d.getMinutes());return d.toDateString()===t.toDateString()?hm:MONTHS[d.getMonth()]+' '+d.getDate()+' '+hm;}
-function dur(ms){ms=Math.max(0,ms);const s=Math.floor(ms/1000);if(s<60)return s+'s';const m=Math.floor(s/60);if(m<60)return m+'m';const h=Math.floor(m/60);if(h<24)return h+'h'+(m%60?' '+m%60+'m':'');const d=Math.floor(h/24);return d+'d'+(h%24?' '+h%24+'h':'');}
-function ago(ms){if(!ms)return'';const f=Date.now()-ms;return f<45000?'just now':dur(f)+' ago';}
-function short(ms){if(!ms)return'';const f=Date.now()-ms;if(f<60000)return'now';if(f<3600000)return Math.floor(f/60000)+'m';if(f<86400000)return Math.floor(f/3600000)+'h';const d=new Date(ms);return MONTHS[d.getMonth()]+' '+d.getDate();}
+function clock(ms){if(!ms)return'';const d=new Date(ms),t=new Date();const hm=two(d.getHours())+':'+two(d.getMinutes());return d.toDateString()===t.toDateString()?hm:(LANG==='tr'?d.getDate()+' '+MONTHS[d.getMonth()]:MONTHS[d.getMonth()]+' '+d.getDate())+' '+hm;}
+function dur(ms){ms=Math.max(0,ms);const s=Math.floor(ms/1000);if(s<60)return s+U.s;const m=Math.floor(s/60);if(m<60)return m+U.m;const h=Math.floor(m/60);if(h<24)return h+U.h+(m%60?' '+m%60+U.m:'');const d=Math.floor(h/24);return d+U.d+(h%24?' '+h%24+U.h:'');}
+function ago(ms){if(!ms)return'';const f=Date.now()-ms;return f<45000?U.now:dur(f)+U.ago;}
+function short(ms){if(!ms)return'';const f=Date.now()-ms;if(f<60000)return U.nowShort;if(f<3600000)return Math.floor(f/60000)+U.m.trim();if(f<86400000)return Math.floor(f/3600000)+U.h.trim();const d=new Date(ms);return LANG==='tr'?d.getDate()+' '+MONTHS[d.getMonth()]:MONTHS[d.getMonth()]+' '+d.getDate();}
 function tok(n){if(n==null)return'—';return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'k':String(n);}
 function plain(s){return String(s||'').replace(/```[\s\S]*?```/g,' [code] ').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/^[\s|:\-]+$/gm,' ').replace(/[*`#>]+/g,'').replace(/(^|\s)_+|_+(?=\s|$)/g,'$1').replace(/\s*\|\s*/g,' · ').replace(/(\s·\s)+/g,' · ').replace(/\s+/g,' ').replace(/^ · | · $/g,'').trim();}
 function relSpan(ts,mode){if(!ts)return'';return '<span class="rel" data-ts="'+ts+'" data-mode="'+(mode||'ago')+'">'+(mode==='dur'?dur(Date.now()-ts):mode==='short'?short(ts):ago(ts))+'</span>';}
@@ -697,7 +917,7 @@ function colorOf(sid){const o=sess(sid);return o?colorI(o.color):'var(--faint)';
 function tag(sid,name){const o=sess(sid);return '<span class="tag" style="--c:'+(o?colorOf(sid):'var(--faint)')+'"'+(o?' data-open="'+sid+'"':'')+' title="'+esc(o?o.name:name)+'">'+esc(o?o.name:(name||'?'))+'</span>';}
 function shortPath(p){const a=String(p||'').split('/');return a.length>3?'…/'+a.slice(-2).join('/'):p;}
 function folded(s){return String(s||'').replace(/İ/g,'i').replace(/I/g,'i').toLowerCase().replace(/ı/g,'i').normalize('NFD').replace(/[̀-ͯ]/g,'');}
-function plural(n,word){return '<b>'+n+'</b> '+word+(n===1?'':'s');}
+function plural(n,word){return '<b>'+n+'</b> '+(LANG==='tr'?tt(word):word+(n===1?'':'s'));}
 function level(p){return p>=85?'high':p>=60?'mid':'';}
 
 /* ---------------- tiny markdown renderer (escape first, then format) */
@@ -834,7 +1054,7 @@ function itemHTML(o){
   if(o.status==='awaiting')sub='<span class="ask">Needs your answer</span>';
   else if(o.status==='working')sub='<span class="busy">'+esc((l&&l.tool&&l.tool.text)||(o.now&&o.now.text)||'working…')+'</span>';
   else if(o.status==='starting')sub='starting…';
-  else sub=esc(plain(o.last_reply?o.last_reply.text:(o.topic||'')))||'<span class="muted">no messages yet</span>';
+  else sub=(o.last_reply||o.topic?'<span class="no-i18n">'+esc(plain(o.last_reply?o.last_reply.text:o.topic))+'</span>':'')||'<span class="muted">no messages yet</span>';
   const t=o.status==='working'&&o.turn_started_at?relSpan(o.turn_started_at,'dur'):relSpan(o.last_activity,'short');
   if(o.crew)sub='<span class="crew-badge" style="--c:'+roleColor(o.crew.role)+'">⬢ '+esc(roleName(o.crew.role))+'</span> '+sub;
   return '<button class="item'+(o.sid===S.sel&&S.view==='chat'?' selected':'')+(unread(o)?' unread':'')+'" data-open="'+o.sid+'" title="'+esc(o.name)+'"><span class="dot '+cls+'" style="--c:'+colorI(o.color)+'"></span><span class="i-name">'+esc(o.name)+'</span><span class="i-time">'+t+'</span><span class="i-sub">'+sub+'</span></button>';
@@ -882,7 +1102,7 @@ function renderHead(o){
   const sig=JSON.stringify([o.sid,o.name,o.status,o.place,o.model,o.effort,o.archived,o.context_tokens,o.turn_started_at,m.permission_mode,m.context,(m.models||[]).length,tasks,S.info,S.renaming]);
   if(sig===S.headSig&&$('#c-head').innerHTML)return;S.headSig=sig;
   const[label,cls]=STATUS[o.status]||['?','idle'];
-  const title=S.renaming===o.sid?'<input class="name-input" id="name-input" value="'+esc(o.name)+'" maxlength="80" title="Enter to save · Esc to cancel">':'<h2 title="'+esc(o.name)+'">'+esc(o.name)+'</h2><button class="pencil" data-rename title="'+(driven?'Rename the session':'Rename (shown in kovan only)')+'">✎</button>';
+  const title=S.renaming===o.sid?'<input class="name-input" id="name-input" value="'+esc(o.name)+'" maxlength="80" title="Enter to save · Esc to cancel">':'<h2 class="no-i18n" title="'+esc(o.name)+'">'+esc(o.name)+'</h2><button class="pencil" data-rename title="'+(driven?'Rename the session':'Rename (shown in kovan only)')+'">✎</button>';
   let c='';
   if(driven){c+=selectHTML('model','Model',modelOptions(m,o));
     c+=selectHTML('effort','Effort',EFFORTS.map(([v,l])=>({v,l,on:o.effort===v})).concat(o.effort&&!EFFORTS.some(e=>e[0]===o.effort)?[{v:o.effort,l:o.effort,on:true}]:[]).concat(!o.effort?[{v:'',l:'—',on:true}]:[]));
@@ -1146,11 +1366,11 @@ function pickPalette(i){const x=P.items[i];if(!x)return;$('#palette').close();
 function ocard(o){
   const[label,cls]=STATUS[o.status]||[o.raw_status||'?','idle'];
   const t=o.status==='working'&&o.turn_started_at?relSpan(o.turn_started_at,'dur'):relSpan(o.last_activity);
-  return '<article class="ocard '+cls+'" data-open="'+o.sid+'" tabindex="0"><header><span class="swatch" style="background:'+colorI(o.color)+'"></span><h3 title="'+esc(o.name)+'">'+esc(o.name)+'</h3><span class="place p-'+o.place+'">'+PLACE[o.place]+'</span><span class="pill '+cls+'"><i></i>'+esc(label)+(t?' · '+t:'')+'</span></header>'+
+  return '<article class="ocard '+cls+'" data-open="'+o.sid+'" tabindex="0"><header><span class="swatch" style="background:'+colorI(o.color)+'"></span><h3 class="no-i18n" title="'+esc(o.name)+'">'+esc(o.name)+'</h3><span class="place p-'+o.place+'">'+PLACE[o.place]+'</span><span class="pill '+cls+'"><i></i>'+esc(label)+(t?' · '+t:'')+'</span></header>'+
    (o.topic?'<div class="topic" title="'+esc(o.topic)+'">'+esc(o.topic)+'</div>':'')+
    (o.now?'<div class="now"><span class="label">Now</span><span class="t" title="'+esc(o.now.text)+'">'+esc(o.now.text)+'</span>'+relSpan(o.now.ts)+'</div>':'')+
-   (o.last_prompt?'<div class="block"><div class="bh"><span class="label">Your last prompt</span><time>'+clock(o.last_prompt.ts)+'</time></div><p class="clamp c2">'+esc(plain(o.last_prompt.text))+'</p></div>':'')+
-   (o.last_reply?'<div class="block"><div class="bh"><span class="label">Last reply</span><time>'+clock(o.last_reply.ts)+'</time></div><p class="clamp c3">'+esc(plain(o.last_reply.text))+'</p></div>':'')+
+   (o.last_prompt?'<div class="block"><div class="bh"><span class="label">Your last prompt</span><time>'+clock(o.last_prompt.ts)+'</time></div><p class="clamp c2 no-i18n">'+esc(plain(o.last_prompt.text))+'</p></div>':'')+
+   (o.last_reply?'<div class="block"><div class="bh"><span class="label">Last reply</span><time>'+clock(o.last_reply.ts)+'</time></div><p class="clamp c3 no-i18n">'+esc(plain(o.last_reply.text))+'</p></div>':'')+
    '<footer><span>'+plural(o.prompt_count,'prompt')+'</span><span><b>'+o.sent+'</b> sent · <b>'+o.received+'</b> received</span><span>'+plural(o.file_count,'file')+'</span><span><b>'+tok(o.context_tokens)+'</b> context</span>'+(o.subagents_running?'<span style="color:var(--busy)">'+plural(o.subagents_running,'subagent')+' running</span>':'')+(o.tasks_running?'<span style="color:var(--busy)">'+plural(o.tasks_running,'background task')+'</span>':'')+'</footer></article>';
 }
 function renderOverview(){const os=S.d.sessions,live=os.filter(o=>o.live),closed=os.filter(o=>!o.live&&!o.archived);
@@ -1200,12 +1420,13 @@ async function loadNotes(force){if(!force&&S.notes&&Date.now()-S.notesAt<30000)r
 function renderNotes(){if(!S.notes){$('#notes').innerHTML='<div class="empty">Loading…</div>';loadNotes().then(()=>S.view==='notes'&&renderNotes());return;}
   if(!S.notes.length){$('#notes').innerHTML='<div class="empty">No notes configured. Start kovan with <code>--note JOURNAL.md</code> to show files here.</div>';return;}
   $('#notes').innerHTML=S.notes.map(n=>'<div class="box note-card"><div class="note-head"><b>'+esc(n.title)+'</b><span>'+esc(n.path)+(n.modified?' · updated '+relSpan(n.modified):'')+'</span></div>'+
-    (n.kind==='journal'?n.entries.map((x,i)=>{const k='n-'+n.title+'-'+x.heading;const open=S.open.has(k)||(i===0&&!S.closed.has(k));return '<details class="entry" data-k="'+esc(k)+'"'+(open?' open':'')+'><summary>'+inl(x.heading)+'</summary><div class="md">'+md(x.body)+'</div></details>';}).join(''):'<div class="doc md">'+md(n.content)+'</div>')+'</div>').join('');}
+    (n.kind==='journal'?n.entries.map((x,i)=>{const k='n-'+n.title+'-'+x.heading;const open=S.open.has(k)||(i===0&&!S.closed.has(k));return '<details class="entry" data-k="'+esc(k)+'"'+(open?' open':'')+'><summary>'+inl(x.heading)+(x.group?'<span class="grp">'+inl(x.group)+'</span>':'')+'</summary><div class="md">'+md(x.body)+'</div></details>';}).join(''):'<div class="doc md">'+md(n.content)+'</div>')+'</div>').join('');}
 
 /* ---------------- crews & boardroom */
 const PHASE={ideating:['Ideating','busy'],choosing:['Pick an idea','ask'],planning:['Planning','busy'],plan_review:['Approve the plan','ask'],building:['Building','busy'],milestone_review:['Waiting for you','ask'],blocked:['Needs you','ask'],paused:['Paused','wait'],done:['Done','idle'],stopped:['Stopped','off']};
 const STEPS=[['develop','Develop'],['test','Test'],['check','Check'],['review','Review'],['commit','Commit']];
 const ROLE_T={you:'You',human:'You',operator:'Operator',kovan:'Kovan',planner:'Planner',developer:'Developer',tester:'Tester',reviewer:'Reviewer',finance:'Finance',ideator:'Ideator',pm:'PM'};
+if(LANG==='tr')Object.assign(ROLE_T,{you:'Sen',human:'Sen',operator:'Operatör',planner:'Planlayıcı',developer:'Geliştirici',tester:'Testçi',reviewer:'İnceleyici',finance:'Finans',ideator:'Fikir üretici',architect:'Mimar',diagnostician:'Teşhisçi'});
 const ROLE_C={you:'#c4623f',human:'#c4623f',operator:'#c4623f',kovan:'#8193ad',planner:'#4f8fdc',pm:'#4f8fdc',architect:'#5c7ae0',developer:'#2fa872',tester:'#cf9a2e',reviewer:'#a979d6',finance:'#2fabb3',ideator:'#d9668f',diagnostician:'#c0703a'};
 const ROLE_DO={planner:'plans the milestones and replans between them',developer:'builds one milestone at a time',tester:'strengthens the tests',reviewer:'approves or sends work back',ideator:'proposes and scores ideas',finance:'watches usage limits',kovan:'runs the checks, commits, keeps order',you:'decides'};
 const KIND_T={goal:'goal',plan:'plan',idea:'idea',handoff:'hand-off',verdict:'verdict',check:'check',milestone:'milestone',replan:'replan',decision:'decision',finance:'finance',blocked:'needs you',attention:'needs your OK',waiting:'your turn',note:'note',done:'done'};
@@ -1231,7 +1452,7 @@ async function loadSwarmBoard(pid,force){const k=boardKey(pid),h=S.swarmBoards[k
 function rooms(){const r=[];const crews=(S.d&&S.d.crews)||[];
   crews.forEach(c=>{const p=c.progress||{};r.push({id:'crew:'+c.id,kind:'crew',name:c.name,sub:(PHASE[c.phase]||[c.phase])[0]+(p.total?' · '+p.done+'/'+p.total+' milestones':''),hot:crewNeedsYou(c),busy:(PHASE[c.phase]||[])[1]==='busy'});});
   const mc=S.d?S.d.messages.filter(m=>!m.subagent).length:0;
-  r.push({id:'sessions',kind:'sessions',name:'Sessions',sub:mc?mc+' message'+(mc===1?'':'s')+' between sessions':'messages between sessions'});
+  r.push({id:'sessions',kind:'sessions',name:tt('Sessions'),sub:mc?mc+' message'+(mc===1?'':'s')+' between sessions':'messages between sessions'});
   if(S.d&&S.d.swarm)((S.swarm&&S.swarm.projects)||[]).forEach(p=>r.push({id:'swarm:'+p.id,kind:'swarm',name:p.name,sub:p.state.replace(/_/g,' ')+(p.total?' · '+p.done+'/'+p.total:''),busy:p.state==='building',hot:p.state==='awaiting_approval'}));
   return r;}
 function pickRoom(){const rs=rooms();const pendingSwarm=String(S.room).startsWith('swarm:')&&S.d&&S.d.swarm&&!S.swarm;if(!S.room||(!rs.find(x=>x.id===S.room)&&!pendingSwarm)){const hot=rs.find(x=>x.hot)||rs.find(x=>x.kind==='crew')||rs[0];S.room=hot?hot.id:'sessions';}return rs;}
@@ -1246,7 +1467,7 @@ function sessionsRoom(){
   const seats=ids.slice(0,12).map(sid=>{const o=sess(sid);return{key:sid,name:o.name,role:(PLACE[o.place]||'').toLowerCase(),color:colorI(o.color),busy:o.status==='working',ask:o.status==='awaiting',sid};});
   const entries=ms.map(m=>({id:m.id,ts:m.ts,speaker:m.from||'?',speakerName:m.from&&sess(m.from)?sess(m.from).name:(m.from_name||'?'),to:m.to,toName:m.to&&sess(m.to)?sess(m.to).name:m.to_name,kind:m.delivered?'delivered':'',text:m.text}));
   const targets=S.d.sessions.filter(o=>o.place==='kovan'&&o.live);
-  return{key:'sessions',title:'Sessions',icon:'💬',sub:'Your Claude Code sessions talking to each other: every message one session sent another, with delivery confirmed from the receiving transcript.',
+  return{key:'sessions',title:tt('Sessions'),icon:'💬',sub:'Your Claude Code sessions talking to each other: every message one session sent another, with delivery confirmed from the receiving transcript.',
     seats,entries,acts:'<button class="btn small" data-view="messages">Graph view</button>',
     speak:{targets:targets.map(o=>({v:o.sid,l:'To '+o.name})),placeholder:targets.length?'Write to a session kovan drives…':'Continue a session in kovan to speak to it from here',disabled:!targets.length},
     empty:'No messages between sessions yet. When one session uses SendMessage to reach another, the exchange appears here.'};}
@@ -1261,15 +1482,15 @@ function crewRoom(c){
   const entries=h?h.board.map(e=>({id:e.id,ts:e.ts,speaker:e.speaker,to:e.to,kind:e.kind,text:e.text})):null;
   const paused=c.phase==='paused',fin=c.phase==='done'||c.phase==='stopped';
   const acts=(fin?'':'<button class="btn small" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button>')+'<button class="btn small" data-crew="'+c.id+'">Milestones & settings</button>';
-  return{key:'crew:'+c.id,title:c.name,icon:'⬢',crew:c,detail:h,sub:c.goal||(c.theme?'Ideas about: '+c.theme:''),pill:phasePill(c.phase),seats,entries,acts,
+  return{key:'crew:'+c.id,title:c.name,icon:'⬢',crew:c,detail:h,sub:c.goal||(c.theme?tt('Ideas about:')+' '+c.theme:''),pill:phasePill(c.phase),seats,entries,acts,
     need:h?needHTML(c,h,true):'',
     speak:{targets:[{v:'',l:'To everyone'}].concat(roles.map(r=>({v:r,l:'To the '+roleName(r)}))),placeholder:fin?'This crew has finished':'Speak to the crew — a steering note reaches a busy role right away, otherwise its next task',disabled:fin},
     empty:'The meeting is about to start…'};}
 function swarmRoom(p){
   const b=S.swarmBoards[boardKey(p.id)];const es=b?b.entries:null;const keys=[];
   (es||[]).forEach(e=>{const k=roleKey(e.speaker);if(k&&!keys.includes(k)&&!YOU_KEYS.includes(k))keys.push(k);});
-  const seats=['human'].concat(keys.slice(0,11)).map(k=>({key:k,name:k==='human'?'You':(keys.length&&es.find(e=>roleKey(e.speaker)===k)||{}).speaker||roleName(k),role:k==='human'?'operator':'swarm',color:roleColor(k),busy:false,ask:k==='human'&&p.state==='awaiting_approval'}));
-  const entries=es?es.map(e=>({id:e.id,ts:e.ts,speaker:YOU_KEYS.includes(roleKey(e.speaker))?'human':roleKey(e.speaker),speakerName:e.speaker,kind:S.boardAll&&e.kind!=='decision'?e.kind:'',text:e.text})):null;
+  const seats=['human'].concat(keys.slice(0,11)).map(k=>({key:k,name:k==='human'?roleName('you'):(ROLE_T[k]||(es.find(e=>roleKey(e.speaker)===k)||{}).speaker||roleName(k)),role:k==='human'?'operator':'swarm',color:roleColor(k),busy:false,ask:k==='human'&&p.state==='awaiting_approval'}));
+  const entries=es?es.map(e=>({id:e.id,ts:e.ts,speaker:YOU_KEYS.includes(roleKey(e.speaker))?'human':roleKey(e.speaker),speakerName:ROLE_T[roleKey(e.speaker)]||e.speaker,kind:S.boardAll&&e.kind!=='decision'?e.kind:'',text:e.text})):null;
   const acts='<span class="seg-chips"><button class="chip'+(S.boardAll?'':' on')+'" data-board-all="0">Decisions</button><button class="chip'+(S.boardAll?' on':'')+'" data-board-all="1">Everything</button></span>'+
     (p.state==='awaiting_approval'?'<button class="btn small primary" data-swarm-act="approve" data-id="'+p.id+'">Approve plan</button>':'')+
     '<button class="btn small" data-swarm-act="pause_project" data-id="'+p.id+'">❚❚ Pause</button><button class="btn small" data-swarm-act="resume_project" data-id="'+p.id+'">▶ Resume</button>';
@@ -1299,13 +1520,13 @@ function tableSVG(R){
     arcs+='<path class="talk'+(last?' last':'')+'" d="M'+f1(a1)+' '+f1(b1)+'Q'+f1(kx)+' '+f1(ky)+' '+f1(a2)+' '+f1(b2)+'" stroke="'+col+'"'+(last?' marker-end="url(#tk-end)"':'')+'/>';});
   const lastE=(R.entries||[])[R.entries&&R.entries.length-1];
   let center='';if(lastE){const who=(R.map[lastE.speaker]||{}).name||lastE.speakerName||roleName(lastE.speaker);const to=lastE.to?((R.map[lastE.to]||{}).name||lastE.toName||roleName(lastE.to)):'';
-    center='<text class="t-now" x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle">'+esc(who+(to?' → '+to:''))+'</text><text class="t-sub" x="'+cx+'" y="'+(cy+14)+'" text-anchor="middle">'+esc(clip1(plain(lastE.text),62))+'</text>';}
+    center='<text class="t-now no-i18n" x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle">'+esc(who+(to?' → '+to:''))+'</text><text class="t-sub no-i18n" x="'+cx+'" y="'+(cy+14)+'" text-anchor="middle">'+esc(clip1(plain(lastE.text),62))+'</text>';}
   else center='<text class="t-sub" x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle">'+esc(R.entries?'quiet so far':'joining…')+'</text>';
   let st='';seats.forEach(s=>{const p=pos[s.key],below=Math.sin(p.a)>0.05,ly=below?p.y+34:p.y-37;
     st+='<g class="seat'+(s.busy?' busy':'')+(s.ask?' ask':'')+(s.away?' away':'')+'"'+(s.sid?' data-open="'+s.sid+'"':'')+'><title>'+esc(s.name+(s.role?' — '+s.role:'')+(s.sid?' · click to open the session':''))+'</title>'+
       (s.busy?'<circle class="ring" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="24"/>':'')+(s.ask?'<circle class="ring ask" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="24"/>':'')+
       '<circle cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="19" fill="'+s.color+'" stroke="var(--bg)" stroke-width="3"/><text class="ini" x="'+f1(p.x)+'" y="'+f1(p.y+4.5)+'" text-anchor="middle">'+esc(initials(s.name))+'</text>'+
-      '<text class="nm" x="'+f1(p.x)+'" y="'+f1(ly)+'" text-anchor="middle">'+esc(clip1(s.name,22))+'</text>'+(s.role?'<text class="rl" x="'+f1(p.x)+'" y="'+f1(ly+13)+'" text-anchor="middle">'+esc(clip1(s.role,30))+'</text>':'')+'</g>';});
+      '<text class="nm no-i18n" x="'+f1(p.x)+'" y="'+f1(ly)+'" text-anchor="middle">'+esc(clip1(s.name,22))+'</text>'+(s.role?'<text class="rl" x="'+f1(p.x)+'" y="'+f1(ly+13)+'" text-anchor="middle">'+esc(clip1(tt(s.role),30))+'</text>':'')+'</g>';});
   return '<svg class="table-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Who is at the table and who spoke to whom"><defs><marker id="tk-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="'+lastCol+'"/></marker></defs>'+
     '<ellipse class="tbl" cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'"/>'+arcs+center+st+'</svg>';}
 function clip1(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s;}
@@ -1317,17 +1538,17 @@ function sayHTML(e,R){
   const you=YOU_KEYS.includes(roleKey(e.speaker));
   const to=e.to?((R.map[e.to]||{}).name||e.toName||roleName(e.to)):'';
   const kind=e.kind==='delivered'?'<span class="dl" title="Seen in the receiving session’s transcript">✓ delivered</span>':(KIND_T[e.kind]?'<span class="k k-'+esc(e.kind)+'">'+KIND_T[e.kind]+'</span>':(e.kind?'<span class="k">'+esc(e.kind)+'</span>':''));
-  return '<div class="say'+(you?' you':'')+(e.kind==='blocked'||e.kind==='attention'?' hot':'')+'" style="--c:'+c+'"><div class="av"'+(seat&&seat.sid?' data-open="'+seat.sid+'" title="Open '+esc(name)+'"':'')+'>'+esc(initials(name))+'</div><div class="bub"><div class="who"><b>'+esc(name)+'</b>'+(to?'<span class="to">→ '+esc(to)+'</span>':'')+kind+'<time>'+clock(e.ts)+'</time></div><div class="md">'+md(e.text)+'</div></div></div>';}
+  return '<div class="say'+(you?' you':'')+(e.kind==='blocked'||e.kind==='attention'?' hot':'')+'" style="--c:'+c+'"><div class="av"'+(seat&&seat.sid?' data-open="'+seat.sid+'" title="Open '+esc(name)+'"':'')+'>'+esc(initials(name))+'</div><div class="bub"><div class="who"><b class="no-i18n">'+esc(name)+'</b>'+(to?'<span class="to no-i18n">→ '+esc(to)+'</span>':'')+kind+'<time>'+clock(e.ts)+'</time></div><div class="md">'+md(e.text)+'</div></div></div>';}
 
 function renderBoard(){
   const rs=pickRoom();
-  $('#rooms').innerHTML='<div class="group"><span>Rooms</span><button class="link" data-new-crew>＋ New crew</button></div>'+rs.map(r=>'<button class="room-btn'+(r.id===S.room?' on':'')+(r.hot?' hot':'')+'" data-room="'+esc(r.id)+'"><span class="ic ic-'+r.kind+(r.busy?' busy':'')+'">'+({crew:'⬢',sessions:'💬',swarm:'▦'})[r.kind]+'</span><b>'+esc(r.name)+'</b>'+(r.hot?'<span class="hot-dot" title="Needs you"></span>':'')+'<small>'+esc(r.sub)+'</small></button>').join('')+
+  $('#rooms').innerHTML='<div class="group"><span>Rooms</span><button class="link" data-new-crew>＋ New crew</button></div>'+rs.map(r=>'<button class="room-btn'+(r.id===S.room?' on':'')+(r.hot?' hot':'')+'" data-room="'+esc(r.id)+'"><span class="ic ic-'+r.kind+(r.busy?' busy':'')+'">'+({crew:'⬢',sessions:'💬',swarm:'▦'})[r.kind]+'</span><b class="no-i18n">'+esc(r.name)+'</b>'+(r.hot?'<span class="hot-dot" title="Needs you"></span>':'')+'<small>'+esc(r.sub)+'</small></button>').join('')+
     (!((S.d&&S.d.crews)||[]).length?'<div class="rooms-hint">No crews yet. A crew is a Planner, a Developer and a Reviewer — real Claude Code sessions — building something in milestones while you watch the meeting. <button class="link" data-new-crew>Start one</button></div>':'')+
     (S.d&&S.d.swarm?(S.swarm&&S.swarm.error?'<div class="rooms-hint err">'+esc(S.swarm.error)+'</div>':''):'<div class="rooms-hint">Running the swarm engine too? Start kovan with <code>--swarm http://127.0.0.1:8080</code> to sit in on its boardroom here.</div>');
   const R=currentRoom();
   if(!R){$('#room-head').innerHTML='';$('#room-table').innerHTML='';$('#room-list').innerHTML='<div class="empty">Loading…</div>';$('#room-need').innerHTML='';return;}
   R.map=seatMap(R.seats);
-  const head='<div class="rh-title"><span class="ic ic-'+(R.key.split(':')[0])+'">'+R.icon+'</span><h2>'+esc(R.title)+'</h2>'+(R.pill||'')+'</div><div class="acts">'+R.acts+'</div>'+(R.sub?'<p class="clamp c2" title="'+esc(R.sub)+'">'+esc(R.sub)+'</p>':'');
+  const head='<div class="rh-title"><span class="ic ic-'+(R.key.split(':')[0])+'">'+R.icon+'</span><h2 class="no-i18n">'+esc(R.title)+'</h2>'+(R.pill||'')+'</div><div class="acts">'+R.acts+'</div>'+(R.sub?'<p class="clamp c2'+(R.crew?' no-i18n':'')+'" title="'+esc(R.sub)+'">'+esc(R.sub)+'</p>':'');
   if($('#room-head').dataset.sig!==head){$('#room-head').dataset.sig=head;$('#room-head').innerHTML=head;}
   const tbl=tableSVG(R);if($('#room-table').dataset.sig!==tbl){$('#room-table').dataset.sig=tbl;$('#room-table').innerHTML=tbl;}
   const box=$('#room-stream'),list=$('#room-list');
@@ -1347,11 +1568,11 @@ function needHTML(c,d,compact){
   if(c.phase==='plan_review'&&d.plan){const p=d.plan;
     h+='<div class="card-ask need"><div class="ask-title">⬢ The Planner proposes a plan — approve it to start building</div>'+(p.summary?'<p>'+inl(p.summary)+'</p>':'')+
       '<div class="kv">'+(p.stack?'<span>Stack</span><b>'+esc(p.stack)+'</b>':'')+'<span>Check</span><b>'+(c.options.check||p.check_command?'<code>'+esc(c.options.check||p.check_command)+'</code>':'none — only the Reviewer gates milestones')+'</b></div>'+
-      '<ol class="plan-ms">'+p.milestones.map(m=>'<li><b>'+esc(m.title)+'</b>'+(m.goal?'<div>'+inl(m.goal)+'</div>':'')+(m.acceptance&&m.acceptance.length?'<ul>'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>':'')+'</li>').join('')+'</ol>'+
+      '<ol class="plan-ms no-i18n">'+p.milestones.map(m=>'<li><b>'+esc(m.title)+'</b>'+(m.goal?'<div>'+inl(m.goal)+'</div>':'')+(m.acceptance&&m.acceptance.length?'<ul>'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>':'')+'</li>').join('')+'</ol>'+
       '<textarea data-feedback placeholder="Want changes? Describe them and press Revise."></textarea><div class="ask-actions"><button class="btn" data-crew-act="revise" data-id="'+c.id+'">Revise</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">Stop</button><button class="btn primary" data-crew-act="approve" data-id="'+c.id+'">Approve plan</button></div></div>';}
   if(c.phase==='choosing'){const ideas=d.ideas||[];
     h+='<div class="card-ask need"><div class="ask-title">⬢ The Ideator has '+ideas.length+' idea'+(ideas.length===1?'':'s')+' — pick one to build</div><div class="ideas">'+ideas.map((x,i)=>{const sc=x.scores||{};
-      return '<div class="idea"><div class="idea-h"><b>'+esc(x.title)+'</b>'+(x.total!=null?'<span class="score'+(x.total>=80?' good':'')+'" title="Ideator score (pass ≥ 80)">'+esc(x.total)+'</span>':'')+'</div><p'+(compact?' class="clamp c3"':'')+'>'+inl(x.summary||'')+'</p>'+(compact?'':(x.why?'<p class="muted">'+inl(x.why)+'</p>':'')+
+      return '<div class="idea"><div class="idea-h"><b class="no-i18n">'+esc(x.title)+'</b>'+(x.total!=null?'<span class="score'+(x.total>=80?' good':'')+'" title="Ideator score (pass ≥ 80)">'+esc(x.total)+'</span>':'')+'</div><p class="no-i18n'+(compact?' clamp c3':'')+'">'+inl(x.summary||'')+'</p>'+(compact?'':(x.why?'<p class="muted no-i18n">'+inl(x.why)+'</p>':'')+
         (x.stack?'<div class="muted small">Stack: '+esc(x.stack)+'</div>':'')+(x.novelty_check?'<div class="muted small">Novelty: '+inl(x.novelty_check)+'</div>':'')+
         (Object.keys(sc).length?'<div class="scores">'+Object.keys(sc).map(k=>'<span title="'+esc(k)+'">'+esc(k.slice(0,4))+' <b>'+esc(sc[k])+'</b></span>').join('')+'</div>':''))+
         '<button class="btn small primary" data-pick-idea="'+i+'" data-id="'+c.id+'">Build this</button></div>';}).join('')+'</div>'+
@@ -1365,19 +1586,19 @@ function needHTML(c,d,compact){
 
 /* ---- the crews page */
 function crewCard(c){const p=c.progress||{},cls=(PHASE[c.phase]||[])[1]||'';const pct=p.total?Math.round(100*p.done/p.total):0;
-  return '<article class="ocard crew-card '+(crewNeedsYou(c)?'ask':cls==='busy'?'busy':'')+'" data-crew="'+c.id+'"><header><span class="hex">⬢</span><h3 title="'+esc(c.name)+'">'+esc(c.name)+'</h3>'+phasePill(c.phase)+'</header>'+
-    (c.goal||c.theme?'<p class="clamp c2 muted" style="margin:0">'+esc(c.goal?plain(c.goal):'Ideas about: '+c.theme)+'</p>':'')+
+  return '<article class="ocard crew-card '+(crewNeedsYou(c)?'ask':cls==='busy'?'busy':'')+'" data-crew="'+c.id+'"><header><span class="hex">⬢</span><h3 class="no-i18n" title="'+esc(c.name)+'">'+esc(c.name)+'</h3>'+phasePill(c.phase)+'</header>'+
+    (c.goal||c.theme?'<p class="clamp c2 muted no-i18n" style="margin:0">'+esc(c.goal?plain(c.goal):tt('Ideas about:')+' '+c.theme)+'</p>':'')+
     '<div class="prog"><span class="progress"><i style="width:'+pct+'%"></i></span><span>'+(p.total?p.done+'/'+p.total+' milestones':c.mode==='ideas'&&!c.goal?'choosing what to build':'planning')+'</span></div>'+
     (c.current?'<div class="now"><span class="label">Now</span><span class="t">'+esc(c.current.title)+' · '+esc(c.busy||c.current.step||'')+(c.current.attempts?' (attempt '+(c.current.attempts+1)+')':'')+'</span></div>':'')+
     (c.reason&&crewNeedsYou(c)?'<div class="why">'+esc(c.reason)+'</div>':'')+
-    (c.last?'<div class="block"><div class="bh"><span class="label">'+esc(roleName(c.last.speaker))+(c.last.to?' → '+esc(roleName(c.last.to)):'')+'</span>'+relSpan(c.last.ts)+'</div><p class="clamp c2">'+esc(plain(c.last.text))+'</p></div>':'')+
+    (c.last?'<div class="block"><div class="bh"><span class="label">'+esc(roleName(c.last.speaker))+(c.last.to?' → '+esc(roleName(c.last.to)):'')+'</span>'+relSpan(c.last.ts)+'</div><p class="clamp c2 no-i18n">'+esc(plain(c.last.text))+'</p></div>':'')+
     '<footer><span>'+esc(c.dir)+'</span><span><b>'+Object.keys(c.roles||{}).length+'</b> role sessions</span><button class="link" data-room="crew:'+c.id+'">Boardroom →</button></footer></article>';}
 function msHTML(m,i,c,d){const cur=i===d.current&&c.phase!=='done';const st=m.status==='done'?'✓':m.status==='failed'?'!':m.status==='skipped'?'–':String(i+1);
   let pipe='';if(m.status==='active'||(cur&&['building','blocked','paused','milestone_review'].includes(c.phase))){const steps=STEPS.filter(s=>s[0]!=='test'||c.options.tester);const at=steps.findIndex(s=>s[0]===(d.step||'develop'));
     pipe='<div class="pipe">'+steps.map((s,j)=>'<span class="'+(j<at?'done':j===at?'now':'')+'">'+s[1]+'</span>').join('<i>›</i>')+(m.attempts?'<em>attempt '+(m.attempts+1)+' of '+c.options.max_attempts+'</em>':'')+'</div>';}
   const lg=(m.log||[]).slice(-4).map(x=>'<li><b>'+esc(roleName(x.who))+'</b> '+esc(x.result)+(x.text?' — '+esc(clip1(plain(x.text),180)):'')+'</li>').join('');
-  return '<li class="'+esc(m.status)+(cur?' cur':'')+'"><span class="st">'+st+'</span><div><b>'+esc(m.title)+'</b>'+(m.goal?'<div class="muted g">'+inl(m.goal)+'</div>':'')+pipe+
-    (m.acceptance&&m.acceptance.length?'<details data-k="acc-'+m.id+'"'+(S.open.has('acc-'+m.id)?' open':'')+'><summary>'+m.acceptance.length+' acceptance criteria'+(lg?' · history':'')+'</summary><ul>'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>'+(lg?'<ul class="lg">'+lg+'</ul>':'')+'</details>':'')+
+  return '<li class="'+esc(m.status)+(cur?' cur':'')+'"><span class="st">'+st+'</span><div><b class="no-i18n">'+esc(m.title)+'</b>'+(m.goal?'<div class="muted g no-i18n">'+inl(m.goal)+'</div>':'')+pipe+
+    (m.acceptance&&m.acceptance.length?'<details data-k="acc-'+m.id+'"'+(S.open.has('acc-'+m.id)?' open':'')+'><summary>'+m.acceptance.length+' acceptance criteria'+(lg?' · history':'')+'</summary><ul class="no-i18n">'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>'+(lg?'<ul class="lg no-i18n">'+lg+'</ul>':'')+'</details>':'')+
     '</div><span class="ms-r">'+(m.commit?'<code title="Commit">'+esc(m.commit)+'</code>':'')+(m.check?'<span class="ck '+(m.check.code===0?'ok':'bad')+'" title="Check command">'+(m.check.code===0?'check ✓':'check ✗')+'</span>':'')+'</span></li>';}
 function renderCrews(){
   const el=$('#crews');const crews=(S.d&&S.d.crews)||[];
@@ -1394,14 +1615,14 @@ function renderCrews(){
     return '<div class="role-row"'+(o?' data-open="'+sid+'"':'')+'><span class="dot '+sc+'" style="--c:'+roleColor(k)+'"></span><div><b>'+roleName(k)+'</b><small>'+esc(ROLE_DO[k]||'')+'</small></div><span class="pill '+sc+'"><i></i>'+esc(sl)+'</span></div>';}).join('');
   const o=c.options,yes=b=>b?'yes':'no';
   el.innerHTML='<button class="link back" data-crew-back>← All crews</button>'+
-    '<div class="crew-top"><span class="hex">⬢</span><div class="ct-main"><h2>'+esc(c.name)+'</h2><div class="muted">'+esc(c.dir)+'</div></div>'+phasePill(c.phase)+
+    '<div class="crew-top"><span class="hex">⬢</span><div class="ct-main"><h2 class="no-i18n">'+esc(c.name)+'</h2><div class="muted">'+esc(c.dir)+'</div></div>'+phasePill(c.phase)+
       '<div class="acts"><button class="btn" data-room="crew:'+c.id+'">Boardroom</button>'+(fin?'':'<button class="btn" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">■ Stop</button>')+'<button class="btn" data-crew-delete="'+c.id+'">Delete</button></div></div>'+
     (h.goal?'<div class="goal md">'+md(h.goal)+'</div>':'')+needHTML(c,h,false)+
     '<div class="crew-cols"><div><h2 class="section">Milestones'+(plan.length?' · '+c.progress.done+'/'+plan.length:'')+'</h2>'+(plan.length?'<ol class="box ms">'+plan.map((m,i)=>msHTML(m,i,c,h)).join('')+'</ol>':'<div class="box empty">'+(c.phase==='ideating'||c.phase==='choosing'?'The plan comes after you pick an idea.':'The Planner is writing the plan…')+'</div>')+
       (h.plan&&h.plan.summary?'<h2 class="section">Plan</h2><div class="box pad md">'+md(h.plan.summary+(h.plan.stack?'\n\n**Stack:** '+h.plan.stack:''))+'</div>':'')+'</div>'+
     '<div><h2 class="section">Team</h2><div class="box">'+team+'</div>'+
       '<h2 class="section">Settings</h2><div class="box kv"><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push?' + push':''):'no commits')+'</b></div>'+
-      (h.board&&h.board.length?'<h2 class="section">Latest in the boardroom</h2><div class="box mini-board">'+h.board.slice(-5).map(e=>'<div><b style="color:'+roleColor(e.speaker)+'">'+esc(roleName(e.speaker))+'</b>'+(e.to?' → '+esc(roleName(e.to)):'')+' <span class="muted">'+esc(clip1(plain(e.text),140))+'</span></div>').join('')+'<button class="link" data-room="crew:'+c.id+'">Open the boardroom →</button></div>':'')+'</div></div>';}
+      (h.board&&h.board.length?'<h2 class="section">Latest in the boardroom</h2><div class="box mini-board">'+h.board.slice(-5).map(e=>'<div><b style="color:'+roleColor(e.speaker)+'">'+esc(roleName(e.speaker))+'</b>'+(e.to?' → '+esc(roleName(e.to)):'')+' <span class="muted no-i18n">'+esc(clip1(plain(e.text),140))+'</span></div>').join('')+'<button class="link" data-room="crew:'+c.id+'">Open the boardroom →</button></div>':'')+'</div></div>';}
 
 /* ---- actions */
 function feedbackNear(btn){const card=btn.closest('.need,.card-ask');const t=card&&card.querySelector('[data-feedback]');return t?t.value.trim():'';}
@@ -1430,7 +1651,13 @@ function readHash(){const h=decodeURIComponent(location.hash.slice(1));const m=h
   const b=h.match(/^board\/((?:crew|swarm):[A-Za-z0-9-]+|sessions)$/),c=h.match(/^crews\/(c[0-9a-f]{8})$/);
   if(m){S.sel=m[1];S.view='chat';}else if(b){S.view='board';S.room=b[1];}else if(c){S.view='crews';S.crew=c[1];}else if(VIEWS.includes(h))S.view=h;}
 function toggle(set,k){set.has(k)?set.delete(k):set.add(k);}
-function newDialog(){const d=$('#new-dialog');const dirs=(S.d&&S.d.dirs)||[];$('#dir-label').hidden=dirs.length<2;$('#dir-select').innerHTML=dirs.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');d.showModal();d.querySelector('[name=name]').focus();}
+function newDialog(){const d=$('#new-dialog');const watched=(S.d&&S.d.dirs)||[];
+  const seen=[...new Set(watched.concat(((S.d&&S.d.sessions)||[]).map(o=>o.directory).filter(Boolean)))];
+  $('#dir-list').innerHTML=seen.map(x=>'<option value="'+esc(x)+'"></option>').join('');
+  const last=store('kovan.newdir');$('#dir-input').value=last&&seen.includes(last)?last:(watched[0]||'');
+  get('/api/dirs').then(j=>{const all=[...new Set(seen.concat(j.dirs||[]))];$('#dir-list').innerHTML=all.map(x=>'<option value="'+esc(x)+'"></option>').join('');
+    if(last&&all.includes(last))$('#dir-input').value=last;}).catch(()=>{});
+  d.showModal();d.querySelector('[name=name]').focus();}
 function quickDialog(){const d=$('#quick-dialog');d.querySelector('[name=items]').value=((S.d&&S.d.quick_prompts)||[]).join('\n');d.showModal();}
 function toggleTheme(){const c=document.documentElement.dataset.theme;const dark=c?c==='dark':matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=dark?'light':'dark';store('kovan.theme',document.documentElement.dataset.theme);}
 function useQuick(i){const x=((S.d&&S.d.quick_prompts)||[])[i];if(x==null)return;const t=$('#input');t.value=t.value.trim()?t.value.replace(/\s*$/,'\n')+x:x;grow();updateSend();t.focus();}
@@ -1478,6 +1705,7 @@ document.addEventListener('click',e=>{
   const dn=t.closest('[data-deny]');if(dn){const card=dn.closest('.card-ask');const m=card&&card.querySelector('[data-deny-text]');answer(dn.dataset.deny,'deny',null,m?m.value:'');return;}
   const al=t.closest('[data-allow]');if(al){answer(al.dataset.allow,'allow',null,'');return;}
   if(t.id==='theme-btn'){toggleTheme();return;}
+  if(t.id==='lang-btn'){store('kovan.lang',LANG==='tr'?'en':'tr');location.reload();return;}
   if(t.id==='notify-btn'){if(!S.notify&&'Notification' in window){Notification.requestPermission().then(p=>{S.notify=p==='granted';store('kovan.notify',S.notify?'1':'0');renderConn();if(S.notify)toast('Notifications on','When this tab is in the background you will hear about replies and questions.');});}else{S.notify=false;store('kovan.notify','0');renderConn();}return;}
   if(t.id==='attach-btn'){$('#file').click();return;}
   if(t.id==='send-btn'){send();return;}
@@ -1494,12 +1722,12 @@ document.addEventListener('submit',e=>{
   if(e.target.id==='speak'){e.preventDefault();speak();return;}
   if(e.target.id==='crew-form'){e.preventDefault();const f=e.target,E=n=>f.elements.namedItem(n);const mode=f.querySelector('[name=mode]:checked').value;
     const body={name:E('name').value.trim(),mode,goal:E('goal').value.trim(),theme:E('theme').value.trim(),directory:E('directory').value.trim(),
-      options:{check:E('check').value.trim(),plan_approval:E('plan_approval').checked,tester:E('tester').checked,milestone_approval:E('milestone_approval').checked,commit:E('commit').checked,push:E('push').checked,policy:E('policy').value,max_attempts:+E('max_attempts').value||3,quota_pause:+E('quota_pause').value||90}};
+      options:{check:E('check').value.trim(),plan_approval:E('plan_approval').checked,tester:E('tester').checked,milestone_approval:E('milestone_approval').checked,commit:E('commit').checked,push:E('push').checked,policy:E('policy').value,max_attempts:+E('max_attempts').value||3,quota_pause:+E('quota_pause').value||90,lang:LANG}};
     if(mode==='goal'&&!body.goal){toast('Describe the goal','Or choose “Suggest ideas”.',null,'ask');return;}
     const b=f.querySelector('[type=submit]');b.disabled=true;
     post('/api/crew/new',body).then(j=>{$('#crew-dialog').close();S.room='crew:'+j.id;store('kovan.room',S.room);S.rev='';showView('board');toast('Crew started',body.name+' — the '+(mode==='ideas'?'Ideator':'Planner')+' goes first');})
       .catch(x=>toast('Could not start the crew',x.message,null,'err')).finally(()=>{b.disabled=false;});return;}
-  if(e.target.id==='new-form'){e.preventDefault();const f=e.target;const name=f.name.value.trim(),text=f.text.value.trim(),directory=f.directory.value||null;if(!name)return;
+  if(e.target.id==='new-form'){e.preventDefault();const f=e.target;const name=f.name.value.trim(),text=f.text.value.trim(),directory=f.directory.value.trim()||null;if(!name)return;if(directory)store('kovan.newdir',directory);
     const b=f.querySelector('[type=submit]');b.disabled=true;
     post('/api/new',{name,text,directory}).then(j=>{$('#new-dialog').close();f.reset();if(text)(S.pending[j.sid]=[]).push({text,ts:Date.now()});S.rev='';refresh(0);setTimeout(()=>openSession(j.sid),400);toast('Session started',name,j.sid);})
       .catch(x=>toast('Could not start it',x.message,null,'err')).finally(()=>{b.disabled=false;});return;}
@@ -1566,6 +1794,7 @@ window.addEventListener('resize',grow);
 /* ---------------- start */
 const theme=store('kovan.theme');if(theme)document.documentElement.dataset.theme=theme;
 const POLL=new URLSearchParams(location.search).has('poll');
+startI18n();
 readHash();render();
 if(POLL){S.connected=true;setInterval(()=>{if(!document.hidden)refresh(0);},2500);}else connect();
 refreshNow().then(()=>{if(!S.d||S.view!=='chat')return;if(!S.sel||!sess(S.sel)){const first=S.d.sessions.find(o=>o.place==='kovan');if(first)openSession(first.sid);else{S.sel=null;render();}}else openSession(S.sel);});

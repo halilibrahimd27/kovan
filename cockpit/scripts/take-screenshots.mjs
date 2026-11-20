@@ -111,7 +111,14 @@ const swarmProject = (await (await fetch(`${BASE}/api/swarm`)).json()).projects[
 await open(`board/swarm:${swarmProject}`, 3000);
 await shot('swarm-room.png');
 
-// 8. Light theme
+// 8. Turkish
+await open('overview', 300);
+await js(`localStorage.setItem('kovan.lang', 'tr')`);
+await open('board/crew:c7ab1e5f0', 2500);
+await shot('turkish.png');
+await js(`localStorage.removeItem('kovan.lang')`);
+
+// 9. Light theme
 await theme('light');
 await open(`chat/${sid('Infra')}`);
 await js(`document.querySelector('[data-tasks]') && document.querySelector('[data-tasks]').click()`);

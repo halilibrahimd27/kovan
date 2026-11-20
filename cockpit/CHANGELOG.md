@@ -21,6 +21,14 @@ boardroom.
 - Crew role sessions are tagged in the sidebar; toasts when a crew needs you or finishes.
 - Fix: the holder socket no longer fails to start when the state directory path is long (Unix sockets are
   limited to ~104 bytes); kovan falls back to a private directory under `$TMPDIR`.
+- **Turkish UI** (EN/TR switch, `--lang`, `"lang"` in the config); crews created from a Turkish page get Turkish
+  role prose and boardroom lines. User content is never translated.
+- New sessions can start in any existing folder; it is added to the watched list and remembered.
+- Notes: journals with `###` entries under bare `## <day>` headings (and mixed `##`/`###` files) are read
+  correctly, newest first; undated files are shown as documents.
+- Started from the Dock or launchd (a bare `/usr/bin:/bin` PATH), kovan takes the login shell's PATH so
+  sessions find Homebrew, `~/.local/bin` and friends; `scripts/make-macos-app.sh` no longer leaks `PYTHONPATH`
+  into sessions.
 - The demo includes two crews and a swarm project.
 
 ## 0.1.0 — 2026-11-20

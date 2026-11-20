@@ -65,6 +65,53 @@ class HelperTests(unittest.TestCase):
         st = os.lstat(os.path.dirname(path))
         self.assertTrue(server.stat_is_private_dir(st))
 
+    def test_login_path_only_replaces_a_minimal_path(self):
+        class R:
+            returncode, stdout = 0, '/opt/homebrew/bin:/usr/bin:/bin\n'
+        calls = []
+        runner = lambda cmd, **kw: calls.append(cmd) or R()       # noqa: E731
+        self.assertIsNone(server.login_path({'PATH': '/opt/homebrew/bin:/usr/bin'}, runner))
+        self.assertEqual(calls, [])
+        got = server.login_path({'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'SHELL': '/bin/zsh', 'HOME': '/nonexistent'}, runner)
+        self.assertEqual(got, '/opt/homebrew/bin:/usr/bin:/bin')
+        self.assertEqual(calls[0][:2], ['/bin/zsh', '-l'])
+        R.returncode = 1
+        self.assertIsNone(server.login_path({'PATH': '/usr/bin:/bin'}, runner))
+
+    def test_journal_with_day_groups_and_entries(self):
+        text = ('# Log\n\n## 12 Kasım 2026\n\n### Envanter\nservers\n### Kararlar\nchoices\n\n'
+                '## 2026-11-19 11:20 — standalone entry\nbody\n### 20 Nov 15:02 — appended later\nnewest\n'
+                '```\n## not a heading\n```\n')
+        e = server.journal_entries(text)
+        self.assertEqual([x['heading'] for x in e], ['20 Nov 15:02 — appended later', '2026-11-19 11:20 — standalone entry',
+                                                     'Kararlar', 'Envanter'])
+        self.assertEqual([x['group'] for x in e], [None, None, '12 Kasım 2026', '12 Kasım 2026'])
+        self.assertIn('## not a heading', e[0]['body'])
+        self.assertIsNone(server.journal_entries('# Open items\n\n## Infra\n- a\n## Apps\n- b\n'))   # undated: a doc
+
+    def test_new_sessions_can_run_in_any_existing_folder(self):
+        import tempfile
+        tmp = tempfile.mkdtemp()
+        saved = (server.STORE, server.MANAGER, server.SETTINGS)
+        try:
+            server.STORE = server.Store(os.path.join(tmp, 'claude'), [os.path.join(tmp, 'a')], [])
+            server.MANAGER = server.Manager([os.path.join(tmp, 'a')])
+            server.SETTINGS = server.Settings(os.path.join(tmp, 'settings.json'))
+            new = os.path.join(tmp, 'b')
+            os.makedirs(new)
+            os.makedirs(os.path.join(tmp, 'a', 'repo1'))
+            os.makedirs(os.path.join(tmp, 'a', '.hidden'))
+            self.assertEqual(server.STORE.dir_suggestions(), [os.path.join(tmp, 'a'), os.path.join(tmp, 'a', 'repo1')])
+            self.assertEqual(server.session_directory(new + '/'), new)
+            self.assertIn(new, server.MANAGER.dirs)
+            self.assertIn(new, server.STORE.dirs)
+            self.assertEqual(server.Settings(os.path.join(tmp, 'settings.json')).data['dirs'], [new])   # remembered
+            for bad in ('/', os.path.join(tmp, 'missing')):
+                with self.assertRaises(server.KovanError):
+                    server.session_directory(bad)
+        finally:
+            server.STORE, server.MANAGER, server.SETTINGS = saved
+
     def test_project_folder_encoding(self):
         self.assertTrue(server.project_folder('/h', '/Users/x/my.project').endswith('projects/-Users-x-my-project'))
 

@@ -95,7 +95,7 @@ kovan --demo                           # synthetic sessions, crews and a swarm �
 Besides crews and the boardroom, the cockpit shows every Claude Code session in your project folders live —
 including the ones open in VS Code — and lets you continue any of them in the browser: streaming replies,
 question and plan cards, permission prompts, tool calls with diffs, model/effort/permission controls, rewind,
-⌘K search. It binds to `127.0.0.1`, guards every write with an Origin check and a per-start token, and its
+⌘K search — in English or Turkish. It binds to `127.0.0.1`, guards every write with an Origin check and a per-start token, and its
 sessions survive restarts. Full documentation: **[cockpit/README.md](cockpit/README.md)**.
 
 ---

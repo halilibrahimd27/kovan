@@ -14,7 +14,8 @@ app="$HOME/Applications/kovan.app"
 if command -v kovan >/dev/null 2>&1; then
   launch=("$(command -v kovan)")
 else
-  launch=(/usr/bin/env "PYTHONPATH=$repo" "$(command -v python3)" -m kovan)
+  # Run from this checkout without PYTHONPATH, which would leak into every session kovan starts.
+  launch=("$(command -v python3)" -c 'import sys; sys.path.insert(0, sys.argv.pop(1)); from kovan.server import main; main()' "$repo")
 fi
 if [ "$#" -eq 0 ] && [ ! -f "$HOME/.config/kovan/config.json" ]; then
   echo "note: no --dir given and no ~/.config/kovan/config.json — the app will watch '/' (nothing)." >&2

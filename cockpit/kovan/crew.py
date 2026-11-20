@@ -29,9 +29,99 @@ WAITING_ON_YOU = ('choosing', 'plan_review', 'milestone_review', 'blocked')
 FINISHED = ('done', 'stopped')
 DEFAULT_OPTIONS = {'tester': False, 'plan_approval': True, 'milestone_approval': False, 'policy': 'safe',
                    'max_attempts': 3, 'quota_pause': 90, 'check': '', 'check_timeout': 900, 'commit': True,
-                   'push': False}
+                   'push': False, 'lang': 'en'}
 BOARD_LIMIT = 800
 REPLY_TIMEOUT = 3 * 3600
+
+LANGUAGE_NOTE = {'tr': '\n\nWrite all prose — summaries, explanations, plans, reviews, questions — in Turkish. Keep code, '
+                       'identifiers, file names, commands, JSON keys and commit messages in English.'}
+
+# kovan's own boardroom lines in Turkish, for crews created from a Turkish UI. Applied to template text only;
+# what you or the roles wrote (goals, notes, ideas, plans) is never rewritten.
+TR_ROLE = {'Ideator': 'Fikir üretici', 'Planner': 'Planlayıcı', 'Developer': 'Geliştirici', 'Tester': 'Testçi',
+           'Reviewer': 'İnceleyici', 'Finance': 'Finans'}
+_R = '(Ideator|Planner|Developer|Tester|Reviewer|Finance)'
+
+
+def _role(m, group=1):
+    return TR_ROLE.get(m.group(group), m.group(group))
+
+
+TR_LINES = [
+    (r'^Suggest projects: (.*)\.$', r'Proje öner: \1.'), (r'^Suggest projects\.$', 'Proje öner.'),
+    (r'^Crew created in (.+)\. The Ideator goes first\.$', r'Ekip \1 içinde kuruldu. Önce Fikir üretici başlıyor.'),
+    (r'^Crew created in (.+)\. The Planner goes first\.$', r'Ekip \1 içinde kuruldu. Önce Planlayıcı başlıyor.'),
+    (r'^Plan approved — go ahead\.$', 'Plan onaylandı — başlayın.'), (r'^Please revise the plan: ', 'Lütfen planı düzelt: '),
+    (r'^Let’s build “(.+)”\.$', r'“\1” yapılsın.'), (r'^More ideas, please\.', 'Başka fikirler lütfen.'),
+    (r'^Continue with the next milestone\.$', 'Sonraki kilometre taşıyla devam edin.'), (r'^Try again\.', 'Yeniden deneyin.'),
+    (r'^Skip “(.+)”\.$', r'“\1” geçilsin.'), (r'^Pause\.$', 'Duraklat.'), (r'^Resume\.$', 'Sürdür.'), (r'^Stop the crew\.$', 'Ekibi durdur.'),
+    (r'^' + _R + r' session resumed\.$', lambda m: _role(m) + ' oturumu yeniden açıldı.'),
+    (r'^' + _R + r' joined \(a new Claude Code session\)\.$', lambda m: _role(m) + ' katıldı (yeni bir Claude Code oturumu).'),
+    (r'^Pausing: the 5-hour usage window is at (\d+)% \(limit (\d+)%\)\.', r'Duraklıyorum: 5 saatlik kullanım penceresi %\1 (sınır %\2).'),
+    (r' I will resume at (\d\d:\d\d)\.$', r' \1’de devam edeceğim.'),
+    (r'^(\d+) role turns so far', r'Şu ana kadar \1 rol turu'), (r'; 5-hour usage (\d+)%', r'; 5 saatlik kullanım %\1'),
+    (r'; 7-day usage (\d+)%', r'; 7 günlük kullanım %\1'),
+    (r'^Blocked: (.*) — retry, skip or stop when you are ready\.$', lambda m: 'Takıldı: ' + localize_reason(m.group(1)) +
+     ' — hazır olduğunda yeniden dene, geç ya da durdur.'),
+    (r'^Usage window reset — resuming\.$', 'Kullanım penceresi sıfırlandı — devam ediliyor.'),
+    (r'^Needs your OK: ', 'Onayını bekliyor: '),
+    (r'^Pick an idea to build, or ask for more\.$', 'İnşa edilecek bir fikir seç ya da başka fikir iste.'),
+    (r'^The Planner proposed `(.+)` as the check command\. It is not on the safe list, so kovan will not run it '
+     r'unreviewed; set a check command on the crew to enable the CI gate\.$',
+     r'Planlayıcı denetim komutu olarak `\1` önerdi. Güvenli listede olmadığı için kovan onu incelenmeden çalıştırmaz; '
+     r'CI kapısını açmak için ekibe bir denetim komutu ayarla.'),
+    (r'^Waiting for your approval of the plan\. Check command after every milestone: `(.+)`\.$',
+     r'Planın onayını bekliyorum. Her kilometre taşından sonra denetim komutu: `\1`.'),
+    (r'^Waiting for your approval of the plan\. No check command: only the Reviewer gates each milestone\.$',
+     'Planın onayını bekliyorum. Denetim komutu yok: her kilometre taşını yalnız İnceleyici denetler.'),
+    (r'^All milestones are done\.$', 'Bütün kilometre taşları tamamlandı.'),
+    (r'^Milestone (\d+)/(\d+): ', r'Kilometre taşı \1/\2: '),
+    (r'^Escalating: “(.+)” did not pass after (\d+) attempts\. Retry \(optionally with a hint\), skip it, or stop\.$',
+     r'Sana taşıyorum: “\1” \2 denemede geçmedi. Yeniden dene (istersen bir ipucuyla), geç ya da durdur.'),
+    (r'^Back to the Developer \(attempt (\d+)/(\d+)\)\.$', r'Geliştiriciye geri (deneme \1/\2).'),
+    (r'^I am blocked: ', 'Takıldım: '), (r'(?m)^Files: ', 'Dosyalar: '), (r'^Done\.$', 'Tamam.'),
+    (r'^Tests fail: ', 'Testler başarısız: '), (r'^Tests pass\. ?', 'Testler geçti. '),
+    (r'^Check failed \(`(.+)`, exit (\d+)\):', r'Denetim başarısız (`\1`, çıkış kodu \2):'),
+    (r'^Check passed \(`(.+)`, (\d+)s\)\.$', r'Denetim geçti (`\1`, \2 sn).'),
+    (r'^Kept out of the commit \(they look like secrets\): ', 'Commit dışında bırakıldı (sır gibi görünüyorlar): '),
+    (r'^Changes requested\. ?', 'Değişiklik istendi. '), (r'^Approved\. ?', 'Onaylandı. '),
+    (r'^“(.+)” is done', r'“\1” tamamlandı'), (r' — committed (\w+)', r' — commit: \1'), (r' and pushed\.$', ' ve push edildi.'),
+    (r' \(nothing to commit\)', ' (commit’lenecek değişiklik yok)'), (r' \(push failed: ', ' (push başarısız: '),
+    (r' \(commit failed: ', ' (commit başarısız: '),
+    (r'^Continue — ', 'Devam — '), (r'^Amend — ', 'Düzelt — '), (r'^Split — ', 'Böl — '), (r'^Escalate — ', 'Sana taşı — '),
+    (r' — no reason given$', ' — gerekçe verilmedi'),
+    (r'^Milestone finished — waiting for you before the next one\.$', 'Kilometre taşı bitti — sonrakinden önce seni bekliyorum.'),
+]
+TR_LINES = [(re.compile(p), r) for p, r in TR_LINES]
+TR_REASONS = [(re.compile(p), r) for p, r in [
+    (r'^pick an idea$', 'bir fikir seç'), (r'^approve the plan$', 'planı onayla'),
+    (r'^continue to the next milestone$', 'sonraki kilometre taşına geç'), (r'^paused by you$', 'senin tarafından duraklatıldı'),
+    (r'^usage limit$', 'kullanım sınırı'), (r'^stopped by you$', 'senin tarafından durduruldu'),
+    (r'^“(.+)” failed (\d+) times$', r'“\1” \2 kez başarısız oldu'),
+    (r'^Developer needs you: ', 'Geliştirici seni bekliyor: '), (r'^Planner asks: ', 'Planlayıcı soruyor: '),
+    (r'^internal error: ', 'iç hata: '), (r'^(check|diff|commit) failed: ', r'\1 adımı başarısız: '),
+    (r'^' + _R + r' did not return the JSON it was asked for$', lambda m: _role(m) + ' istenen JSON’u döndürmedi'),
+    (r'^' + _R + r' has been working for over (\d+) hours$', lambda m: _role(m) + ' ' + m.group(2) + ' saatten uzun süredir çalışıyor'),
+    (r'^the Ideator returned no ideas$', 'Fikir üretici hiç fikir döndürmedi'),
+    (r'^the Planner returned no milestones$', 'Planlayıcı hiç kilometre taşı döndürmedi'),
+]]
+
+
+def localize_reason(text):
+    for rx, r in TR_REASONS:
+        text = rx.sub(r, text)
+    return text
+
+
+def localize(crew, text, reason=False):
+    if not text or (crew.get('options') or {}).get('lang') != 'tr':
+        return text
+    if reason:
+        return localize_reason(text)
+    for rx, r in TR_LINES:
+        text = rx.sub(r, text)
+    return text
+
 
 CONTRACT = ('\n\nEnd your reply with a single JSON object in a ```json fenced block, exactly in the shape '
             'described above. Write any explanation before it.')
@@ -333,8 +423,9 @@ class Crews:
 
     def say(self, crew, speaker, text, kind='status', to=None, milestone=None, save=True):
         board = crew.setdefault('board', [])
+        text = str(text) if kind in ('note', 'goal', 'idea', 'plan') else localize(crew, str(text))
         board.append({'id': secrets.token_hex(4), 'ts': now_ms(), 'speaker': speaker, 'to': to, 'kind': kind,
-                      'text': server.clip(str(text), 6000), 'milestone': milestone})
+                      'text': server.clip(text, 6000), 'milestone': milestone})
         del board[:-BOARD_LIMIT]
         if save:
             self.save(crew)
@@ -347,7 +438,7 @@ class Crews:
         last = (crew.get('board') or [None])[-1]
         return {'id': crew['id'], 'name': crew['name'], 'goal': crew.get('goal') or '', 'theme': crew.get('theme') or '',
                 'mode': crew.get('mode'),
-                'phase': crew['phase'], 'reason': crew.get('reason'), 'dir': server.tilde(crew['dir']),
+                'phase': crew['phase'], 'reason': localize(crew, crew.get('reason'), reason=True), 'dir': server.tilde(crew['dir']),
                 'progress': {'done': done, 'total': len(plan)},
                 'current': {'title': cur['title'], 'step': crew.get('step'), 'attempts': cur['attempts']} if cur else None,
                 'attention': crew.get('attention'), 'roles': crew.get('roles') or {}, 'options': crew['options'],
@@ -389,6 +480,8 @@ class Crews:
             raise server.KovanError('invalid crew options')
         if opts['policy'] not in ('ask', 'safe', 'trusted'):
             raise server.KovanError('policy must be ask, safe or trusted')
+        if opts['lang'] not in ('en', 'tr'):
+            opts['lang'] = 'en'
         opts['max_attempts'] = max(1, min(opts['max_attempts'], 10))
         opts['quota_pause'] = max(50, min(opts['quota_pause'], 100))
         opts['check_timeout'] = max(30, min(opts['check_timeout'], 7200))
@@ -581,7 +674,7 @@ class Crews:
         s = self.role_session(crew, role)
         if s.status == 'working' or s.permissions:
             return False
-        text = task + self.pending_notes(crew, role) + CONTRACT
+        text = task + self.pending_notes(crew, role) + LANGUAGE_NOTE.get(crew['options'].get('lang'), '') + CONTRACT
         if not crew.setdefault('primed', {}).get(role):
             text = CHARTERS[role] + '\n\n---\n\n' + text
         crew['wait'] = {'role': role, 'step': step, 'sent_at': time.time(), 'retries': 0, 'prompt': text}

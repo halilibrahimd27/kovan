@@ -62,7 +62,8 @@ you watch them talk in the **boardroom**. It is a single Python package with no 
   (a journal, a TODO list).
 
 **Drive sessions from the browser**
-- Start new sessions or **continue a session you closed in VS Code**, with its full history and memory.
+- Start new sessions in **any folder** (it joins the watched list) or **continue a session you closed in VS Code**,
+  with its full history and memory.
 - Replies stream in as they are written; send while it is working and the prompt is queued; `Esc` stops it.
 - Paste or drop images, use slash commands with autocomplete, insert quick prompts with one click.
 - Answer **question cards** (single/multi choice, "other"), **approve plans**, and allow or deny **tool
@@ -80,6 +81,11 @@ you watch them talk in the **boardroom**. It is a single Python package with no 
 
 **Find anything**
 - `⌘K` to jump to any session or search every message, tool call and note.
+
+**Your language**
+- English and Turkish. kovan follows the browser, `--lang tr` (or `"lang"` in the config) sets a default, and
+  the TR/EN button in the corner switches. Crews started from a Turkish page speak Turkish in the boardroom.
+- Your own content — messages, code, session names — is never translated.
 
 **Stay out of the way**
 - Python 3.9+ standard library only. One process for the web server and one tiny "holder" process that owns
@@ -99,6 +105,8 @@ you watch them talk in the **boardroom**. It is a single Python package with no 
 | **A crew** — milestones with their pipeline, the team, settings | **Ideas mode** — scored ideas, pick one or ask for more |
 | ![A session streaming its reply](docs/screenshots/chat.png) | ![The swarm engine's boardroom](docs/screenshots/swarm-room.png) |
 | **Driving a session** — replies stream in as they are written | **The swarm's boardroom**, with `--swarm` |
+| ![The boardroom in Turkish](docs/screenshots/turkish.png) | |
+| **Türkçe** — the whole interface, and crews that speak it | |
 
 ## Quick start
 
@@ -143,11 +151,12 @@ kovan --demo        # synthetic, read-only data
 | Option | |
 |---|---|
 | `--dir PATH` | Project directory whose sessions to show. Repeat for several projects. Default: the current directory. |
-| `--note FILE` | Markdown file for the Notes tab (repeatable). Files with `## ` sections are shown as a journal, newest first. |
+| `--note FILE` | Markdown file for the Notes tab (repeatable). Files with dated `##`/`###` headings are shown as a journal, newest first (`###` entries grouped under a bare `## <day>`); others as a document. |
 | `--permission-mode` | Mode for sessions kovan starts: `default` (ask before acting, the default), `acceptEdits`, `plan`, `bypassPermissions`. Changeable per session in the UI. |
 | `--window` | Open in a chromeless browser window instead of a tab. |
 | `--no-browser` | Just print the URL. |
 | `--claude-bin PATH` | The `claude` executable (default: `claude` on `PATH`). |
+| `--lang en\|tr` | UI language until you choose one in the page (default: follow the browser). |
 | `--swarm URL` | Show the boardroom of a running [swarm engine](../README.md#the-swarm-engine-ai-dev-swarm), e.g. `http://127.0.0.1:8080` (loopback only). If the swarm has an API token, put it in `KOVAN_SWARM_TOKEN`. |
 | `--foreground` | Run in the terminal instead of in the background (useful for debugging). |
 
@@ -158,6 +167,7 @@ Defaults can live in `~/.config/kovan/config.json`:
   "dirs": ["~/code/shop-api", "~/code/infra"],
   "notes": ["~/code/shop-api/JOURNAL.md"],
   "permission_mode": "default",
+  "lang": "en",
   "swarm": "http://127.0.0.1:8080"
 }
 ```

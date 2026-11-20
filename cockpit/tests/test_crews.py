@@ -168,6 +168,26 @@ class CrewFlowTests(CrewTestCase):
         self.assertEqual(kinds.count('done'), 1)
         self.assertEqual(server.MANAGER.started[0][2], 'acceptEdits')     # safe policy: edits only
 
+    def test_turkish_crew_speaks_turkish(self):
+        c = self.new(lang='tr', max_attempts=1)
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.assertIn('in Turkish', self.role(c, 'planner').sent[0])
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.drive(c, self.waiting_on(c, 'developer'))
+        self.role(c, 'developer').reply(fenced({'status': 'done', 'summary': 'Adım 1 yazıldı.', 'files': ['a.py']}))
+        self.drive(c, self.waiting_on(c, 'reviewer'))
+        self.role(c, 'reviewer').reply(fenced({'verdict': 'changes', 'summary': 'Test eksik.', 'issues': []}))
+        self.drive(c, lambda c: c['phase'] == 'blocked')
+        texts = [b['text'] for b in c['board']]
+        self.assertEqual(texts[0], 'Build a tiny thing.')                         # your own words are never rewritten
+        for line in ('Ekip ' + self.work + ' içinde kuruldu. Önce Planlayıcı başlıyor.', 'Planlayıcı katıldı (yeni bir Claude Code oturumu).',
+                     'Kilometre taşı 1/1: **Step 1**', 'Adım 1 yazıldı.\n\nDosyalar: a.py', 'Değişiklik istendi. Test eksik.'):
+            self.assertIn(line, texts)
+        self.assertTrue(any(t.startswith('Denetim geçti (`') for t in texts), texts)
+        self.assertTrue(any(t.startswith('Sana taşıyorum: “Step 1” 1 denemede geçmedi.') for t in texts), texts)
+        self.assertEqual(self.crews.summary(c)['reason'], '“Step 1” 1 kez başarısız oldu')
+        self.assertEqual(c['reason'], '“Step 1” failed 1 times')                  # stored in English, shown localized
+
     def test_plan_approval_revise_then_approve(self):
         c = self.new(plan_approval=True, check='')
         self.drive(c, self.waiting_on(c, 'planner'))
