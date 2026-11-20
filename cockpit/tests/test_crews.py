@@ -435,6 +435,240 @@ class CrewSafetyTests(CrewTestCase):
         self.assertEqual(server.MANAGER.started[0][2], 'bypassPermissions')
 
 
+class CrewTeamTests(CrewTestCase):
+    """Extra roles (ready-made and your own), crew templates and the reviewed-tree guarantee."""
+
+    def team_crew(self, team=None, template=None, **opts):
+        options = {'check': '%s -c "import sys; sys.exit(0)"' % PY, 'plan_approval': False}
+        options.update(opts)
+        return self.crews.create('Team crew', 'Build a tiny thing.', '', 'goal', self.work, options,
+                                 template=template, team=team)
+
+    def to_review(self, c, name='a.txt', text='a\n', summary='Wrote it.'):
+        self.drive(c, self.waiting_on(c, 'developer'))
+        with open(os.path.join(self.work, name), 'w') as f:
+            f.write(text)
+        self.role(c, 'developer').reply(fenced({'status': 'done', 'summary': summary, 'files': [name]}))
+
+    def approve(self, c):
+        self.drive(c, self.waiting_on(c, 'reviewer'))
+        self.role(c, 'reviewer').reply(fenced({'verdict': 'approve', 'summary': 'Good.', 'issues': [],
+                                               'commit_message': 'feat: a'}))
+
+    def commit_body(self):
+        return subprocess.run(['git', 'log', '-1', '--format=%B'], cwd=self.work, capture_output=True, text=True).stdout
+
+    def test_security_auditor_blocks_high_findings_and_passes_medium_ones(self):
+        c = self.team_crew(team=['security'])
+        self.assertEqual([r['key'] for r in c['team']], ['security'])
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.assertIn('Security auditor (reads every diff before the commit)', self.role(c, 'planner').sent[0])
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.to_review(c, 'app.py', 'query = "SELECT * FROM t WHERE id=" + user_id\n')
+        self.approve(c)
+        self.drive(c, self.waiting_on(c, 'security'))
+        audit = self.role(c, 'security')
+        self.assertIn('You are the Security auditor', audit.sent[0])           # charter + the stage rules
+        self.assertIn('Do not edit files', audit.sent[0])
+        self.assertIn('+query = "SELECT', audit.sent[0])                        # it reads the real staged diff
+        self.assertIn('critical or high severity block the commit', audit.sent[0])
+        audit.reply(fenced({'verdict': 'changes', 'summary': 'SQL injection.', 'findings': [
+            {'severity': 'high', 'file': 'app.py', 'line': 1, 'note': 'user_id is concatenated into SQL',
+             'fix': 'use a parameter'}]}))
+        self.drive(c, lambda c: len(self.role(c, 'developer').sent) == 2)
+        dev_prompt = self.role(c, 'developer').sent[-1]
+        self.assertIn('The Security auditor blocked the commit', dev_prompt)
+        self.assertIn('[high] app.py:1: user_id is concatenated into SQL — use a parameter', dev_prompt)
+        self.assertEqual(self.git_log(), [''])                                  # nothing was committed
+        texts = [b['text'] for b in c['board']]
+        self.assertTrue(any(t.startswith('Commit blocked — 1 finding(s) at critical or high severity.') for t in texts))
+        with open(os.path.join(self.work, 'app.py'), 'w') as f:
+            f.write('query = ("SELECT * FROM t WHERE id=?", (user_id,))\n')
+        self.role(c, 'developer').reply(fenced({'status': 'done', 'summary': 'Parameterised.', 'files': ['app.py']}))
+        self.approve(c)
+        self.drive(c, lambda c: len(audit.sent) == 2)
+        audit.reply(fenced({'verdict': 'approve', 'summary': 'Fixed.', 'findings': [
+            {'severity': 'medium', 'file': 'app.py', 'note': 'no input length limit'}]}))
+        self.drive(c, lambda c: c['phase'] == 'done')
+        self.assertEqual(self.git_log()[0], 'feat: a')
+        body = self.commit_body()
+        self.assertIn('Non-blocking findings', body)                            # recorded with the commit
+        self.assertIn('[medium] app.py: no input length limit', body)
+        self.assertEqual(c['plan']['milestones'][0]['findings']['security'][0]['severity'], 'medium')
+
+    def test_advisory_role_never_blocks(self):
+        c = self.team_crew(team=[{'title': 'Style coach', 'job': 'Point out naming and readability problems.',
+                                  'stage': 'gate', 'block_on': []}])
+        key = c['team'][0]['key']
+        self.assertEqual(key, 'x_style_coach')
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.to_review(c)
+        self.approve(c)
+        self.drive(c, self.waiting_on(c, key))
+        self.assertIn('You are advisory', self.role(c, key).sent[0])
+        self.role(c, key).reply(fenced({'verdict': 'changes', 'summary': 'Names.', 'findings': [
+            {'severity': 'critical', 'file': 'a.txt', 'note': 'bad name'}]}))
+        self.drive(c, lambda c: c['phase'] == 'done')
+        self.assertIn('Style coach:', self.commit_body())
+
+    def test_build_role_works_after_the_developer_and_can_send_work_back(self):
+        c = self.team_crew(team=['docs'], tester=True)
+        self.assertEqual(crew.pipeline(c), ['develop', 'test', 'extra:docs', 'check', 'review', 'commit'])
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.to_review(c)
+        self.drive(c, self.waiting_on(c, 'tester'))
+        self.role(c, 'tester').reply(fenced({'status': 'pass', 'summary': 'ok'}))
+        self.drive(c, self.waiting_on(c, 'docs'))
+        docs = self.role(c, 'docs')
+        self.assertIn('You are the Documenter', docs.sent[0])
+        self.assertIn('Wrote it.', docs.sent[0])                                 # it sees what the Developer did
+        docs.reply(fenced({'status': 'fail', 'summary': '', 'problems': 'The public function has no docstring.'}))
+        self.drive(c, lambda c: len(self.role(c, 'developer').sent) == 2)
+        self.assertIn('The Documenter reports problems', self.role(c, 'developer').sent[-1])
+        self.role(c, 'developer').reply(fenced({'status': 'done', 'summary': 'Added it.'}))
+        self.drive(c, self.waiting_on(c, 'tester'))
+        self.role(c, 'tester').reply(fenced({'status': 'pass', 'summary': 'ok'}))
+        self.drive(c, lambda c: len(docs.sent) == 2)
+        with open(os.path.join(self.work, 'README.md'), 'w') as f:
+            f.write('# a\n')
+        docs.reply(fenced({'status': 'done', 'summary': 'README updated.'}))
+        self.drive(c, self.waiting_on(c, 'reviewer'))
+        self.assertIn('+# a', self.role(c, 'reviewer').sent[-1])               # the Reviewer sees the docs change too
+        self.approve(c)
+        self.drive(c, lambda c: c['phase'] == 'done')
+        self.assertIn('README.md', subprocess.run(['git', 'show', '--name-only', '--format='], cwd=self.work,
+                                                 capture_output=True, text=True).stdout)
+
+    def test_files_changed_after_the_review_are_checked_and_reviewed_again(self):
+        c = self.team_crew()
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.to_review(c)
+        self.drive(c, self.waiting_on(c, 'reviewer'))
+        with open(os.path.join(self.work, 'sneaky.txt'), 'w') as f:      # e.g. the Reviewer "fixed one more thing"
+            f.write('unreviewed\n')
+        self.role(c, 'reviewer').reply(fenced({'verdict': 'approve', 'summary': 'Good.', 'commit_message': 'feat: a'}))
+        self.drive(c, lambda c: len(self.role(c, 'reviewer').sent) == 2)
+        self.assertIn('+unreviewed', self.role(c, 'reviewer').sent[-1])
+        self.assertIn('Files changed after the review; running the check and the review again.',
+                      [b['text'] for b in c['board']])
+        self.assertEqual(c['plan']['milestones'][0]['check']['code'], 0)
+        self.assertEqual(c['stats']['checks'], 2)                          # the check ran again too
+        self.approve(c)
+        self.drive(c, lambda c: c['phase'] == 'done')
+        self.assertEqual(self.git_log()[0], 'feat: a')
+
+    def test_gate_sees_a_changed_tree_and_sends_it_back_to_the_check(self):
+        c = self.team_crew(team=['security'])
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.to_review(c)
+        self.drive(c, self.waiting_on(c, 'reviewer'))
+        self.role(c, 'reviewer').reply(fenced({'verdict': 'approve', 'summary': 'Good.', 'commit_message': 'feat: a'}))
+        with open(os.path.join(self.work, 'late.txt'), 'w') as f:
+            f.write('late\n')
+        self.drive(c, lambda c: len(self.role(c, 'reviewer').sent) == 2)
+        self.assertNotIn('security', c['roles'])                           # the gate never saw an unreviewed tree
+
+    def test_templates(self):
+        c = self.team_crew(template='bugfix')
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.assertIn('Crew template — bug fix', self.role(c, 'planner').sent[0])
+        self.assertEqual(self.crews.summary(c)['template'], 'bugfix')
+        self.crews.act(c['id'], 'stop')
+        shutil.rmtree(self.work)
+        c = self.team_crew(template='secure')
+        self.assertEqual([r['key'] for r in c['team']], ['security'])       # the template's team by default
+        self.crews.act(c['id'], 'stop')
+        shutil.rmtree(self.work)
+        c = self.team_crew(template='secure', team=[])                     # …unless you choose otherwise
+        self.assertEqual(c['team'], [])
+        self.crews.act(c['id'], 'stop')
+        shutil.rmtree(self.work)
+        with self.assertRaisesRegex(server.KovanError, 'needs a folder with code'):
+            self.team_crew(template='audit')
+        os.makedirs(self.work, exist_ok=True)
+        subprocess.run(['git', 'init', '-q'], cwd=self.work)
+        with open(os.path.join(self.work, 'app.py'), 'w') as f:
+            f.write('print(1)\n')
+        subprocess.run(['git', 'add', '-A'], cwd=self.work)
+        subprocess.run(['git', 'commit', '-qm', 'init'], cwd=self.work)
+        c = self.team_crew(template='audit')
+        self.assertTrue(c['options']['plan_approval'] is False and c['team'][0]['key'] == 'security')
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.assertIn('SECURITY_AUDIT.md', self.role(c, 'planner').sent[0])
+        self.role(c, 'planner').reply(fenced(self.plan(2)))
+        self.to_review(c)
+        self.approve(c)
+        self.drive(c, self.waiting_on(c, 'security'))
+        self.role(c, 'security').reply(fenced({'verdict': 'approve', 'summary': 'ok', 'findings': []}))
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.assertIn('amend the plan to add one milestone per finding', self.role(c, 'planner').sent[-1])
+        with self.assertRaisesRegex(server.KovanError, 'unknown template'):
+            self.crews.create('x', 'y', '', 'goal', os.path.join(self.tmp, 'other'), {}, template='nope')
+
+    def test_team_validation(self):
+        bad = [
+            ([{'preset': 'nope'}], 'unknown role'),
+            (['security'] * 2 + ['docs', 'performance', {'title': 'Five', 'job': 'x' * 30}], 'at most 4'),
+            ([{'title': '', 'job': 'x' * 30}], 'needs a name'),
+            ([{'title': 'Shorty', 'job': 'too short'}], 'describe what the role does'),
+            ([{'title': 'Odd', 'job': 'x' * 30, 'stage': 'deploy'}], 'after the Developer or before the commit'),
+            ([{'title': 'Odd', 'job': 'x' * 30, 'block_on': ['urgent']}], 'invalid blocking severities'),
+            ([{'title': 'Security auditor', 'job': 'x' * 30}, 'security'], 'share the name'),
+            ('security', 'must be a list'),
+        ]
+        for team, message in bad:
+            with self.assertRaisesRegex(server.KovanError, message):
+                crew.clean_team(team, 'en')
+        team = crew.clean_team(['security', 'security', {'title': 'Planner', 'job': 'x' * 30, 'stage': 'build'},
+                                {'title': 'Planner 2', 'job': 'y' * 30, 'block_on': ['high', 'critical']}], 'tr')
+        self.assertEqual([r['key'] for r in team], ['security', 'x_planner', 'x_planner_2'])   # duplicates dropped
+        self.assertEqual(team[0]['title'], 'Güvenlik denetçisi')
+        self.assertEqual(team[2]['block_on'], ['critical', 'high'])
+        self.assertEqual(team[1]['block_on'], [])                           # build roles never block
+        self.assertNotIn(team[1]['key'], crew.RESERVED_KEYS)
+
+    def test_notes_reach_extra_roles_and_unknown_roles_are_refused(self):
+        c = self.team_crew(team=['security'])
+        self.crews.note(c['id'], 'Pay attention to the upload handler.', 'security')
+        with self.assertRaisesRegex(server.KovanError, 'unknown role'):
+            self.crews.note(c['id'], 'hi', 'x_nobody')
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.to_review(c)
+        self.approve(c)
+        self.drive(c, self.waiting_on(c, 'security'))
+        self.assertIn('Pay attention to the upload handler.', self.role(c, 'security').sent[0])
+
+    def test_turkish_crew_with_a_security_auditor(self):
+        c = self.team_crew(team=['security'], lang='tr', max_attempts=1)
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.to_review(c)
+        self.approve(c)
+        self.drive(c, self.waiting_on(c, 'security'))
+        self.role(c, 'security').reply(fenced({'verdict': 'changes', 'summary': 'Sır sızıyor.', 'findings': [
+            {'severity': 'critical', 'file': 'a.txt', 'line': 1, 'note': 'token açıkta'}]}))
+        self.drive(c, lambda c: c['phase'] == 'blocked')
+        texts = [b['text'] for b in c['board']]
+        self.assertIn('Güvenlik denetçisi katıldı (yeni bir Claude Code oturumu).', texts)
+        self.assertIn('Commit durduruldu — kritik ya da yüksek düzeyinde 1 bulgu. Sır sızıyor.\n'
+                      '- [kritik] a.txt:1: token açıkta', texts)
+        self.assertEqual(self.crews.summary(c)['team'][0]['about'],
+                         'commit’ten önce her diff’i okur; kritik ya da yüksek bulguda commit’i durdurur')
+
+    def test_catalog(self):
+        cat = crew.catalog('tr')
+        self.assertEqual([t['key'] for t in cat['templates']], ['feature', 'secure', 'bugfix', 'audit'])
+        self.assertEqual(cat['templates'][2]['title'], 'Hata düzeltme ekibi')
+        self.assertTrue(cat['templates'][2]['tester'])
+        self.assertEqual({p['key'] for p in cat['presets']}, {'security', 'docs', 'performance'})
+        self.assertEqual(crew.catalog('xx')['presets'][0]['title'], 'Security auditor')
+
+
 class PolicyTests(unittest.TestCase):
     root = '/work/proj'
 

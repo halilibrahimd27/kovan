@@ -40,6 +40,15 @@ you watch them talk in the **boardroom**. It is a single Python package with no 
   **Reviewer** reads the real staged diff; kovan **commits** what passes; the Planner **replans** (continue,
   amend, split or escalate) between milestones. Failed work goes back with the reasons, up to a retry budget.
 - Every role is an ordinary Claude Code session — open it, read it, talk to it.
+- **Extra roles**: seat up to four more — a ready-made **Security auditor** (reads every diff before the commit
+  and blocks it on critical or high findings), a **Documenter** or a **Performance reviewer** — or define your
+  own in a sentence or two: what it does, whether it works *after the Developer* (and may edit files) or reads
+  the diff *before the commit* (and which severities block it). kovan can remember your roles for later crews.
+- **Templates**: *Feature crew*, *Secure feature crew* (with the Security auditor), *Bug-fix crew* (root cause
+  plus a regression test, nothing more) and *Security audit crew* (a `SECURITY_AUDIT.md` report first, then one
+  fix per critical or high finding).
+- Only the tree the Reviewer read can be committed: if files change after the review, kovan runs the check and
+  the review again.
 - Steering notes reach a working role immediately, otherwise its next task. Pause, resume, stop, retry, skip.
 - A narrow permission policy answers routine prompts; everything else waits for you (see [SECURITY.md](SECURITY.md#crews)).
 - The finance officer pauses a crew before the 5-hour usage window runs out and resumes it afterwards.
@@ -129,9 +138,14 @@ python3 -m kovan --demo     # synthetic data on port 8789
 
 ### Your first crew
 
-Open **Crews → New crew**, describe the goal (or choose *Suggest ideas*), pick a folder — an empty one or a
-clean git repository — and a check command such as `python3 -m pytest -q`. The Planner goes first; approve its
-plan in the boardroom and watch. Every accepted milestone is a commit in that folder.
+Open **Crews → New crew**, pick a template, describe the goal (or choose *Suggest ideas*), pick a folder — an
+empty one or a clean git repository — and a check command such as `python3 -m pytest -q`. Tick extra roles if
+you want them (or **＋ Define a role**). The Planner goes first; approve its plan in the boardroom and watch.
+Every accepted milestone is a commit in that folder.
+
+Each milestone goes through the same steps: Developer → Tester (optional) → extra roles that work *after the
+Developer* → your check command → Reviewer → extra roles that read the diff *before the commit* → commit. A
+blocking finding or a failed step sends the work back to the Developer with the reasons.
 
 ### Moving a session from VS Code to kovan
 
@@ -157,6 +171,7 @@ kovan --demo        # synthetic, read-only data
 | `--no-browser` | Just print the URL. |
 | `--claude-bin PATH` | The `claude` executable (default: `claude` on `PATH`). |
 | `--lang en\|tr` | UI language until you choose one in the page (default: follow the browser). |
+| `--notify-test` | Send a test message to the configured webhook / Telegram bot and exit. |
 | `--swarm URL` | Show the boardroom of a running [swarm engine](../README.md#the-swarm-engine-ai-dev-swarm), e.g. `http://127.0.0.1:8080` (loopback only). If the swarm has an API token, put it in `KOVAN_SWARM_TOKEN`. |
 | `--foreground` | Run in the terminal instead of in the background (useful for debugging). |
 
@@ -174,6 +189,34 @@ Defaults can live in `~/.config/kovan/config.json`:
 
 On macOS, `scripts/make-macos-app.sh --dir ~/code/shop-api` builds `~/Applications/kovan.app`, a Dock icon
 that opens kovan in its own window.
+
+### Notifications on your phone
+
+When a crew needs you — a plan to approve, an idea to pick, a blocked milestone, a command outside its policy —
+or finishes, kovan can tell you through a **Slack- or Mattermost-compatible incoming webhook** and/or a
+**Telegram bot**. Telegram messages carry buttons: **Approve / Revise / Stop** a plan, pick an idea, **Retry /
+Skip / Stop** a blocked crew, **Continue / Pause** after a milestone. *Revise* and *Retry* ask you to reply with
+the change or a hint. `/status` lists your crews.
+
+```json
+"notify": {
+  "webhook": "https://chat.example.com/hooks/…",
+  "telegram": {"token": "123456:ABC…", "allow": [123456789]},
+  "permissions": false,
+  "sessions": false
+}
+```
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) and put its token in `telegram.token` (or in the
+   `KOVAN_TELEGRAM_TOKEN` environment variable; the webhook URL can live in `KOVAN_WEBHOOK_URL`).
+2. Start kovan and send `/start` to your bot: while nobody is allowed yet, it answers with your user id.
+3. Put that id in `allow` and restart kovan. `kovan --notify-test` sends a test message to every channel.
+
+Buttons work only for the user ids in `allow`; anyone else is ignored. `"permissions": true` adds **Allow /
+Deny** buttons for a crew's permission prompts — off by default, because it approves commands from your phone.
+`"sessions": true` also tells you when any watched session waits for your answer. Messages include crew names,
+plan and idea titles, reasons and the command a role wants to run, with likely secrets masked; the token and
+the webhook URL never appear in kovan's log.
 
 **Keyboard:** `Enter` send · `Shift+Enter` new line · `/` slash commands · `Esc` stop · `⌘K` / `Ctrl+K`
 palette · `Ctrl+1…9` jump to a session.

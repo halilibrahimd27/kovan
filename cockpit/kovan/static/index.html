@@ -520,10 +520,23 @@ dialog .seg{display:flex;gap:18px;margin-bottom:14px}
 dialog .toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:2px 0 14px}
 dialog .row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
 dialog small{font-weight:400;color:var(--faint);font-size:12px}
+dialog .team{border:1px solid var(--line);border-radius:10px;padding:10px 12px 6px;margin:0 0 14px}
+dialog .team-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;font-weight:600;font-size:13px;flex-wrap:wrap}
+dialog .team-head .link{margin-left:auto;font-weight:600}
+dialog label.team-row{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:start;padding:6px 0;margin:0;font-weight:500;border-top:1px solid var(--line)}
+dialog label.team-row:first-child{border-top:0}
+dialog label.team-row input{margin-top:3px}
+dialog label.team-row small{display:block;margin-top:1px}
+dialog .forget{color:var(--faint);background:none;border:0;cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
+dialog .forget:hover{color:var(--red)}
+dialog .role-form{border-top:1px dashed var(--line);margin-top:6px;padding-top:10px}
+dialog .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.notify-line{font-size:12.5px;margin-top:6px!important}
+.ck.warn{color:var(--wait)}
 @media (max-width:1100px){.crew-cols{grid-template-columns:1fr}}
 @media (max-width:860px){.board-grid{grid-template-columns:1fr;grid-template-rows:auto 1fr}.rooms{border-right:0;border-bottom:1px solid var(--line);max-height:30vh}
   .room-head,.stream,.speak,.table-wrap{padding-left:12px;padding-right:12px}.crews-head{flex-direction:column}.crews-head .btn{margin-left:0}
-  dialog .row3,dialog .toggles{grid-template-columns:1fr}}
+  dialog .row3,dialog .row2,dialog .toggles{grid-template-columns:1fr}}
 @media (max-width:1100px){.info{position:absolute;right:0;top:0;bottom:0;z-index:6;box-shadow:-8px 0 24px rgba(0,0,0,.15)}.c-body{position:relative}}
 @media (max-width:860px){
   .app{grid-template-columns:1fr}
@@ -632,11 +645,26 @@ dialog small{font-weight:400;color:var(--faint);font-size:12px}
     <h3>New crew</h3>
     <div class="seg"><label class="opt"><input type="radio" name="mode" value="goal" checked> I have a goal</label><label class="opt"><input type="radio" name="mode" value="ideas"> Suggest ideas</label></div>
     <p class="muted" style="font-size:12.5px;margin:-6px 0 12px" data-mode-hint></p>
+    <label>Template<select name="template"><option value="feature">Feature crew</option></select><small data-template-about></small></label>
     <label>Name<input name="name" maxlength="60" required placeholder="e.g. Markdown table formatter" autocomplete="off"></label>
     <label data-mode="goal">Goal<textarea name="goal" placeholder="What should the crew build? Be concrete: who uses it, what it must do, constraints (language, no network, …)."></textarea></label>
     <label data-mode="ideas" hidden>Theme <small>optional</small><textarea name="theme" placeholder="e.g. developer tools for data engineers; command-line only; Python"></textarea></label>
     <label>Workspace folder<input name="directory" required placeholder="~/code/table-formatter" autocomplete="off" spellcheck="false"><small>An empty folder or a clean git repository; kovan creates it if needed. Every accepted milestone becomes a commit.</small></label>
     <label>Check command <small>runs after every milestone — the crew's CI gate</small><input name="check" placeholder="e.g. python3 -m pytest -q   (leave empty and the Planner proposes one for you to approve)" autocomplete="off" spellcheck="false"></label>
+    <div class="team">
+      <div class="team-head">Extra roles <small>besides the Planner, Developer and Reviewer</small><button type="button" class="link" data-role-new>＋ Define a role</button></div>
+      <div data-team-list></div>
+      <div class="role-form" data-role-form hidden>
+        <label>Role name<input name="r_title" maxlength="40" placeholder="e.g. API designer" autocomplete="off"></label>
+        <label>What it does<textarea name="r_job" placeholder="Its job in a few sentences: what it looks at, what it changes or checks, what good work looks like."></textarea></label>
+        <div class="row2">
+          <label>When<select name="r_stage"><option value="gate">Before each commit — reads the diff, can block it</option><option value="build">After the Developer — works on the milestone, may edit files</option></select></label>
+          <label>Blocks the commit on<select name="r_block"><option value="critical,high">critical or high findings</option><option value="critical">critical findings only</option><option value="">nothing — advisory</option></select></label>
+        </div>
+        <label class="opt"><input type="checkbox" name="r_remember" checked> Remember this role for later crews</label>
+        <div class="ask-actions"><button type="button" class="btn" data-role-cancel>Cancel</button><button type="button" class="btn primary" data-role-add>Add the role</button></div>
+      </div>
+    </div>
     <div class="toggles">
       <label class="opt"><input type="checkbox" name="plan_approval" checked> Ask me to approve the plan</label>
       <label class="opt"><input type="checkbox" name="tester"> Add a Tester</label>
@@ -785,6 +813,24 @@ const TR={
   'Plan approval':'Plan onayı','Pause per milestone':'Her kilometre taşında dur','Tester':'Testçi','Attempts':'Deneme','Usage pause':'Kullanım duraklaması','Git':'Git','yes':'evet','no':'hayır',
   'no commits':'commit yok','commit':'commit','commit + push':'commit + push','Not started':'Başlamadı',
   // crew dialog
+  'Template':'Şablon','Feature crew':'Özellik ekibi','Secure feature crew':'Güvenli özellik ekibi','Bug-fix crew':'Hata düzeltme ekibi','Security audit crew':'Güvenlik denetim ekibi',
+  'Extra roles':'Ek roller','besides the Planner, Developer and Reviewer':'Planlayıcı, Geliştirici ve İnceleyiciye ek olarak','＋ Define a role':'＋ Rol tanımla',
+  'Role name':'Rol adı','e.g. API designer':'örn. API tasarımcısı','What it does':'Ne yapar','When':'Ne zaman','Blocks the commit on':'Commit’i durduran bulgular',
+  'Its job in a few sentences: what it looks at, what it changes or checks, what good work looks like.':'Görevini birkaç cümleyle yaz: neye bakar, neyi değiştirir ya da denetler, iyi iş neye benzer.',
+  'Before each commit — reads the diff, can block it':'Her commit’ten önce — diff’i okur, durdurabilir','After the Developer — works on the milestone, may edit files':'Geliştiriciden sonra — kilometre taşında çalışır, dosya düzenleyebilir',
+  'critical or high findings':'kritik ya da yüksek bulgular','critical findings only':'yalnız kritik bulgular','nothing — advisory':'hiçbiri — yalnız öneri',
+  'Remember this role for later crews':'Bu rolü sonraki ekipler için hatırla','Add the role':'Rolü ekle','Forget this role':'Bu rolü unut','Remove':'Kaldır',
+  'works on every milestone after the Developer':'her kilometre taşında Geliştiriciden sonra çalışır','reads every diff before the commit (advisory)':'commit’ten önce her diff’i okur (yalnız öneri)',
+  'reads every diff before the commit; blocks it on critical or high findings':'commit’ten önce her diff’i okur; kritik ya da yüksek bulguda durdurur',
+  'reads every diff before the commit; blocks it on critical findings':'commit’ten önce her diff’i okur; kritik bulguda durdurur',
+  'Security auditor':'Güvenlik denetçisi','Documenter':'Belgeleyici','Performance reviewer':'Performans inceleyici','Extra roles:':'Ek roller:',
+  'Give the role a name and a sentence or two about its job.':'Role bir ad ver ve görevini bir iki cümleyle yaz.','Up to 4 extra roles':'En fazla 4 ek rol',
+  'Notifications:':'Bildirimler:','permission prompts too':'izin istemleri de',
+  'Could not save the role':'Rol kaydedilemedi','Role forgotten':'Rol unutuldu','findings':'bulgu','finding':'bulgu',
+  'at most 4 extra roles':'en fazla 4 ek rol','a role needs a name':'rolün bir adı olmalı','describe what the role does (a sentence or two)':'rolün ne yaptığını yaz (bir iki cümle)',
+  'unknown template':'bilinmeyen şablon','unknown role':'bilinmeyen rol','an audit crew needs a folder with code in it':'denetim ekibi içinde kod olan bir klasör ister',
+  'a role works either after the Developer or before the commit':'bir rol ya Geliştiriciden sonra ya da commit’ten önce çalışır','invalid blocking severities':'geçersiz engelleme düzeyleri',
+  'team must be a list of roles':'ekip bir rol listesi olmalı','at most 30 saved roles':'en fazla 30 kayıtlı rol','invalid role':'geçersiz rol',
   'I have a goal':'Bir hedefim var','Suggest ideas':'Fikir öner','Goal':'Hedef','optional':'isteğe bağlı','Workspace folder':'Çalışma klasörü',
   'What should the crew build? Be concrete: who uses it, what it must do, constraints (language, no network, …).':'Ekip ne yapsın? Somut ol: kim kullanacak, ne yapmalı, kısıtlar (dil, ağ yok, …).',
   'An empty folder or a clean git repository; kovan creates it if needed. Every accepted milestone becomes a commit.':'Boş bir klasör ya da temiz bir git deposu; gerekirse kovan oluşturur. Kabul edilen her kilometre taşı bir commit olur.',
@@ -827,6 +873,7 @@ const TR={
   'usage limit':'kullanım sınırı','stopped by you':'senin tarafından durduruldu','Architect':'Mimar','Diagnostician':'Teşhisçi','PM':'PM',
 };
 const TR_RX=[
+  [/^two roles share the name “(.+)”$/,'iki rol aynı adı taşıyor: “$1”'],
   [/^Watching: (.*)$/,'İzlenen: $1'],[/^no such directory: (.*)$/,'böyle bir klasör yok: $1'],
   [/^(\d+) messages? between sessions$/,'oturumlar arası $1 mesaj'],
   [/^(.+) · (\d+)\/(\d+) milestones$/,(m,a,b,c)=>tt(a)+' · '+b+'/'+c+' kilometre taşı'],
@@ -1041,6 +1088,7 @@ function updateTitle(){const os=S.d?S.d.sessions:[];const n=os.filter(o=>unread(
 
 /* ---------------- render */
 function render(){
+  if(S.d)registerTeams(S.d.crews||[]);
   document.querySelectorAll('nav.tabs [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===S.view));
   $('#notes-tab').hidden=!(S.d&&S.d.notes_available);
   VIEWS.forEach(v=>{$('#v-'+v).hidden=v!==S.view;});
@@ -1428,10 +1476,10 @@ function renderNotes(){if(!S.notes){$('#notes').innerHTML='<div class="empty">Lo
 
 /* ---------------- crews & boardroom */
 const PHASE={ideating:['Ideating','busy'],choosing:['Pick an idea','ask'],planning:['Planning','busy'],plan_review:['Approve the plan','ask'],building:['Building','busy'],milestone_review:['Waiting for you','ask'],blocked:['Needs you','ask'],paused:['Paused','wait'],done:['Done','idle'],stopped:['Stopped','off']};
-const STEPS=[['develop','Develop'],['test','Test'],['check','Check'],['review','Review'],['commit','Commit']];
 const ROLE_T={you:'You',human:'You',operator:'Operator',kovan:'Kovan',planner:'Planner',developer:'Developer',tester:'Tester',reviewer:'Reviewer',finance:'Finance',ideator:'Ideator',pm:'PM'};
 if(LANG==='tr')Object.assign(ROLE_T,{you:'Sen',human:'Sen',operator:'Operatör',planner:'Planlayıcı',developer:'Geliştirici',tester:'Testçi',reviewer:'İnceleyici',finance:'Finans',ideator:'Fikir üretici',architect:'Mimar',diagnostician:'Teşhisçi'});
-const ROLE_C={you:'#c4623f',human:'#c4623f',operator:'#c4623f',kovan:'#8193ad',planner:'#4f8fdc',pm:'#4f8fdc',architect:'#5c7ae0',developer:'#2fa872',tester:'#cf9a2e',reviewer:'#a979d6',finance:'#2fabb3',ideator:'#d9668f',diagnostician:'#c0703a'};
+const TEMPLATE_T={feature:'Feature crew',secure:'Secure feature crew',bugfix:'Bug-fix crew',audit:'Security audit crew'};
+const ROLE_C={security:'#d0503c',docs:'#3f9fb5',performance:'#b5823f',you:'#c4623f',human:'#c4623f',operator:'#c4623f',kovan:'#8193ad',planner:'#4f8fdc',pm:'#4f8fdc',architect:'#5c7ae0',developer:'#2fa872',tester:'#cf9a2e',reviewer:'#a979d6',finance:'#2fabb3',ideator:'#d9668f',diagnostician:'#c0703a'};
 const ROLE_DO={planner:'plans the milestones and replans between them',developer:'builds one milestone at a time',tester:'strengthens the tests',reviewer:'approves or sends work back',ideator:'proposes and scores ideas',finance:'watches usage limits',kovan:'runs the checks, commits, keeps order',you:'decides'};
 const KIND_T={goal:'goal',plan:'plan',idea:'idea',handoff:'hand-off',verdict:'verdict',check:'check',milestone:'milestone',replan:'replan',decision:'decision',finance:'finance',blocked:'needs you',attention:'needs your OK',waiting:'your turn',note:'note',done:'done'};
 const YOU_KEYS=['you','human','operator'];
@@ -1475,7 +1523,13 @@ function sessionsRoom(){
     seats,entries,acts:'<button class="btn small" data-view="messages">Graph view</button>',
     speak:{targets:targets.map(o=>({v:o.sid,l:'To '+o.name})),placeholder:targets.length?'Write to a session kovan drives…':'Continue a session in kovan to speak to it from here',disabled:!targets.length},
     empty:'No messages between sessions yet. When one session uses SendMessage to reach another, the exchange appears here.'};}
-function crewRoles(c){const r=['planner','developer'];if(c.options&&c.options.tester)r.push('tester');r.push('reviewer');if(c.mode==='ideas')r.unshift('ideator');return r;}
+function crewRoles(c){const t=c.team||[],r=['planner','developer'];if(c.options&&c.options.tester)r.push('tester');
+  t.filter(x=>x.stage==='build').forEach(x=>r.push(x.key));r.push('reviewer');t.filter(x=>x.stage==='gate').forEach(x=>r.push(x.key));
+  if(c.mode==='ideas')r.unshift('ideator');return r;}
+function crewSteps(c){const t=c.team||[],s=[['develop','Develop']];if(c.options.tester)s.push(['test','Test']);
+  t.filter(x=>x.stage==='build').forEach(x=>s.push(['extra:'+x.key,x.title]));s.push(['check','Check'],['review','Review']);
+  t.filter(x=>x.stage==='gate').forEach(x=>s.push(['gate:'+x.key,x.title]));s.push(['commit','Commit']);return s;}
+function registerTeams(crews){crews.forEach(c=>(c.team||[]).forEach(r=>{ROLE_T[roleKey(r.key)]=tt(r.title);ROLE_DO[r.key]=r.about;}));}
 function crewRoom(c){
   const h=S.crewDetail&&S.crewDetail.id===c.id?S.crewDetail.d:null;const roles=crewRoles(c),wait=h&&h.wait;
   const seat=k=>{const sid=(c.roles||{})[k],o=sid&&sess(sid);
@@ -1589,6 +1643,8 @@ function needHTML(c,d,compact){
   return h;}
 
 /* ---- the crews page */
+function notifyLine(){const n=S.d&&S.d.notify;if(!n)return '';
+  return '<p class="muted notify-line">📱 <span>Notifications:</span> '+n.channels.map(ch=>{const st=n.status[ch];return esc(ch==='telegram'?'Telegram':'webhook')+' '+(st==='ok'?'✓':st?'⚠ '+esc(st):'·');}).join(' · ')+(n.permissions?' · <span>permission prompts too</span>':'')+'</p>';}
 function crewCard(c){const p=c.progress||{},cls=(PHASE[c.phase]||[])[1]||'';const pct=p.total?Math.round(100*p.done/p.total):0;
   return '<article class="ocard crew-card '+(crewNeedsYou(c)?'ask':cls==='busy'?'busy':'')+'" data-crew="'+c.id+'"><header><span class="hex">⬢</span><h3 class="no-i18n" title="'+esc(c.name)+'">'+esc(c.name)+'</h3>'+phasePill(c.phase)+'</header>'+
     (c.goal||c.theme?'<p class="clamp c2 muted no-i18n" style="margin:0">'+esc(c.goal?plain(c.goal):tt('Ideas about:')+' '+c.theme)+'</p>':'')+
@@ -1598,17 +1654,17 @@ function crewCard(c){const p=c.progress||{},cls=(PHASE[c.phase]||[])[1]||'';cons
     (c.last?'<div class="block"><div class="bh"><span class="label">'+esc(roleName(c.last.speaker))+(c.last.to?' → '+esc(roleName(c.last.to)):'')+'</span>'+relSpan(c.last.ts)+'</div><p class="clamp c2 no-i18n">'+esc(plain(c.last.text))+'</p></div>':'')+
     '<footer><span>'+esc(c.dir)+'</span><span><b>'+Object.keys(c.roles||{}).length+'</b> role sessions</span><button class="link" data-room="crew:'+c.id+'">Boardroom →</button></footer></article>';}
 function msHTML(m,i,c,d){const cur=i===d.current&&c.phase!=='done';const st=m.status==='done'?'✓':m.status==='failed'?'!':m.status==='skipped'?'–':String(i+1);
-  let pipe='';if(m.status==='active'||(cur&&['building','blocked','paused','milestone_review'].includes(c.phase))){const steps=STEPS.filter(s=>s[0]!=='test'||c.options.tester);const at=steps.findIndex(s=>s[0]===(d.step||'develop'));
+  let pipe='';if(m.status==='active'||(cur&&['building','blocked','paused','milestone_review'].includes(c.phase))){const steps=crewSteps(c);const at=steps.findIndex(s=>s[0]===(d.step||'develop'));
     pipe='<div class="pipe">'+steps.map((s,j)=>'<span class="'+(j<at?'done':j===at?'now':'')+'">'+s[1]+'</span>').join('<i>›</i>')+(m.attempts?'<em>attempt '+(m.attempts+1)+' of '+c.options.max_attempts+'</em>':'')+'</div>';}
   const lg=(m.log||[]).slice(-4).map(x=>'<li><b>'+esc(roleName(x.who))+'</b> '+esc(x.result)+(x.text?' — '+esc(clip1(plain(x.text),180)):'')+'</li>').join('');
   return '<li class="'+esc(m.status)+(cur?' cur':'')+'"><span class="st">'+st+'</span><div><b class="no-i18n">'+esc(m.title)+'</b>'+(m.goal?'<div class="muted g no-i18n">'+inl(m.goal)+'</div>':'')+pipe+
     (m.acceptance&&m.acceptance.length?'<details data-k="acc-'+m.id+'"'+(S.open.has('acc-'+m.id)?' open':'')+'><summary>'+m.acceptance.length+' acceptance criteria'+(lg?' · history':'')+'</summary><ul class="no-i18n">'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>'+(lg?'<ul class="lg no-i18n">'+lg+'</ul>':'')+'</details>':'')+
-    '</div><span class="ms-r">'+(m.commit?'<code title="Commit">'+esc(m.commit)+'</code>':'')+(m.check?'<span class="ck '+(m.check.code===0?'ok':'bad')+'" title="Check command">'+(m.check.code===0?'check ✓':'check ✗')+'</span>':'')+'</span></li>';}
+    '</div><span class="ms-r">'+Object.keys(m.findings||{}).map(k=>{const f=m.findings[k]||[];return '<span class="ck '+(f.length?'warn':'ok')+'" title="'+esc(f.map(x=>'['+x.severity+'] '+(x.file?x.file+': ':'')+x.note).join('\n'))+'">'+esc(roleName(k))+(f.length?' · '+f.length+' '+tt(f.length===1?'finding':'findings'):' ✓')+'</span>';}).join('')+(m.commit?'<code title="Commit">'+esc(m.commit)+'</code>':'')+(m.check?'<span class="ck '+(m.check.code===0?'ok':'bad')+'" title="Check command">'+(m.check.code===0?'check ✓':'check ✗')+'</span>':'')+'</span></li>';}
 function renderCrews(){
   const el=$('#crews');const crews=(S.d&&S.d.crews)||[];
   const c=S.crew&&crewOf(S.crew);
   if(!c){S.crew=null;
-    el.innerHTML='<div class="crews-head"><div><h2>Crews</h2><p class="muted">A crew turns a goal — yours, or one its Ideator proposes — into small milestones and builds them: a Planner, a Developer, an optional Tester and a Reviewer, each a real Claude Code session you can open. kovan runs your check after every milestone, commits what the Reviewer approves, pauses before the usage limit and asks you whenever a human should decide.</p></div><button class="btn primary" data-new-crew>＋ New crew</button></div>'+
+    el.innerHTML='<div class="crews-head"><div><h2>Crews</h2><p class="muted">A crew turns a goal — yours, or one its Ideator proposes — into small milestones and builds them: a Planner, a Developer, an optional Tester and a Reviewer, each a real Claude Code session you can open. kovan runs your check after every milestone, commits what the Reviewer approves, pauses before the usage limit and asks you whenever a human should decide.</p>'+notifyLine()+'</div><button class="btn primary" data-new-crew>＋ New crew</button></div>'+
       (crews.length?'<div class="cards-grid">'+crews.map(crewCard).join('')+'</div>':'<div class="box crews-empty"><div class="hex big">⬢</div><p>No crews yet.</p><button class="btn primary" data-new-crew>＋ Start your first crew</button></div>');
     return;}
   const h=S.crewDetail&&S.crewDetail.id===c.id?S.crewDetail.d:null;
@@ -1625,14 +1681,38 @@ function renderCrews(){
     '<div class="crew-cols"><div><h2 class="section">Milestones'+(plan.length?' · '+c.progress.done+'/'+plan.length:'')+'</h2>'+(plan.length?'<ol class="box ms">'+plan.map((m,i)=>msHTML(m,i,c,h)).join('')+'</ol>':'<div class="box empty">'+(c.phase==='ideating'||c.phase==='choosing'?'The plan comes after you pick an idea.':'The Planner is writing the plan…')+'</div>')+
       (h.plan&&h.plan.summary?'<h2 class="section">Plan</h2><div class="box pad md">'+md(h.plan.summary+(h.plan.stack?'\n\n**Stack:** '+h.plan.stack:''))+'</div>':'')+'</div>'+
     '<div><h2 class="section">Team</h2><div class="box">'+team+'</div>'+
-      '<h2 class="section">Settings</h2><div class="box kv"><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push?' + push':''):'no commits')+'</b></div>'+
+      '<h2 class="section">Settings</h2><div class="box kv"><span>Template</span><b>'+esc(TEMPLATE_T[c.template]||c.template||'—')+'</b><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push?' + push':''):'no commits')+'</b></div>'+
       (h.board&&h.board.length?'<h2 class="section">Latest in the boardroom</h2><div class="box mini-board">'+h.board.slice(-5).map(e=>'<div><b style="color:'+roleColor(e.speaker)+'">'+esc(roleName(e.speaker))+'</b>'+(e.to?' → '+esc(roleName(e.to)):'')+' <span class="muted no-i18n">'+esc(clip1(plain(e.text),140))+'</span></div>').join('')+'<button class="link" data-room="crew:'+c.id+'">Open the boardroom →</button></div>':'')+'</div></div>';}
 
 /* ---- actions */
 function feedbackNear(btn){const card=btn.closest('.need,.card-ask');const t=card&&card.querySelector('[data-feedback]');return t?t.value.trim():'';}
 async function crewAct(id,action,extra){try{const d=await post('/api/crew/action',Object.assign({id,action},extra||{}));if(d&&d.id){S.crewDetail={id,d};}S.rev='';refresh(0);return d;}
   catch(e){toast('Could not do that',e.message,null,'err');}}
-function crewDialog(){const d=$('#crew-dialog'),f=$('#crew-form');f.reset();f.dataset.dirTouched='';setCrewMode(f,'goal');d.showModal();f.elements.name.focus();}
+function crewDialog(){const d=$('#crew-dialog'),f=$('#crew-form');f.reset();f.dataset.dirTouched='';setCrewMode(f,'goal');
+  CD.draft=[];CD.checked=new Set();f.querySelector('[data-role-form]').hidden=true;renderTeam(f);d.showModal();f.elements.name.focus();
+  loadCatalog().then(()=>{fillTemplates(f);applyTemplate(f,'feature');});}
+/* ---- crew templates and extra roles (the New crew dialog) */
+const CD={catalog:null,draft:[],checked:new Set(),uid:0};
+async function loadCatalog(){try{CD.catalog=await get('/api/crew/catalog?'+new URLSearchParams({lang:LANG}));}catch(e){CD.catalog=CD.catalog||{presets:[],templates:[],saved:[]};}}
+function fillTemplates(f){const sel=f.elements.namedItem('template');const ts=(CD.catalog&&CD.catalog.templates)||[];if(!ts.length)return;
+  sel.innerHTML=ts.map(t=>'<option value="'+esc(t.key)+'" class="no-i18n">'+esc(t.title)+'</option>').join('');}
+function applyTemplate(f,key){const t=((CD.catalog&&CD.catalog.templates)||[]).find(x=>x.key===key);if(!t)return;f.elements.namedItem('template').value=key;
+  f.querySelector('[data-template-about]').textContent=t.about;f.elements.namedItem('tester').checked=!!t.tester;
+  CD.checked=new Set([...CD.checked].filter(id=>!id.startsWith('p:')).concat(t.team.map(k=>'p:'+k)));renderTeam(f);}
+function roleAbout(r){if(r.stage==='build')return 'works on every milestone after the Developer';
+  return r.block_on&&r.block_on.length?'reads every diff before the commit; blocks it on '+r.block_on.join(' or ')+' findings':'reads every diff before the commit (advisory)';}
+function teamItems(){const c=CD.catalog||{presets:[],saved:[]};
+  return (c.presets||[]).map(p=>({id:'p:'+p.key,title:p.title,about:p.about,preset:p.key}))
+    .concat((c.saved||[]).map(r=>({id:'s:'+r.title.toLowerCase(),title:r.title,about:roleAbout(r),role:r,saved:true})))
+    .concat(CD.draft.map(r=>({id:'d:'+r.uid,title:r.title,about:roleAbout(r),role:r,draft:r.uid})));}
+function renderTeam(f){f.querySelector('[data-team-list]').innerHTML=teamItems().map(it=>'<label class="team-row"><input type="checkbox" data-team="'+esc(it.id)+'"'+(CD.checked.has(it.id)?' checked':'')+'><span><b class="no-i18n">'+esc(it.title)+'</b><small'+(it.preset?' class="no-i18n"':'')+'>'+esc(it.about)+'</small></span>'+
+  (it.saved?'<button type="button" class="forget" data-role-forget="'+esc(it.role.title)+'" title="Forget this role">×</button>':it.draft!=null?'<button type="button" class="forget" data-role-drop="'+it.draft+'" title="Remove">×</button>':'<span></span>')+'</label>').join('');}
+function chosenTeam(){return teamItems().filter(it=>CD.checked.has(it.id)).map(it=>it.preset?{preset:it.preset}:{title:it.role.title,job:it.role.job,stage:it.role.stage,block_on:it.role.block_on});}
+function addDraftRole(f){const E=n=>f.elements.namedItem(n);const title=E('r_title').value.trim(),job=E('r_job').value.trim(),stage=E('r_stage').value;
+  if(!title||job.length<20){toast('Give the role a name and a sentence or two about its job.','',null,'ask');return;}
+  const r={uid:++CD.uid,title,job,stage,block_on:stage==='gate'?E('r_block').value.split(',').filter(Boolean):[],remember:E('r_remember').checked};
+  CD.draft.push(r);CD.checked.add('d:'+r.uid);E('r_title').value='';E('r_job').value='';f.querySelector('[data-role-form]').hidden=true;renderTeam(f);}
+function saveRoles(items){return post('/api/crew/roles',{items:items.map(r=>({title:r.title,job:r.job,stage:r.stage,block_on:r.block_on}))});}
 function setCrewMode(f,mode){f.querySelectorAll('[data-mode]').forEach(x=>{x.hidden=x.dataset.mode!==mode;});f.querySelector('[data-mode-hint]').textContent=mode==='ideas'?'The Ideator proposes four scored ideas; you pick one, then the Planner takes over.':'The Planner reads the workspace, writes milestones with acceptance criteria and asks for your approval.';}
 function suggestDir(name){const base=((S.d&&S.d.dirs)||[])[0]||'~/code';const parent=base.replace(/\/[^/]+\/?$/,'')||'~';const slug=String(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);return slug?parent+'/'+slug:'';}
 function speak(){const R=currentRoom(),t=$('#speak-text'),text=t.value.trim();if(!R||!text)return;const to=$('#speak-to').value;const b=$('#speak-btn');b.disabled=true;
@@ -1672,6 +1752,12 @@ document.addEventListener('click',e=>{
   const t=e.target;
   const vb=t.closest('[data-view]');if(vb){if(vb.dataset.view==='crews'&&vb.closest('nav'))S.crew=null;showView(vb.dataset.view);return;}
   if(t.closest('[data-new-crew]')){crewDialog();return;}
+  if(t.closest('[data-role-new]')){const rf=t.closest('form').querySelector('[data-role-form]');rf.hidden=!rf.hidden;if(!rf.hidden)rf.querySelector('input').focus();return;}
+  if(t.closest('[data-role-cancel]')){t.closest('[data-role-form]').hidden=true;return;}
+  if(t.closest('[data-role-add]')){addDraftRole(t.closest('form'));return;}
+  const rdrop=t.closest('[data-role-drop]');if(rdrop){e.preventDefault();const id=+rdrop.dataset.roleDrop;CD.draft=CD.draft.filter(r=>r.uid!==id);CD.checked.delete('d:'+id);renderTeam(rdrop.closest('form'));return;}
+  const rforget=t.closest('[data-role-forget]');if(rforget){e.preventDefault();const f=rforget.closest('form'),title=rforget.dataset.roleForget;
+    saveRoles(((CD.catalog&&CD.catalog.saved)||[]).filter(r=>r.title!==title)).then(()=>{CD.checked.delete('s:'+title.toLowerCase());toast('Role forgotten',title);return loadCatalog();}).then(()=>renderTeam(f)).catch(x=>toast('Could not save the role',x.message,null,'err'));return;}
   const rb=t.closest('[data-room]');if(rb){S.room=rb.dataset.room;store('kovan.room',S.room);if(S.view!=='board')showView('board');else{writeHash();renderBoard();refresh(0);}return;}
   const cb=t.closest('[data-crew]');if(cb&&!t.closest('[data-room],[data-open],button.link')){S.crew=cb.dataset.crew;S.crewDetail=null;showView('crews');return;}
   if(t.closest('[data-crew-back]')){S.crew=null;showView('crews');return;}
@@ -1726,10 +1812,14 @@ document.addEventListener('submit',e=>{
   if(e.target.id==='speak'){e.preventDefault();speak();return;}
   if(e.target.id==='crew-form'){e.preventDefault();const f=e.target,E=n=>f.elements.namedItem(n);const mode=f.querySelector('[name=mode]:checked').value;
     const body={name:E('name').value.trim(),mode,goal:E('goal').value.trim(),theme:E('theme').value.trim(),directory:E('directory').value.trim(),
-      options:{check:E('check').value.trim(),plan_approval:E('plan_approval').checked,tester:E('tester').checked,milestone_approval:E('milestone_approval').checked,commit:E('commit').checked,push:E('push').checked,policy:E('policy').value,max_attempts:+E('max_attempts').value||3,quota_pause:+E('quota_pause').value||90,lang:LANG}};
+      options:{check:E('check').value.trim(),plan_approval:E('plan_approval').checked,tester:E('tester').checked,milestone_approval:E('milestone_approval').checked,commit:E('commit').checked,push:E('push').checked,policy:E('policy').value,max_attempts:+E('max_attempts').value||3,quota_pause:+E('quota_pause').value||90,lang:LANG},
+      template:E('template').value||'feature',team:chosenTeam()};
     if(mode==='goal'&&!body.goal){toast('Describe the goal','Or choose “Suggest ideas”.',null,'ask');return;}
+    if(body.team.length>4){toast('Up to 4 extra roles','',null,'ask');return;}
     const b=f.querySelector('[type=submit]');b.disabled=true;
-    post('/api/crew/new',body).then(j=>{$('#crew-dialog').close();S.room='crew:'+j.id;store('kovan.room',S.room);S.rev='';showView('board');toast('Crew started',body.name+' — the '+(mode==='ideas'?'Ideator':'Planner')+' goes first');})
+    const keep=CD.draft.filter(r=>r.remember);
+    (keep.length?saveRoles(((CD.catalog&&CD.catalog.saved)||[]).concat(keep)).catch(x=>toast('Could not save the role',x.message,null,'err')):Promise.resolve())
+    .then(()=>post('/api/crew/new',body)).then(j=>{$('#crew-dialog').close();S.room='crew:'+j.id;store('kovan.room',S.room);S.rev='';showView('board');toast('Crew started',body.name+' — the '+(mode==='ideas'?'Ideator':'Planner')+' goes first');})
       .catch(x=>toast('Could not start the crew',x.message,null,'err')).finally(()=>{b.disabled=false;});return;}
   if(e.target.id==='new-form'){e.preventDefault();const f=e.target;const name=f.name.value.trim(),text=f.text.value.trim(),directory=f.directory.value.trim()||null;if(!name)return;if(directory)store('kovan.newdir',directory);
     const b=f.querySelector('[type=submit]');b.disabled=true;
@@ -1751,6 +1841,9 @@ document.addEventListener('change',e=>{
     else if(k==='mode')act('/api/permission-mode',{mode:v},'Permissions: '+((MODES.find(x=>x[0]===v)||[])[1]||v));return;}
   if(t.id==='show-sub'){S.showSub=t.checked;renderMessages();}
   if(t.name==='mode'&&t.closest('#crew-form'))setCrewMode(t.closest('form'),t.value);
+  if(t.name==='template'&&t.closest('#crew-form'))applyTemplate(t.closest('form'),t.value);
+  if(t.dataset&&t.dataset.team){if(t.checked)CD.checked.add(t.dataset.team);else CD.checked.delete(t.dataset.team);}
+  if(t.name==='r_stage')t.closest('form').elements.namedItem('r_block').disabled=t.value!=='gate';
   if(t.id==='feed-session'){S.feedSession=t.value;renderFeed();}
   if(t.id==='file'){addFiles([...t.files]);t.value='';}
 });
@@ -1758,6 +1851,7 @@ document.addEventListener('input',e=>{const t=e.target;const f=t.closest&&t.clos
   if(t.id==='speak-text'){t.style.height='auto';t.style.height=Math.min(t.scrollHeight,160)+'px';}});
 document.addEventListener('focusin',e=>{if(e.target.classList&&e.target.classList.contains('other-text')){const r=e.target.closest('.option').querySelector('input[type=radio],input[type=checkbox]');if(r)r.checked=true;}});
 document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target&&e.target.matches&&e.target.matches('[data-role-form] input,[data-role-form] select')){e.preventDefault();addDraftRole(e.target.closest('form'));return;}
   if(e.target&&e.target.id==='name-input'){if(e.key==='Enter'){e.preventDefault();saveName();}else if(e.key==='Escape'){e.preventDefault();S.renaming=null;S.headSig='';renderHead(sess(S.sel));}return;}
   if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){e.preventDefault();openPalette();return;}
   if(e.ctrlKey&&!e.metaKey&&/^[1-9]$/.test(e.key)){const g=sideGroups();const l=[].concat(g.kovan,g.vscode,g.elsewhere,g.closed);const o=l[+e.key-1];if(o){e.preventDefault();openSession(o.sid);}return;}

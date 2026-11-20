@@ -124,7 +124,7 @@ class StoreTests(unittest.TestCase):
         cls.by_name = {s['name']: s for s in cls.state['sessions']}
 
     def test_sessions_places_and_statuses(self):
-        self.assertEqual(len(self.state['sessions']), 13)       # 8 team sessions + 5 crew role sessions
+        self.assertEqual(len(self.state['sessions']), 14)       # 8 team sessions + 6 crew role sessions
         self.assertEqual(self.by_name['tablefmt · Developer']['place'], 'kovan')
         self.assertEqual(self.by_name['tablefmt · Developer']['status'], 'working')
         self.assertEqual(self.by_name['API refactor']['place'], 'kovan')
@@ -257,6 +257,19 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.post('/api/crew/action', body)[0], 403)            # demo: read-only
         self.assertEqual(self.post('/api/crew/new', {'name': 'x', 'goal': 'y', 'directory': '/tmp/x'})[0], 403)
         self.assertEqual(self.post('/api/swarm/command', {'intent': 'approve', 'project': 'x'})[0], 403)
+
+    def test_crew_catalog_and_saved_roles(self):
+        d = self.get_json('/api/crew/catalog?lang=tr')[1]
+        self.assertEqual(d['templates'][3]['title'], 'Güvenlik denetim ekibi')
+        self.assertEqual(d['presets'][0]['key'], 'security')
+        role = {'title': 'API designer', 'job': 'Reviews every endpoint for consistent naming and errors.',
+                'stage': 'gate', 'block_on': ['critical']}
+        self.assertEqual(self.post('/api/crew/roles', {'items': [role]}, token=False)[0], 403)
+        self.assertEqual(self.post('/api/crew/roles', {'items': [role, dict(role, job='The same name again, ignored.')]})[0], 200)
+        self.assertEqual(self.get_json('/api/crew/catalog')[1]['saved'], [role])
+        self.assertEqual(self.post('/api/crew/roles', {'items': [{'title': 'x', 'job': 'short'}]})[0], 400)
+        self.assertEqual(self.post('/api/crew/roles', {'items': []})[0], 200)
+        self.assertEqual(self.get_json('/api/crew/catalog')[1]['saved'], [])
 
     def test_page_and_state(self):
         status, page = self.request('GET', '/')

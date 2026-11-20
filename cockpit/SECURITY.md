@@ -44,6 +44,8 @@ A crew runs AI roles for a long time without you watching every step, so it gets
 | The check command | Runs in the crew's folder with a timeout, without Claude Code's or kovan's environment variables, and its output is masked before it reaches the Reviewer or the page. A check command **the Planner proposes** runs only after you approve the plan — or, when plan approval is off, only if it is on the safe list above. |
 | Commits | kovan stages with `git add -A` and then takes secret-looking files (`.env*`, `*.pem`, `*.key`, SSH keys, `credentials.json`, `secrets.*`, `.npmrc`, `.pypirc`, `.netrc`) back out of the index, and says so in the boardroom. A crew only starts in an empty folder or a **clean** git repository, so its commits contain nothing but its own work. Pushing is off unless you turn it on. |
 | Workspace | A crew refuses `/`, your home directory and its parents, and a folder another active crew is using. |
+| What gets committed | kovan records the git tree the Reviewer read. Before an extra role reads the diff and again right before the commit it stages the workspace and compares: if anything changed after the review (a role "fixing one more thing"), the check and the review run again, and after three rounds the crew stops for you. |
+| Extra roles | Your own roles are prompts you write; they get the same permission policy as the built-in roles (no web access). A role that reads the diff *before the commit* is told not to edit files — and if it does, the rule above catches it. The Security auditor reads the code; it does not run scanners or anything that needs the network. It is a reviewer, not a guarantee. |
 | Usage | The finance officer pauses a crew when the 5-hour usage window reaches your threshold (90 % by default). |
 
 **What the safe policy is not:** a sandbox. Test runners execute code the Developer wrote — `pytest` loads
@@ -51,6 +53,21 @@ A crew runs AI roles for a long time without you watching every step, so it gets
 one-off destructive or exfiltrating commands, not a role that deliberately writes harmful code into the
 project and then runs its tests. Give crews goals you would give a junior colleague with access to that
 folder; for anything you would not, run kovan inside a container or VM.
+
+## Notifications
+
+The webhook URL and the Telegram bot token are bearer secrets. kovan takes them from the config file or the
+environment (`KOVAN_WEBHOOK_URL`, `KOVAN_TELEGRAM_TOKEN`), sends them only to the configured host (https only;
+plain http only to `127.0.0.1`), and never writes them to its log — failures are logged as `HTTP 404` or
+`ConnectionRefusedError`, without the URL.
+
+| Concern | Mitigation |
+|---|---|
+| Someone else presses a button | Only callbacks and replies from the numeric Telegram user ids in `allow` are acted on; others are ignored (and logged without content). With an empty `allow` the bot only tells people their own id. |
+| An old button | Every button carries a hash of the crew's state when the message was sent; once the crew has moved on (or you answered in kovan), the button says *no longer pending*, and kovan removes the buttons of outdated messages. |
+| Approving commands from a phone | Off by default. With `"permissions": true` a permission prompt gets Allow / Deny buttons that answer exactly that prompt (its id must still be pending). |
+| What leaves the machine | Crew names, plan and idea titles and summaries, blocked reasons, and the command a role wants to run — masked like everything kovan shows. Session content is not sent; `"sessions": true` sends only a session's name. |
+| A stolen bot token | Lets the thief read what kovan sends and impersonate the bot, not press buttons as you (Telegram signs who pressed them). Revoke it in @BotFather. |
 
 ## The swarm engine
 

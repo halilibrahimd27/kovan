@@ -28,7 +28,8 @@ One Python package, no dependencies, nothing leaves `127.0.0.1`.
 - **Puts a crew on a goal.** You describe it (or let an Ideator propose ideas); the Planner splits it into
   milestones; the Developer builds them one by one. After each milestone kovan runs your tests, the Reviewer
   reads the real diff, and what passes becomes a commit. You approve the plan and get asked whenever a human
-  should decide.
+  should decide. Add a **Security auditor** that can block any commit, a Documenter, or roles you define
+  yourself — or start from a template (feature, secure feature, bug fix, security audit).
 - **Lets you sit in on the meeting.** The boardroom seats everyone at a table, shows who is working and who
   just spoke to whom, and lets you speak up.
 - **Runs for days, if you want it to.** This repository also holds the **swarm engine** (formerly
@@ -79,7 +80,9 @@ flowchart LR
     C -->|fails| D
     C -->|passes| R[Reviewer<br>reads the diff]
     R -->|changes| D
-    R -->|approves| K[commit]
+    R -->|approves| A{extra roles<br>e.g. Security auditor}
+    A -->|blocking finding| D
+    A -->|clear| K[commit]
     K --> RP[Planner replans] --> D
 ```
 
@@ -105,7 +108,9 @@ Defaults live in `~/.config/kovan/config.json`:
 
 `dirs` are the folders whose sessions you see (new folders are added when you start a session in them),
 `notes` are Markdown files for the Notes tab, `lang` is `en` or `tr`, and `swarm` connects the swarm
-engine's boardroom. All options: [cockpit/README.md](cockpit/README.md#usage). The swarm engine is configured
+engine's boardroom. Add `notify` to hear on your phone when a crew needs you — a Slack/Mattermost webhook or a
+Telegram bot whose buttons approve plans and retry blocked work
+([setup](cockpit/README.md#notifications-on-your-phone)). All options: [cockpit/README.md](cockpit/README.md#usage). The swarm engine is configured
 through `.env` — see [its configuration](docs/swarm.md#configuration).
 
 ## Operating
@@ -122,7 +127,8 @@ http://127.0.0.1:8080 — see [operating the swarm](docs/swarm.md#operating).
 
 ## Getting your keys
 
-The cockpit needs no keys: it uses your Claude Code login. The swarm engine needs an Anthropic API key, and
+The cockpit needs no keys: it uses your Claude Code login (notifications optionally use a webhook URL or a
+Telegram bot token you create). The swarm engine needs an Anthropic API key, and
 optionally a GitHub token (to publish projects) and a Telegram bot (to steer it from your phone) — see
 [getting your keys](docs/swarm.md#getting-your-keys).
 

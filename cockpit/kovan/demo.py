@@ -423,6 +423,9 @@ def crew_milestones(now, m):
               'attempts': 1 if i in (1, 2) else 0, 'commit': {0: '3f9c2a1', 1: '8b41d07'}.get(i), 'log': []}
         if i < 3:
             ms['check'] = {'code': 0, 'output': '%d passed' % (9 + 5 * i), 'seconds': 2.0 + i}
+        if i < 2:
+            ms['findings'] = {'security': [{'severity': 'low', 'file': 'parse.py', 'line': 88, 'fix': '',
+                                            'note': 'very long lines are split with one regex per cell'}] if i == 0 else []}
         if i == 2:
             ms['log'] = [{'ts': now - 6 * m, 'who': 'reviewer', 'result': 'rejected',
                           'text': '--check prints the diff to stdout; it must stay silent for hooks.'}]
@@ -449,8 +452,11 @@ def crew_board(now, m):
         (74, 'tester', 'reviewer', 'handoff', 'Tests pass. Added 9 cases: escaped pipes, inline code with pipes, tables '
          'inside lists and quotes, and a byte-for-byte round trip of a document without tables.'),
         (73.5, 'kovan', 'reviewer', 'check', 'Check passed (`python3 -m pytest -q`, 2s).'),
-        (70, 'reviewer', 'kovan', 'verdict', 'Approved. The scanner is small and every acceptance criterion has a test.\n'
+        (70, 'reviewer', 'security', 'verdict', 'Approved. The scanner is small and every acceptance criterion has a test.\n'
          '- [low] parse.py: `_split_row` deserves a docstring'),
+        (69.9, 'security', 'kovan', 'verdict', 'No blocking findings. The scanner only reads the strings it is given — no '
+         'file, shell or network access.\n- [low] parse.py:88: very long lines are split with one regex per cell; a '
+         'length cap would bound the work'),
         (69.8, 'kovan', None, 'milestone', '“Parse tables out of Markdown” is done — committed 3f9c2a1.'),
         (69.7, 'finance', None, 'finance', '4 role turns so far; 5-hour usage 18%.'),
         (68, 'planner', 'you', 'replan', 'Continue — a clean run, and the next milestone is small.'),
@@ -464,7 +470,9 @@ def crew_board(now, m):
          'two. Added the failing case as a regression test.'),
         (44, 'tester', 'reviewer', 'handoff', 'Tests pass. 14 cases including CJK, emoji and mixed alignment.'),
         (43.6, 'kovan', 'reviewer', 'check', 'Check passed (`python3 -m pytest -q`, 3s).'),
-        (41, 'reviewer', 'kovan', 'verdict', 'Approved. Width handling is isolated in one function with direct tests.'),
+        (41, 'reviewer', 'security', 'verdict', 'Approved. Width handling is isolated in one function with direct tests.'),
+        (40.9, 'security', 'kovan', 'verdict', 'No blocking findings. Width tables come from the standard library; nothing '
+         'user-controlled reaches a shell or a file path.'),
         (40.8, 'kovan', None, 'milestone', '“Align columns” is done — committed 8b41d07.'),
         (40.7, 'finance', None, 'finance', '9 role turns so far; 5-hour usage 31%.'),
         (39, 'you', 'developer', 'note', 'Keep the CLI dependency-free please — standard library only.'),
@@ -515,18 +523,23 @@ def build_crews(claude_home, now, m):
     """Two crews: one mid-build with a lively boardroom, one waiting for you to pick an idea."""
     home = os.path.expanduser('~')
     table_dir, idea_dir = os.path.join(home, 'code', 'tablefmt'), os.path.join(home, 'code', 'weekend-idea')
-    roles = {r: sid_for('crew-tablefmt-' + r) for r in ('planner', 'developer', 'tester', 'reviewer')}
+    from . import crew
+    roles = {r: sid_for('crew-tablefmt-' + r) for r in ('planner', 'developer', 'tester', 'reviewer', 'security')}
     ideator = sid_for('crew-weekend-ideator')
     folder = server.project_folder(claude_home, table_dir)
     os.makedirs(folder)
+    team = crew.clean_team(['security'], 'en')
     for role, first, last, start in (
             ('planner', 'Plan the work. JSON shape: {"summary": …, "milestones": […]}', 'Amend — tightened milestone 4.', 92),
             ('developer', 'Milestone 3 of 5: Command-line interface', '`tablefmt FILE...` rewrites in place; `--check` '
              'reports without writing.', 88),
             ('tester', 'Add or strengthen tests for every criterion and run them.', 'Tests pass.', 80),
             ('reviewer', 'Review the staged diff for this milestone.', 'Changes requested: `--check` must keep stdout '
-             'empty.', 71)):
-        w = Writer(roles[role], now - start * m, 'tablefmt · ' + role.capitalize())
+             'empty.', 71),
+            ('security', 'You are the Security auditor … The staged diff that is about to be committed:', 'No blocking '
+             'findings.', 70)):
+        w = Writer(roles[role], now - start * m, 'tablefmt · ' + crew.role_title({'team': team}, role).replace(
+            role, role.capitalize()))
         w.user(first)
         if role == 'developer':
             w.tool('Read', {'file_path': table_dir + '/tablefmt/cli.py'}, '...', {})
@@ -559,7 +572,7 @@ def build_crews(claude_home, now, m):
                       'check_command': 'python3 -m pytest -q', 'milestones': crew_milestones(now, m)},
              'ideas': [], 'current': 2, 'step': 'develop', 'wait': {'role': 'developer', 'step': 'develop', 'sent_at': (now - 5.8 * m) / 1000},
              'feedback': None, 'plan_feedback': None, 'notes': [], 'board': crew_board(now, m), 'attention': None,
-             'resume_at': None, 'paused_from': None, 'stats': {'turns': 14, 'checks': 3}}
+             'resume_at': None, 'paused_from': None, 'stats': {'turns': 16, 'checks': 3}, 'template': 'secure', 'team': team}
     idea_board = [
         {'id': 'i0', 'ts': int(now - 31 * m), 'speaker': 'you', 'to': None, 'kind': 'goal', 'milestone': None,
          'text': 'Suggest projects: developer tools for small teams; command line; Python; no paid services.'},

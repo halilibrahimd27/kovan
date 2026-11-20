@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- **Extra crew roles**: up to four per crew, ready-made (Security auditor, Documenter, Performance reviewer) or
+  your own — a name, its job, and whether it works after the Developer (may edit files) or reads the staged
+  diff before the commit (blocks on the severities you choose). Your roles can be remembered for later crews.
+- The **Security auditor** reviews every milestone's staged diff for injection, leaked secrets, authorisation and
+  session flaws, risky dependencies and unsafe defaults; critical or high findings block the commit and go back to
+  the Developer, lower ones are recorded in the commit message.
+- **Crew templates**: Feature, Secure feature, Bug-fix and Security audit crews.
+- Only reviewed work is committed: if the workspace changes after the Reviewer read the diff, kovan runs the check
+  and the review again.
+- The boardroom seats extra roles; milestones show each gate's findings; the New crew dialog has templates and a
+  role editor (English and Turkish).
+- **Notifications**: a Slack/Mattermost-compatible webhook and a Telegram bot tell you when a crew needs you or is
+  done. Telegram buttons approve, revise or stop a plan, pick an idea, retry, skip or stop a blocked crew, and
+  continue or pause after a milestone — only for the user ids you allow, never for an outdated message.
+  Approving permission prompts from the phone is opt-in. `kovan --notify-test` checks the setup.
+
 ## 0.2.0 — 2026-11-20
 
 kovan now lives in one repository with the swarm engine (formerly ai-dev-swarm) and gains crews and the

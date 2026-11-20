@@ -40,7 +40,6 @@ LANGUAGE_NOTE = {'tr': '\n\nWrite all prose — summaries, explanations, plans, 
 # what you or the roles wrote (goals, notes, ideas, plans) is never rewritten.
 TR_ROLE = {'Ideator': 'Fikir üretici', 'Planner': 'Planlayıcı', 'Developer': 'Geliştirici', 'Tester': 'Testçi',
            'Reviewer': 'İnceleyici', 'Finance': 'Finans'}
-_R = '(Ideator|Planner|Developer|Tester|Reviewer|Finance)'
 
 
 def _role(m, group=1):
@@ -55,8 +54,8 @@ TR_LINES = [
     (r'^Let’s build “(.+)”\.$', r'“\1” yapılsın.'), (r'^More ideas, please\.', 'Başka fikirler lütfen.'),
     (r'^Continue with the next milestone\.$', 'Sonraki kilometre taşıyla devam edin.'), (r'^Try again\.', 'Yeniden deneyin.'),
     (r'^Skip “(.+)”\.$', r'“\1” geçilsin.'), (r'^Pause\.$', 'Duraklat.'), (r'^Resume\.$', 'Sürdür.'), (r'^Stop the crew\.$', 'Ekibi durdur.'),
-    (r'^' + _R + r' session resumed\.$', lambda m: _role(m) + ' oturumu yeniden açıldı.'),
-    (r'^' + _R + r' joined \(a new Claude Code session\)\.$', lambda m: _role(m) + ' katıldı (yeni bir Claude Code oturumu).'),
+    (r'^(.+?) session resumed\.$', lambda m: _role(m) + ' oturumu yeniden açıldı.'),
+    (r'^(.+?) joined \(a new Claude Code session\)\.$', lambda m: _role(m) + ' katıldı (yeni bir Claude Code oturumu).'),
     (r'^Pausing: the 5-hour usage window is at (\d+)% \(limit (\d+)%\)\.', r'Duraklıyorum: 5 saatlik kullanım penceresi %\1 (sınır %\2).'),
     (r' I will resume at (\d\d:\d\d)\.$', r' \1’de devam edeceğim.'),
     (r'^(\d+) role turns so far', r'Şu ana kadar \1 rol turu'), (r'; 5-hour usage (\d+)%', r'; 5 saatlik kullanım %\1'),
@@ -91,6 +90,11 @@ TR_LINES = [
     (r'^Continue — ', 'Devam — '), (r'^Amend — ', 'Düzelt — '), (r'^Split — ', 'Böl — '), (r'^Escalate — ', 'Sana taşı — '),
     (r' — no reason given$', ' — gerekçe verilmedi'),
     (r'^Milestone finished — waiting for you before the next one\.$', 'Kilometre taşı bitti — sonrakinden önce seni bekliyorum.'),
+    (r'^Commit blocked — (\d+) finding\(s\) at ([a-z ]+?) severity\. ?',
+     lambda m: 'Commit durduruldu — %s düzeyinde %s bulgu. ' % (' ya da '.join(SEVERITY_TR.get(x, x) for x in m.group(2).split(' or ')), m.group(1))),
+    (r'^No blocking findings\. ?', 'Engelleyici bulgu yok. '), (r'^Problems: ', 'Sorunlar: '),
+    (r'^Files changed after the review; running the check and the review again\.$',
+     'İncelemeden sonra dosyalar değişti; denetim ve inceleme yeniden çalışıyor.'),
 ]
 TR_LINES = [(re.compile(p), r) for p, r in TR_LINES]
 TR_REASONS = [(re.compile(p), r) for p, r in [
@@ -98,10 +102,12 @@ TR_REASONS = [(re.compile(p), r) for p, r in [
     (r'^continue to the next milestone$', 'sonraki kilometre taşına geç'), (r'^paused by you$', 'senin tarafından duraklatıldı'),
     (r'^usage limit$', 'kullanım sınırı'), (r'^stopped by you$', 'senin tarafından durduruldu'),
     (r'^“(.+)” failed (\d+) times$', r'“\1” \2 kez başarısız oldu'),
-    (r'^Developer needs you: ', 'Geliştirici seni bekliyor: '), (r'^Planner asks: ', 'Planlayıcı soruyor: '),
+    (r'^Planner asks: ', 'Planlayıcı soruyor: '),
     (r'^internal error: ', 'iç hata: '), (r'^(check|diff|commit) failed: ', r'\1 adımı başarısız: '),
-    (r'^' + _R + r' did not return the JSON it was asked for$', lambda m: _role(m) + ' istenen JSON’u döndürmedi'),
-    (r'^' + _R + r' has been working for over (\d+) hours$', lambda m: _role(m) + ' ' + m.group(2) + ' saatten uzun süredir çalışıyor'),
+    (r'^(.+?) did not return the JSON it was asked for$', lambda m: _role(m) + ' istenen JSON’u döndürmedi'),
+    (r'^(.+?) has been working for over (\d+) hours$', lambda m: _role(m) + ' ' + m.group(2) + ' saatten uzun süredir çalışıyor'),
+    (r'^files keep changing after the review$', 'inceleme sonrasında dosyalar değişmeye devam ediyor'),
+    (r'^(.+?) needs you: ', lambda m: ({'Developer': 'Geliştirici'}.get(m.group(1), m.group(1))) + ' seni bekliyor: '),
     (r'^the Ideator returned no ideas$', 'Fikir üretici hiç fikir döndürmedi'),
     (r'^the Planner returned no milestones$', 'Planlayıcı hiç kilometre taşı döndürmedi'),
 ]]
@@ -167,6 +173,259 @@ CHARTERS = {
         "Verify by reading the diff, the code and the tests, and by running the check command. Ad-hoc scripts "
         "(python -c, pipes, network) wait for a human's OK — if behaviour is unproven, ask for a test instead."),
 }
+
+# ============================================================================ extra roles and templates
+# Besides the five built-in roles a crew can seat up to MAX_TEAM extra roles — ready-made ones (ROLE_PRESETS) or
+# your own. Each works at one stage of every milestone:
+#   build — after the Developer (and the Tester), on the same workspace; it may edit files, and its work goes
+#           through the check command and the Reviewer like the Developer's;
+#   gate  — after the Reviewer approves, before the commit; it reads the staged diff and blocks the commit when it
+#           reports a finding at one of its blocking severities (the work goes back to the Developer).
+STAGES = ('build', 'gate')
+SEVERITIES = ('critical', 'high', 'medium', 'low')
+SEVERITY_TR = {'critical': 'kritik', 'high': 'yüksek', 'medium': 'orta', 'low': 'düşük'}
+MAX_TEAM = 4
+RESERVED_KEYS = set(ROLES) | {'finance', 'kovan', 'you', 'human', 'operator'}
+
+ROLE_PRESETS = {
+    'security': {
+        'title': {'en': 'Security auditor', 'tr': 'Güvenlik denetçisi'},
+        'about': {'en': 'reads every diff before the commit; blocks it on critical or high findings',
+                  'tr': 'commit’ten önce her diff’i okur; kritik ya da yüksek bulguda commit’i durdurur'},
+        'stage': 'gate', 'block_on': ['critical', 'high'],
+        'job': ("Look for vulnerabilities this change introduces or exposes: injection (SQL/NoSQL, shell commands, path "
+                "traversal, templates/XSS, unsafe deserialization, SSRF); secrets (keys, tokens, passwords, private URLs) "
+                "in code, config, tests or logs; authentication, authorisation and session flaws (missing checks, IDOR, "
+                "insecure defaults, weak crypto or randomness); new dependencies that are unpinned, unmaintained, "
+                "typosquatted or known to be vulnerable; unsafe defaults (debug modes, permissive CORS, disabled TLS "
+                "verification, world-writable files).\n"
+                "Severity: critical — exploitable without credentials, or leaks a real secret; high — exploitable with a "
+                "precondition, or crosses an authorisation boundary; medium — a defence-in-depth gap with a plausible "
+                "path; low — hardening. A theoretical issue with no reachable path is not a finding. Read the code; do "
+                "not run scanners or anything that needs the network.")},
+    'docs': {
+        'title': {'en': 'Documenter', 'tr': 'Belgeleyici'},
+        'about': {'en': 'keeps the README and docs in step with each milestone',
+                  'tr': 'README’yi ve belgeleri her kilometre taşıyla güncel tutar'},
+        'stage': 'build', 'block_on': [],
+        'job': ("Update the user-facing documentation so it matches what the code now does: the README (install, usage, "
+                "examples), the CHANGELOG, help texts and the docstrings of public functions. Keep it short and accurate, "
+                "never document features that do not exist, and do not change application logic or tests.")},
+    'performance': {
+        'title': {'en': 'Performance reviewer', 'tr': 'Performans inceleyici'},
+        'about': {'en': 'looks for slow paths in every diff; blocks only critical ones',
+                  'tr': 'her diff’te yavaş yolları arar; yalnız kritik olanlarda durdurur'},
+        'stage': 'gate', 'block_on': ['critical'],
+        'job': ("Look for performance problems this change introduces: loops that are quadratic or worse over growing "
+                "data, N+1 queries, unbounded memory or caches, blocking I/O on hot paths, missing limits or pagination, "
+                "expensive work repeated where it could be done once.\n"
+                "Severity: critical — makes a realistic workload unusable, or lets outside input exhaust memory or CPU; "
+                "high — a clear slowdown at realistic sizes; medium and low — improvements. Judge with the data sizes "
+                "this code really sees; no micro-optimisations.")},
+}
+
+TEMPLATES = {
+    'feature': {'title': {'en': 'Feature crew', 'tr': 'Özellik ekibi'},
+                'about': {'en': 'Planner, Developer and Reviewer build a goal milestone by milestone.',
+                          'tr': 'Planlayıcı, Geliştirici ve İnceleyici bir hedefi kilometre taşlarıyla inşa eder.'},
+                'team': [], 'tester': False, 'brief': '', 'replan': ''},
+    'secure': {'title': {'en': 'Secure feature crew', 'tr': 'Güvenli özellik ekibi'},
+               'about': {'en': 'A feature crew plus a Security auditor who can block any commit.',
+                         'tr': 'Özellik ekibi, artı her commit’i durdurabilen bir Güvenlik denetçisi.'},
+               'team': ['security'], 'tester': False, 'brief': '', 'replan': ''},
+    'bugfix': {'title': {'en': 'Bug-fix crew', 'tr': 'Hata düzeltme ekibi'},
+               'about': {'en': 'Finds the root cause, fixes it with a regression test, and nothing more.',
+                         'tr': 'Kök nedeni bulur, bir regresyon testiyle düzeltir — fazlasını yapmaz.'},
+               'team': [], 'tester': True,
+               'brief': ("Crew template — bug fix. The goal describes a bug. Plan 1–3 milestones: first the root cause "
+                         "and its fix together with a regression test that fails without the fix (say in the acceptance "
+                         "criteria how the Reviewer can tell); then, only if needed, the same bug elsewhere or closely "
+                         "related hardening. No refactoring and no new features beyond the fix."),
+               'replan': ''},
+    'audit': {'title': {'en': 'Security audit crew', 'tr': 'Güvenlik denetim ekibi'},
+              'about': {'en': 'Audits existing code: a findings report first, then one fix per critical or high finding.',
+                        'tr': 'Mevcut kodu denetler: önce bulgu raporu, sonra her kritik ya da yüksek bulgu için bir düzeltme.'},
+              'team': ['security'], 'tester': True, 'needs_code': True,
+              'brief': ("Crew template — security audit. The goal says what to audit in the existing code. Milestone 1 "
+                        "reads the code and writes SECURITY_AUDIT.md: every verified finding with its severity (critical, "
+                        "high, medium, low), file and line, evidence and a proposed fix — no code changes yet. Then plan "
+                        "one milestone per critical or high finding, most severe first: the fix plus a regression test "
+                        "that proves it. Medium and low findings stay documented unless the fix is trivial. Never change "
+                        "behaviour beyond the fix."),
+              'replan': ("This is a security audit: if SECURITY_AUDIT.md lists critical or high findings that no remaining "
+                         "milestone covers, amend the plan to add one milestone per finding, most severe first.")},
+}
+
+STAGE_RULES = {
+    'build': ("You work on each milestone after the Developer, in the same workspace. Make only the changes your job "
+              "calls for; never delete or weaken tests; do not commit — the orchestrator commits after review. If the "
+              "Developer's work keeps you from doing your job, report it as a problem instead of rewriting it."),
+    'gate': ("Before each milestone is committed you read its staged diff and the code it touches. Do not edit files. "
+             "Report only findings you verified in the code, each with a severity (critical, high, medium or low), the "
+             "file and line, and how to fix it. %s"),
+}
+
+
+def pick(text, lang):
+    return text.get(lang) or text['en'] if isinstance(text, dict) else text
+
+
+def block_text(block_on):
+    if not block_on:
+        return 'You are advisory: your findings are recorded with the commit but never block it.'
+    return 'Findings at %s severity block the commit and send the work back to the Developer.' % ' or '.join(block_on)
+
+
+def role_about(stage, block_on, lang):
+    if stage == 'build':
+        return {'en': 'works on every milestone after the Developer', 'tr': 'her kilometre taşında Geliştiriciden sonra çalışır'}[lang]
+    if not block_on:
+        return {'en': 'reads every diff before the commit (advisory)', 'tr': 'commit’ten önce her diff’i okur (yalnız öneri)'}[lang]
+    if lang == 'tr':
+        return 'commit’ten önce her diff’i okur; %s bulguda durdurur' % ' ya da '.join(SEVERITY_TR[s] for s in block_on)
+    return 'reads every diff before the commit; blocks it on %s findings' % ' or '.join(block_on)
+
+
+def clean_custom_role(item):
+    """A role you defined: {title, job, stage, block_on}. Raises KovanError when it is not usable."""
+    if not isinstance(item, dict):
+        raise server.KovanError('invalid role')
+    title = re.sub(r'\s+', ' ', str(item.get('title') or '')).strip()[:40]
+    job = str(item.get('job') or '').strip()[:4000]
+    stage = str(item.get('stage') or 'gate')
+    if not title:
+        raise server.KovanError('a role needs a name')
+    if len(job) < 20:
+        raise server.KovanError('describe what the role does (a sentence or two)')
+    if stage not in STAGES:
+        raise server.KovanError('a role works either after the Developer or before the commit')
+    block_on = item.get('block_on') if stage == 'gate' else []
+    if block_on is None:
+        block_on = ['critical', 'high']
+    if not isinstance(block_on, list) or any(s not in SEVERITIES for s in block_on):
+        raise server.KovanError('invalid blocking severities')
+    return {'title': title, 'job': job, 'stage': stage, 'block_on': [s for s in SEVERITIES if s in block_on]}
+
+
+def role_key(title, taken):
+    base = 'x_' + (re.sub(r'[^a-z0-9]+', '_', title.lower()).strip('_')[:24] or 'role')
+    key, n = base, 2
+    while key in taken:
+        key, n = '%s_%d' % (base, n), n + 1
+    return key
+
+
+def clean_team(items, lang):
+    """Validate a crew's extra roles: [{'preset': 'security'} | {title, job, stage, block_on}, …]."""
+    if items is None:
+        return []
+    if not isinstance(items, list):
+        raise server.KovanError('team must be a list of roles')
+    if len(items) > MAX_TEAM:
+        raise server.KovanError('at most %d extra roles' % MAX_TEAM)
+    team, taken, titles = [], set(RESERVED_KEYS), set()
+    for item in items:
+        if isinstance(item, str):
+            item = {'preset': item}
+        preset = item.get('preset') if isinstance(item, dict) else None
+        if preset:
+            p = ROLE_PRESETS.get(str(preset))
+            if not p:
+                raise server.KovanError('unknown role')
+            if preset in taken:
+                continue
+            role = {'key': preset, 'preset': preset, 'title': pick(p['title'], lang), 'job': p['job'], 'stage': p['stage'],
+                    'block_on': list(p['block_on']), 'about': pick(p['about'], lang)}
+        else:
+            role = clean_custom_role(item)
+            role.update(key=role_key(role['title'], taken), preset=None, about=role_about(role['stage'], role['block_on'], lang))
+        if role['title'].lower() in titles:
+            raise server.KovanError('two roles share the name “%s”' % role['title'])
+        taken.add(role['key'])
+        titles.add(role['title'].lower())
+        team.append(role)
+    return team
+
+
+def catalog(lang):
+    """What the New crew dialog offers: ready-made roles and crew templates."""
+    lang = lang if lang in ('en', 'tr') else 'en'
+    presets = [{'key': k, 'title': pick(p['title'], lang), 'about': pick(p['about'], lang), 'stage': p['stage'],
+                'block_on': p['block_on']} for k, p in ROLE_PRESETS.items()]
+    templates = [{'key': k, 'title': pick(t['title'], lang), 'about': pick(t['about'], lang), 'team': t['team'],
+                  'tester': t['tester'], 'needs_code': bool(t.get('needs_code'))} for k, t in TEMPLATES.items()]
+    return {'presets': presets, 'templates': templates}
+
+
+def team_role(crew, key):
+    for r in crew.get('team') or []:
+        if r['key'] == key:
+            return r
+    return None
+
+
+def role_title(crew, role):
+    r = team_role(crew, role)
+    return r['title'] if r else TITLES.get(role, role)
+
+
+def crew_roles(crew):
+    return set(ROLES) | {r['key'] for r in crew.get('team') or []}
+
+
+def charter(crew, role):
+    if role in CHARTERS:
+        return CHARTERS[role]
+    r = team_role(crew, role) or {}
+    rules = STAGE_RULES.get(r.get('stage'), '')
+    if r.get('stage') == 'gate':
+        rules = rules % block_text(r.get('block_on'))
+    return ('You are the %s of a small autonomous software crew (a Planner, a Developer, a Reviewer and others).\n%s\n%s'
+            % (r.get('title', role), r.get('job', ''), rules))
+
+
+def pipeline(crew):
+    """The steps every milestone goes through, in order."""
+    team = crew.get('team') or []
+    steps = ['develop'] + (['test'] if crew['options']['tester'] else [])
+    steps += ['extra:' + r['key'] for r in team if r['stage'] == 'build']
+    steps += ['check', 'review'] + ['gate:' + r['key'] for r in team if r['stage'] == 'gate'] + ['commit']
+    return steps
+
+
+def next_step(crew, step):
+    steps = pipeline(crew)
+    return steps[steps.index(step) + 1] if step in steps[:-1] else 'commit'
+
+
+def step_role(step):
+    """Who the work goes to at a step — for the boardroom's arrows. The check command leads to the Reviewer."""
+    if ':' in step:
+        return step.split(':', 1)[1]
+    return {'develop': 'developer', 'test': 'tester', 'check': 'reviewer', 'review': 'reviewer'}.get(step, 'kovan')
+
+
+def clean_findings(items):
+    out = []
+    for f in items or []:
+        if not isinstance(f, dict):
+            continue
+        sev = str(f.get('severity') or 'low').lower()
+        sev = sev if sev in SEVERITIES else ('critical' if sev in ('crit', 'blocker') else 'low')
+        line = f.get('line')
+        out.append({'severity': sev, 'file': server.clip(str(f.get('file') or ''), 200),
+                    'line': line if isinstance(line, int) and line > 0 else None,
+                    'note': server.clip(str(f.get('note') or f.get('issue') or ''), 1500),
+                    'fix': server.clip(str(f.get('fix') or ''), 800)})
+    return out[:30]
+
+
+def findings_text(findings, lang='en'):
+    def where(f):
+        return (f['file'] + (':%d' % f['line'] if f['line'] else '') + ': ') if f['file'] else ''
+    sev = (lambda s: SEVERITY_TR[s]) if lang == 'tr' else (lambda s: s)
+    return '\n'.join('- [%s] %s%s%s' % (sev(f['severity']), where(f), f['note'], (' — ' + f['fix']) if f['fix'] else '')
+                     for f in findings)
 
 # File tools are allowed only inside the crew's workspace: in acceptEdits mode Claude Code asks about exactly
 # the paths *outside* it, so "allow every Read" would hand out ~/.ssh.
@@ -442,12 +701,15 @@ class Crews:
                 'progress': {'done': done, 'total': len(plan)},
                 'current': {'title': cur['title'], 'step': crew.get('step'), 'attempts': cur['attempts']} if cur else None,
                 'attention': crew.get('attention'), 'roles': crew.get('roles') or {}, 'options': crew['options'],
+                'template': crew.get('template') or 'feature',
+                'team': [{k: r.get(k) for k in ('key', 'title', 'stage', 'block_on', 'about', 'preset')} for r in crew.get('team') or []],
                 'created_at': crew['created_at'], 'updated_at': crew.get('updated_at'), 'busy': self.busy.get(crew['id']),
                 'last': last}
 
     def detail(self, crew):
         out = self.summary(crew)
         out.update({'plan': crew.get('plan'), 'ideas': crew.get('ideas') or [], 'board': crew.get('board') or [],
+                    'team': crew.get('team') or [],
                     'notes': crew.get('notes') or [], 'theme': crew.get('theme') or '',
                     'wait': {k: v for k, v in (crew.get('wait') or {}).items() if k != 'prompt'} or None})
         return out
@@ -457,7 +719,7 @@ class Crews:
             return sorted((self.summary(c) for c in self.items.values()), key=lambda c: -(c['updated_at'] or 0))
 
     # ---- creation and human actions
-    def create(self, name, goal, theme, mode, directory, options):
+    def create(self, name, goal, theme, mode, directory, options, template=None, team=None):
         name = re.sub(r'\s+', ' ', str(name or '')).strip()[:60]
         if not name:
             raise server.KovanError('a crew needs a name')
@@ -486,6 +748,12 @@ class Crews:
         opts['quota_pause'] = max(50, min(opts['quota_pause'], 100))
         opts['check_timeout'] = max(30, min(opts['check_timeout'], 7200))
         opts['check'] = opts['check'].strip()[:500]
+        template = str(template or 'feature')
+        if template not in TEMPLATES:
+            raise server.KovanError('unknown template')
+        team = clean_team(TEMPLATES[template]['team'] if team is None else team, opts['lang'])
+        if TEMPLATES[template].get('needs_code') and workspace_listing(directory) in ('(empty)', '(unreadable)'):
+            raise server.KovanError('an audit crew needs a folder with code in it')
         if any(c.get('dir') == directory and c['phase'] not in FINISHED for c in self.items.values()):
             raise server.KovanError('another crew is already working in that folder')
         if os.path.isdir(directory) and not is_git_repo(directory) and workspace_listing(directory) != '(empty)':
@@ -499,7 +767,7 @@ class Crews:
         if opts['commit'] and not is_git_repo(directory):
             git(directory, 'init', '-q', '-b', 'main')
         crew = {'id': 'c' + secrets.token_hex(4), 'name': name, 'goal': goal, 'theme': str(theme or '').strip()[:2000],
-                'mode': mode, 'dir': directory, 'options': opts, 'created_at': now_ms(),
+                'mode': mode, 'dir': directory, 'options': opts, 'created_at': now_ms(), 'template': template, 'team': team,
                 'phase': 'ideating' if mode == 'ideas' else 'planning', 'reason': None, 'roles': {}, 'primed': {},
                 'plan': None, 'ideas': [], 'current': 0, 'step': None, 'wait': None, 'feedback': None,
                 'plan_feedback': None, 'notes': [], 'board': [], 'attention': None, 'resume_at': None,
@@ -551,6 +819,7 @@ class Crews:
                 if crew.get('plan') and plan:
                     cur = plan[crew['current']]
                     cur['attempts'] = 0
+                    cur['rechecks'] = 0
                     cur['status'] = 'active'
                     crew.update(phase='building', step='develop', reason=None, attention=None)
                 else:
@@ -610,10 +879,10 @@ class Crews:
         text = str(text or '').strip()[:4000]
         if not text:
             raise server.KovanError('empty note')
-        if role and role not in ROLES:
-            raise server.KovanError('unknown role')
         with self.lock:
             crew = self.get(crew_id)
+            if role and role not in crew_roles(crew):
+                raise server.KovanError('unknown role')
             note = {'ts': now_ms(), 'text': text, 'role': role, 'delivered': False}
             wait = crew.get('wait') or {}
             target = role or wait.get('role')
@@ -658,13 +927,13 @@ class Crews:
         mode = 'bypassPermissions' if crew['options']['policy'] == 'trusted' else 'acceptEdits'
         if sid:
             s = server.MANAGER.start(sid=sid, permission_mode=mode)
-            self.say(crew, 'kovan', '%s session resumed.' % TITLES[role], save=False)
+            self.say(crew, 'kovan', '%s session resumed.' % role_title(crew, role), save=False)
         else:
-            s = server.MANAGER.start(name='%s · %s' % (crew['name'], TITLES[role]), directory=crew['dir'],
+            s = server.MANAGER.start(name='%s · %s' % (crew['name'], role_title(crew, role)), directory=crew['dir'],
                                      permission_mode=mode)
             crew.setdefault('roles', {})[role] = s.sid
             crew.setdefault('primed', {})[role] = False
-            self.say(crew, 'kovan', '%s joined (a new Claude Code session).' % TITLES[role], save=False)
+            self.say(crew, 'kovan', '%s joined (a new Claude Code session).' % role_title(crew, role), save=False)
         return s
 
     def ask(self, crew, role, step, task, to=None):
@@ -676,7 +945,7 @@ class Crews:
             return False
         text = task + self.pending_notes(crew, role) + LANGUAGE_NOTE.get(crew['options'].get('lang'), '') + CONTRACT
         if not crew.setdefault('primed', {}).get(role):
-            text = CHARTERS[role] + '\n\n---\n\n' + text
+            text = charter(crew, role) + '\n\n---\n\n' + text
         crew['wait'] = {'role': role, 'step': step, 'sent_at': time.time(), 'retries': 0, 'prompt': text}
         crew['stats']['turns'] = crew['stats'].get('turns', 0) + 1
         s.send(text, [])
@@ -765,7 +1034,7 @@ class Crews:
             data = extract_json(s.last_result)
             if data is None:
                 if wait.get('retries', 0) >= 1:
-                    raise server.KovanError('%s did not return the JSON it was asked for' % TITLES[wait['role']])
+                    raise server.KovanError('%s did not return the JSON it was asked for' % role_title(crew, wait['role']))
                 crew['wait'] = dict(wait, retries=wait.get('retries', 0) + 1, sent_at=time.time())
                 s.send('Your reply did not end with the JSON object I asked for. Reply again and end with only '
                        'that JSON object in a ```json block.', [])
@@ -774,7 +1043,8 @@ class Crews:
             getattr(self, 'on_' + wait['step'])(crew, data, s.last_result)
             return
         if time.time() - wait['sent_at'] > REPLY_TIMEOUT:
-            raise server.KovanError('%s has been working for over %d hours' % (TITLES[wait['role']], REPLY_TIMEOUT // 3600))
+            raise server.KovanError('%s has been working for over %d hours' % (role_title(crew, wait['role']),
+                                                                                REPLY_TIMEOUT // 3600))
 
     def handle_permissions(self, crew, s, role):
         for pid, item in list(s.permissions.items()):
@@ -788,7 +1058,7 @@ class Crews:
                          'summary': attention_summary(item['tool'], item['input'])}
             if crew.get('attention') != attention:
                 crew['attention'] = attention
-                self.say(crew, TITLES[role].lower(), 'Needs your OK: %s' % attention['summary'], kind='attention')
+                self.say(crew, role, 'Needs your OK: %s' % attention['summary'], kind='attention')
             return
 
     # ---- prompts
@@ -806,6 +1076,14 @@ class Crews:
         current = crew.get('plan')
         task = ('Goal:\n%s\n\nWorkspace (%s):\n%s\n\nCheck command configured by the operator: %s\n\n' % (
             crew['goal'], crew['dir'], workspace_listing(crew['dir']), crew['options']['check'] or '(none — propose one)'))
+        brief = TEMPLATES.get(crew.get('template') or 'feature', {}).get('brief')
+        if brief:
+            task += brief + '\n\n'
+        if crew.get('team'):
+            task += 'Besides you, the Developer and the Reviewer, the crew has: %s.\n\n' % '; '.join(
+                '%s (%s)' % (r['title'], 'works after the Developer' if r['stage'] == 'build' else
+                             'reads every diff before the commit' + ('' if r['block_on'] else ', advisory'))
+                for r in crew['team'])
         if feedback and current:
             task += 'Your previous plan:\n%s\n\nThe operator asked for changes:\n%s\n\n' % (
                 milestones_text(current.get('milestones') or []), feedback)
@@ -833,6 +1111,21 @@ class Crews:
                     m['title'], m['goal'], '\n'.join('- ' + a for a in m['acceptance']), dev_summary,
                     crew['options']['check'] or crew['plan'].get('check_command') or '(none)'))
 
+    def extra_task(self, crew, m, role):
+        return ('Milestone: %s\n%s\nAcceptance criteria:\n%s\n\nThe Developer says:\n%s\n\nCheck command: %s\n\n'
+                'Do your part for this milestone, as your role describes. JSON shape: {"status": "done" | "fail", '
+                '"summary": "what you changed", "problems": "only if fail: what the Developer must fix"}' % (
+                    m['title'], m['goal'], '\n'.join('- ' + a for a in m['acceptance']), m.get('dev_summary', ''),
+                    crew['options']['check'] or crew['plan'].get('check_command') or '(none)'))
+
+    def gate_task(self, crew, m, role, diff):
+        return ('Milestone: %s\n%s\n\nThe Developer says:\n%s\n\nThe check passed and the Reviewer approved it. The staged '
+                'diff that is about to be committed:\n```diff\n%s\n```\n\n%s\n\nJSON shape: {"verdict": "approve" | '
+                '"changes", "summary": str, "findings": [{"severity": "critical" | "high" | "medium" | "low", "file": str, '
+                '"line": int, "note": "what is wrong and how it can go wrong", "fix": "how to fix it"}]} — an empty '
+                'findings list when there is nothing to report.' % (
+                    m['title'], m['goal'], m.get('dev_summary', ''), diff, block_text(role['block_on'])))
+
     def review_task(self, crew, m, diff, check, dev_summary):
         return ('Milestone: %s\n%s\nAcceptance criteria:\n%s\n\nThe Developer says:\n%s\n\nCheck command result:\n%s\n\n'
                 'The staged diff for this milestone:\n```diff\n%s\n```\n\nReview it. JSON shape: {"verdict": "approve" | '
@@ -847,7 +1140,10 @@ class Crews:
                 'remaining milestones; "split" when the next one is genuinely too big; "escalate" when a human must '
                 'decide. JSON shape: {"action": "continue" | "amend" | "split" | "escalate", "reason": str, '
                 '"milestones": [only for amend/split: the full new list of REMAINING milestones, same shape as in the '
-                'plan], "question": "only for escalate"}' % (m['title'], outcome, milestones_text(remaining)))
+                'plan], "question": "only for escalate"}%s' % (
+                    m['title'], outcome, milestones_text(remaining),
+                    ('\n\n' + TEMPLATES[crew['template']]['replan']) if TEMPLATES.get(crew.get('template') or '', {}).get('replan')
+                    else ''))
 
     # ---- reply handlers
     def on_ideas(self, crew, data, raw):
@@ -905,6 +1201,14 @@ class Crews:
             self.ask(crew, 'developer', 'develop', self.develop_task(crew, m, i + 1, len(plan)))
         elif step == 'test':
             self.ask(crew, 'tester', 'test', self.test_task(crew, m, m.get('dev_summary', '')))
+        elif step.startswith(('extra:', 'gate:')) and not team_role(crew, step.split(':', 1)[1]):
+            crew['step'] = next_step(crew, step) if step in pipeline(crew) else 'commit'
+            self.save(crew)
+        elif step.startswith('extra:'):
+            role = team_role(crew, step[6:])
+            self.ask(crew, role['key'], 'extra', self.extra_task(crew, m, role))
+        elif step.startswith('gate:'):
+            self.run_background(crew, 'diff', self.do_gate, m)
         elif step == 'check':
             self.run_background(crew, 'check', self.do_check, m)
         elif step == 'review':
@@ -957,10 +1261,9 @@ class Crews:
         files = [str(f) for f in (data.get('files') or [])][:20]
         m['log'].append({'ts': now_ms(), 'who': 'developer', 'result': 'done', 'text': m['dev_summary'], 'files': files})
         crew['feedback'] = None
-        nxt = 'test' if crew['options']['tester'] else 'check'
-        crew['step'] = nxt
+        crew['step'] = next_step(crew, 'develop')
         self.say(crew, 'developer', '%s%s' % (summary or 'Done.', ('\n\nFiles: ' + ', '.join(files)) if files else ''),
-                 kind='handoff', to='tester' if nxt == 'test' else 'reviewer', milestone=m['id'])
+                 kind='handoff', to=step_role(crew['step']), milestone=m['id'])
 
     def on_test(self, crew, data, raw):
         m = crew['plan']['milestones'][crew['current']]
@@ -970,8 +1273,23 @@ class Crews:
             self.fail_attempt(crew, m, 'tester', 'The Tester reports: %s' % (data.get('failures') or data.get('summary')))
             return
         m['log'].append({'ts': now_ms(), 'who': 'tester', 'result': 'pass', 'text': str(data.get('summary') or '')})
-        crew['step'] = 'check'
-        self.say(crew, 'tester', 'Tests pass. %s' % (data.get('summary') or ''), kind='handoff', to='reviewer', milestone=m['id'])
+        crew['step'] = next_step(crew, 'test')
+        self.say(crew, 'tester', 'Tests pass. %s' % (data.get('summary') or ''), kind='handoff', to=step_role(crew['step']),
+                 milestone=m['id'])
+
+    def on_extra(self, crew, data, raw):
+        m = crew['plan']['milestones'][crew['current']]
+        step = crew['step']
+        key = step[6:]
+        summary = str(data.get('summary') or '').strip()
+        if str(data.get('status')).lower() not in ('done', 'pass', 'ok'):
+            problems = str(data.get('problems') or data.get('failures') or summary)
+            self.say(crew, key, 'Problems: %s' % problems, kind='verdict', to='developer', milestone=m['id'], save=False)
+            self.fail_attempt(crew, m, key, 'The %s reports problems:\n%s' % (role_title(crew, key), problems))
+            return
+        m['log'].append({'ts': now_ms(), 'who': key, 'result': 'done', 'text': server.clip(summary, 3000)})
+        crew['step'] = next_step(crew, step)
+        self.say(crew, key, summary or 'Done.', kind='handoff', to=step_role(crew['step']), milestone=m['id'])
 
     def do_check(self, crew, m):
         command = crew['options']['check']
@@ -1003,18 +1321,12 @@ class Crews:
                          to='reviewer', milestone=m['id'])
 
     def do_review(self, crew, m):
-        held = []
-        if is_git_repo(crew['dir']):
-            held = stage(crew['dir'])
-            stat = git(crew['dir'], 'diff', '--cached', '--stat')[1]
-            diff = git(crew['dir'], 'diff', '--cached', timeout=120)[1]
-        else:
-            stat, diff = '', '(not a git repository — review the workspace files directly)'
-        diff, _ = server.mask_secrets(server.head_tail(diff, 30000, 6000))
+        held, tree, stat, diff = self.staged(crew)
         check = m.get('check')
         check_text = 'not configured' if not check else ('passed' if check['code'] == 0 else 'failed:\n' + check['output'][-1500:])
         with self.lock:
             m['diffstat'] = server.clip(stat, 2000)
+            m['tree'] = tree                    # what the Reviewer saw; only this tree may be committed
             if held and m.get('held_back') != held[:50]:
                 m['held_back'] = held[:50]
                 self.say(crew, 'kovan', 'Kept out of the commit (they look like secrets): %s' % ', '.join(held[:10]),
@@ -1023,6 +1335,68 @@ class Crews:
                                                                    m.get('dev_summary', '')))
             if not crew.get('wait'):
                 crew['step'] = 'review'    # role busy: try again on the next tick
+
+    def staged(self, crew):
+        """Stage the workspace: (held-back secret paths, tree id, diffstat, masked diff)."""
+        if not is_git_repo(crew['dir']):
+            return [], None, '', '(not a git repository — review the workspace files directly)'
+        held = stage(crew['dir'])
+        tree = git(crew['dir'], 'write-tree')[1].strip() or None
+        stat = git(crew['dir'], 'diff', '--cached', '--stat')[1]
+        diff = git(crew['dir'], 'diff', '--cached', timeout=120)[1]
+        diff, _ = server.mask_secrets(server.head_tail(diff, 30000, 6000))
+        return held, tree, stat, diff
+
+    def changed_after_review(self, crew, m):
+        """Someone edited files after the Reviewer read the diff: unreviewed work must not reach a commit."""
+        m['rechecks'] = m.get('rechecks', 0) + 1
+        if m['rechecks'] > 2:
+            crew.update(phase='blocked', reason='files keep changing after the review', step='check')
+            self.say(crew, 'kovan', 'Blocked: files keep changing after the review — retry, skip or stop when you are ready.',
+                     kind='blocked', milestone=m['id'])
+            return
+        crew['step'] = 'check'
+        self.say(crew, 'kovan', 'Files changed after the review; running the check and the review again.', kind='status',
+                 to='reviewer', milestone=m['id'])
+
+    def do_gate(self, crew, m):
+        key = crew['step'][5:]
+        _, tree, _, diff = self.staged(crew)
+        with self.lock:
+            role = team_role(crew, key)
+            if tree and m.get('tree') and tree != m['tree']:
+                return self.changed_after_review(crew, m)
+            self.ask(crew, key, 'gate', self.gate_task(crew, m, role, diff or '(empty diff)'))
+
+    def on_gate(self, crew, data, raw):
+        m = crew['plan']['milestones'][crew['current']]
+        step = crew['step']
+        key = step[5:]
+        role = team_role(crew, key) or {'block_on': ['critical', 'high'], 'title': key}
+        findings = clean_findings(data.get('findings') or data.get('issues'))
+        blocking = [f for f in findings if f['severity'] in role['block_on']]
+        refused = str(data.get('verdict')).lower() != 'approve' and not findings and role['block_on']
+        lang = crew['options'].get('lang')
+        listing = findings_text(findings, lang)
+        summary = str(data.get('summary') or '').strip()
+        m.setdefault('findings', {})[key] = findings
+        if blocking or refused:
+            head = ('Commit blocked — %d finding(s) at %s severity. ' % (len(blocking), ' or '.join(role['block_on']))
+                    if blocking else 'Changes requested. ')
+            self.say(crew, key, head + summary + ('\n' + listing if listing else ''), kind='verdict', to='developer',
+                     milestone=m['id'], save=False)
+            self.fail_attempt(crew, m, key, 'The %s blocked the commit:\n%s\n%s' % (
+                role['title'], summary, findings_text(blocking or findings)))
+            return
+        m['log'].append({'ts': now_ms(), 'who': key, 'result': 'approved', 'text': server.clip(summary, 3000)})
+        notes = m.setdefault('commit_notes', {})
+        if findings:
+            notes[key] = '%s:\n%s' % (role['title'], findings_text(findings))
+        else:
+            notes.pop(key, None)
+        crew['step'] = next_step(crew, step)
+        self.say(crew, key, 'No blocking findings. ' + summary + ('\n' + listing if listing else ''), kind='verdict',
+                 to=step_role(crew['step']), milestone=m['id'])
 
     def on_review(self, crew, data, raw):
         m = crew['plan']['milestones'][crew['current']]
@@ -1037,15 +1411,21 @@ class Crews:
         m['commit_message'] = re.sub(r'\s+', ' ', str(data.get('commit_message') or '')).strip()[:120] or \
             'feat: %s' % m['title']
         m['log'].append({'ts': now_ms(), 'who': 'reviewer', 'result': 'approved', 'text': str(data.get('summary') or '')})
-        crew['step'] = 'commit'
+        crew['step'] = next_step(crew, 'review')
         self.say(crew, 'reviewer', 'Approved. %s%s' % (data.get('summary') or '', ('\n' + listing) if listing else ''),
-                 kind='verdict', to='kovan', milestone=m['id'])
+                 kind='verdict', to=step_role(crew['step']), milestone=m['id'])
 
     def do_commit(self, crew, m):
         sha, note = None, ''
         if crew['options']['commit'] and is_git_repo(crew['dir']):
             stage(crew['dir'])
+            tree = git(crew['dir'], 'write-tree')[1].strip()
+            if tree and m.get('tree') and tree != m['tree']:
+                with self.lock:
+                    return self.changed_after_review(crew, m)
             body = 'Milestone: %s\n\n%s' % (m['title'], server.clip(m.get('dev_summary', ''), 1500))
+            if m.get('commit_notes'):
+                body += '\n\nNon-blocking findings\n' + server.clip('\n\n'.join(m['commit_notes'].values()), 3000)
             code, out, err = git(crew['dir'], 'commit', '-q', '-m', m.get('commit_message') or m['title'], '-m', body)
             if code == 0:
                 sha = git(crew['dir'], 'rev-parse', '--short', 'HEAD')[1].strip()

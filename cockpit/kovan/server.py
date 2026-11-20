@@ -232,13 +232,13 @@ class Settings:
         self.path = path
         self.read_only = read_only
         self.lock = threading.Lock()
-        self.data = {'archived': [], 'aliases': {}, 'quick_prompts': list(DEFAULT_QUICK_PROMPTS), 'dirs': []}
+        self.data = {'archived': [], 'aliases': {}, 'quick_prompts': list(DEFAULT_QUICK_PROMPTS), 'dirs': [], 'roles': []}
         self.revision = 0
         try:
             with open(path, encoding='utf-8') as f:
                 loaded = json.load(f)
             if isinstance(loaded, dict):
-                for key in ('archived', 'aliases', 'quick_prompts', 'dirs'):
+                for key in ('archived', 'aliases', 'quick_prompts', 'dirs', 'roles'):
                     if key in loaded:
                         self.data[key] = loaded[key]
         except (OSError, ValueError):
@@ -287,6 +287,24 @@ class Settings:
 
     def quick_prompts(self):
         return list(self.data.get('quick_prompts') or [])
+
+    def roles(self):
+        """Crew roles you defined and asked kovan to remember for later crews."""
+        return [r for r in self.data.get('roles') or [] if isinstance(r, dict)]
+
+    def set_roles(self, items):
+        from .crew import clean_custom_role
+        if not isinstance(items, list) or len(items) > 30:
+            raise KovanError('at most 30 saved roles')
+        clean, seen = [], set()
+        for item in items:
+            role = clean_custom_role(item)
+            if role['title'].lower() not in seen:
+                seen.add(role['title'].lower())
+                clean.append(role)
+        with self.lock:
+            self.data['roles'] = clean
+            self._save()
 
     def set_quick_prompts(self, items):
         if not isinstance(items, list) or len(items) > 30:
@@ -1685,6 +1703,7 @@ HOLDER = None
 SETTINGS = None
 CREWS = None        # crew.Crews: plan → build → check → review loops over role sessions
 SWARM = None        # swarm.Swarm: the swarm engine's API, when --swarm is given
+NOTIFY = None       # notify.Notifier: webhook / Telegram messages when a crew needs you
 BUS = Bus()
 TOKEN = secrets.token_hex(24)
 CSP = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; "
@@ -1776,6 +1795,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not data.get('unchanged'):       # outside STORE.lock: see Crews.reindex
                     data['crews'] = CREWS.list() if CREWS else []
                     data['swarm'] = {'url': SWARM.url, 'error': SWARM.error} if SWARM else None
+                    data['notify'] = NOTIFY.state() if NOTIFY else None
             elif u.path == '/api/crew':
                 with CREWS.lock:
                     data = CREWS.detail(CREWS.get(arg('id')[:40]))
@@ -1785,6 +1805,9 @@ class Handler(BaseHTTPRequestHandler):
                 data = {'entries': self.swarm().board(arg('project'), arg('all') == '1')}
             elif u.path == '/api/session':
                 data = STORE.session(valid_sid(arg('id')), arg('revision'))
+            elif u.path == '/api/crew/catalog':
+                from .crew import catalog
+                data = dict(catalog(arg('lang')), saved=SETTINGS.roles() if SETTINGS else [])
             elif u.path == '/api/dirs':
                 data = {'dirs': STORE.dir_suggestions()}
             elif u.path == '/api/notes':
@@ -1852,7 +1875,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             return self.reply_json(400, {'error': 'could not parse request body'})
         try:
-            if CFG.demo and u.path not in ('/api/archive', '/api/quick-prompts', '/api/rename'):
+            if CFG.demo and u.path not in ('/api/archive', '/api/quick-prompts', '/api/rename', '/api/crew/roles'):
                 raise KovanError('Demo mode is read-only. Run kovan without --demo to drive real sessions.', 403)
             data = self.post(u.path, body)
             if data is None:
@@ -1953,8 +1976,11 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(options, dict):
                 raise KovanError('options must be an object')
             c = CREWS.create(b.get('name'), b.get('goal'), b.get('theme'), str(b.get('mode') or 'goal'),
-                             b.get('directory'), options)
+                             b.get('directory'), options, template=b.get('template'), team=b.get('team'))
             return {'ok': True, 'id': c['id']}
+        if path == '/api/crew/roles':
+            SETTINGS.set_roles(b.get('items'))
+            return {'ok': True}
         if path == '/api/crew/action':
             index = b.get('index')
             if index is not None and not isinstance(index, int):
@@ -2054,7 +2080,7 @@ def close_holder(port):
 
 
 def serve(args):
-    global STORE, MANAGER, HOLDER, SETTINGS, CREWS, SWARM
+    global STORE, MANAGER, HOLDER, SETTINGS, CREWS, SWARM, NOTIFY
     from . import crew, swarm
     CFG.port = args.port
     CFG.permission_mode = args.permission_mode
@@ -2100,6 +2126,14 @@ def serve(args):
     threading.Thread(target=watcher, daemon=True, name='watcher').start()
     if not args.demo:
         crew.Runner(CREWS).start()
+        from . import notify
+        try:
+            settings = notify.Settings(getattr(args, 'notify', None), lang=CFG.lang or 'en')
+            if settings.enabled:
+                NOTIFY = notify.Notifier(settings, CREWS, STORE, MANAGER)
+                NOTIFY.start()
+        except notify.NotifyError as e:
+            log('notifications off: %s' % e)
     if SWARM and not args.demo:
         log('swarm: %s%s' % (SWARM.url, ' (with API token)' if SWARM.token else ''))
     os.makedirs(STATE_DIR, mode=0o700, exist_ok=True)
@@ -2174,6 +2208,7 @@ def build_parser(defaults):
     p.add_argument('--foreground', action='store_true', help='run in this terminal instead of in the background')
     p.add_argument('--stop', action='store_true', help='stop the web server (sessions keep running in the holder)')
     p.add_argument('--stop-all', action='store_true', help='release kovan sessions, stop the holder and the web server')
+    p.add_argument('--notify-test', action='store_true', help='send a test message to the configured webhook / Telegram and exit')
     p.add_argument('--version', action='version', version='kovan ' + __version__)
     return p
 
@@ -2193,8 +2228,20 @@ def main(argv=None):
             args.swarm = check_url(args.swarm)
         except ValueError as e:
             sys.exit('kovan: %s' % e)
+    args.notify = defaults.get('notify')
     url = 'http://127.0.0.1:%d' % args.port
 
+    if args.notify_test:
+        from .notify import NotifyError, Settings, send_test
+        try:
+            settings = Settings(args.notify, lang=args.lang or 'en')
+        except NotifyError as e:
+            sys.exit('kovan: %s' % e)
+        if not settings.enabled:
+            sys.exit('kovan: no notification channel configured — see "notify" in the README')
+        for channel, result in send_test(settings).items():
+            print('%s: %s' % (channel, result))
+        return
     if args.stop or args.stop_all:
         if args.stop_all:
             print('kovan sessions released' if close_holder(args.port) else 'holder was not running')
