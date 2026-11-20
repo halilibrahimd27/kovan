@@ -6,8 +6,8 @@ import json
 import os
 import subprocess
 import sys
-import textwrap
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -205,9 +205,9 @@ class CiFlowTests(CiTestCase):
         self.github_remote()
         with self.assertRaisesRegex(server.KovanError, 'Commit each milestone'):
             self.new(ci=True, commit=False)
-        os.environ['PATH'] = '/usr/bin:/bin'                                       # no gh
-        with self.assertRaisesRegex(server.KovanError, 'GitHub CLI'):
-            self.new(pr=True)
+        with mock.patch('kovan.ci.shutil.which', return_value=None):           # no gh (CI runners have one in /usr/bin)
+            with self.assertRaisesRegex(server.KovanError, 'GitHub CLI'):
+                self.new(pr=True)
 
     def test_forge_detection(self):
         for url, forge in (('git@github.com:example/app.git', 'github'), ('https://github.com/example/app', 'github'),
