@@ -29,6 +29,7 @@ import secrets
 import shutil
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -499,6 +500,13 @@ class Store:
         self.lock = threading.RLock()
         self.extra_revision = 0
 
+    def add_dir(self, directory):
+        directory = os.path.abspath(directory)
+        with self.lock:
+            if directory not in self.folders:
+                self.dirs.append(directory)
+                self.folders[directory] = project_folder(self.claude_home, directory)
+
     # ---- sources
     def live_sessions(self):
         """sessionId -> live session record (from ~/.claude/sessions). '_pids' lists every live process."""
@@ -661,6 +669,7 @@ class Store:
             'subagents_total': len(subs), 'subagents_running': sum(1 for a in subs if a['running']),
             'tasks_running': sum(1 for x in self.task_list(t, live, self.process_started_at(t.sid, c)) if x['status'] == 'running'),
             'managed': s.snapshot() if s else None,
+            'crew': CREWS.role_of(t.sid) if CREWS else None,
         }
 
     def ordered_summaries(self, live, now):
@@ -766,6 +775,8 @@ class Store:
         if SETTINGS:
             parts.append('settings%d' % SETTINGS.revision)
         parts.append('extra%d' % self.extra_revision)
+        if CREWS:
+            parts.append('crews%d' % CREWS.revision)
         return hashlib.sha1('|'.join(parts).encode()).hexdigest()[:16]
 
     def mark_task(self, sid, task_id, status):
@@ -1182,8 +1193,10 @@ class HolderClient:
 class ManagedSession:
     """A session whose claude process kovan drives (through the holder)."""
 
-    def __init__(self, sid, name, resume, directory, pid=None):
+    def __init__(self, sid, name, resume, directory, pid=None, permission_mode=None):
         self.sid, self.name, self.resume, self.directory, self.pid = sid, name, resume, directory, pid
+        self.launch_mode = permission_mode      # None = CFG.permission_mode
+        self.last_result, self.last_result_at = '', None   # final text of the last finished turn (crews read it)
         self.status = 'starting'
         self.permissions = collections.OrderedDict()
         self.streaming = ''
@@ -1235,7 +1248,8 @@ class ManagedSession:
             raise KovanError('could not find the claude executable (set --claude-bin)', 500)
         args = [binary, '--output-format', 'stream-json', '--verbose', '--input-format', 'stream-json',
                 '--permission-prompt-tool=stdio', '--setting-sources=user,project,local',
-                '--permission-mode=' + CFG.permission_mode, '--include-partial-messages', '--replay-user-messages',
+                '--permission-mode=' + (self.launch_mode or CFG.permission_mode), '--include-partial-messages',
+                '--replay-user-messages',
                 # Like the IDE integrations: makes "Never ask" *selectable* later from the UI. It does not turn it on;
                 # the session starts in CFG.permission_mode ("default" = ask) unless you choose otherwise.
                 '--allow-dangerously-skip-permissions']
@@ -1409,6 +1423,7 @@ class ManagedSession:
                 self.publish('received')
             return
         if kind == 'result':
+            self.last_result, self.last_result_at = str(d.get('result') or ''), (t or time.time())
             self.streaming, self.tool, self.thinking = '', None, False
             if self.permissions:
                 self.permissions.clear()
@@ -1539,7 +1554,12 @@ class Manager:
             self.sessions[sid] = s
         log('adopted session from holder %s pid=%s' % (sid[:8], pid))
 
-    def start(self, sid=None, name=None, directory=None):
+    def add_dir(self, directory):
+        directory = os.path.abspath(directory)
+        if directory not in self.dirs:
+            self.dirs.append(directory)
+
+    def start(self, sid=None, name=None, directory=None, permission_mode=None):
         with self.lock:
             if sid:
                 if not UUID_RE.match(sid):
@@ -1557,12 +1577,13 @@ class Manager:
                     where = 'in VS Code' if 'vscode' in (c.get('entrypoint') or '') else 'somewhere else'
                     raise KovanError('This session is open %s (pid %s). Close it there first, then continue in kovan.'
                                     % (where, c.get('pid')), 409)
-                s = ManagedSession(sid, None, True, t.directory)
+                s = ManagedSession(sid, None, True, t.directory, permission_mode=permission_mode)
             else:
                 directory = os.path.abspath(os.path.expanduser(directory)) if directory else self.dirs[0]
                 if directory not in self.dirs:
                     raise KovanError('that directory is not watched by kovan')
-                s = ManagedSession(str(uuid.uuid4()), (name or '').strip()[:80] or None, False, directory)
+                s = ManagedSession(str(uuid.uuid4()), (name or '').strip()[:80] or None, False, directory,
+                                   permission_mode=permission_mode)
             self.sessions[s.sid] = s      # register first so the holder's 'session' event is not adopted twice
             try:
                 s.start()
@@ -1595,6 +1616,8 @@ STORE = None
 MANAGER = None
 HOLDER = None
 SETTINGS = None
+CREWS = None        # crew.Crews: plan → build → check → review loops over role sessions
+SWARM = None        # swarm.Swarm: the swarm engine's API, when --swarm is given
 BUS = Bus()
 TOKEN = secrets.token_hex(24)
 CSP = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; "
@@ -1683,6 +1706,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.sse()
             elif u.path == '/api/state':
                 data = STORE.state(arg('revision'), arg('feed') == '1')
+                if not data.get('unchanged'):       # outside STORE.lock: see Crews.reindex
+                    data['crews'] = CREWS.list() if CREWS else []
+                    data['swarm'] = {'url': SWARM.url, 'error': SWARM.error} if SWARM else None
+            elif u.path == '/api/crew':
+                with CREWS.lock:
+                    data = CREWS.detail(CREWS.get(arg('id')[:40]))
+            elif u.path == '/api/swarm':
+                data = {'projects': self.swarm().projects()}
+            elif u.path == '/api/swarm/board':
+                data = {'entries': self.swarm().board(arg('project'), arg('all') == '1')}
             elif u.path == '/api/session':
                 data = STORE.session(valid_sid(arg('id')), arg('revision'))
             elif u.path == '/api/notes':
@@ -1701,6 +1734,12 @@ class Handler(BaseHTTPRequestHandler):
             log('GET error %s: %r' % (u.path, e))
             return self.reply_json(500, {'error': type(e).__name__})
         self.reply_json(200, data)
+
+    @staticmethod
+    def swarm():
+        if not SWARM:
+            raise KovanError('no swarm connected — start kovan with --swarm http://127.0.0.1:8080', 404)
+        return SWARM
 
     def sse(self):
         self.headers_out(200, 'text/event-stream; charset=utf-8')
@@ -1840,6 +1879,24 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/quick-prompts':
             SETTINGS.set_quick_prompts(b.get('items'))
             return {'ok': True}
+        if path == '/api/crew/new':
+            options = b.get('options') or {}
+            if not isinstance(options, dict):
+                raise KovanError('options must be an object')
+            c = CREWS.create(b.get('name'), b.get('goal'), b.get('theme'), str(b.get('mode') or 'goal'),
+                             b.get('directory'), options)
+            return {'ok': True, 'id': c['id']}
+        if path == '/api/crew/action':
+            index = b.get('index')
+            if index is not None and not isinstance(index, int):
+                raise KovanError('invalid index')
+            return CREWS.act(str(b.get('id') or '')[:40], str(b.get('action') or ''), str(b.get('feedback') or '')[:4000],
+                             index, bool(b.get('release')))
+        if path == '/api/crew/note':
+            role = b.get('role') or None
+            return CREWS.note(str(b.get('id') or '')[:40], b.get('text'), str(role) if role else None)
+        if path == '/api/swarm/command':
+            return self.swarm().command(str(b.get('intent') or ''), b.get('project'), b.get('text'), b.get('role'))
         return None
 
 
@@ -1874,8 +1931,28 @@ def pid_file(port):
     return os.path.join(STATE_DIR, 'kovan-%d.pid' % port)
 
 
-def holder_socket(port):
-    return os.path.join(STATE_DIR, 'holder-%d.sock' % port)
+SOCKET_PATH_MAX = 100      # sun_path is 104 bytes on macOS, 108 on Linux
+
+
+def holder_socket(port, state_dir=None):
+    state_dir = state_dir or STATE_DIR
+    path = os.path.join(state_dir, 'holder-%d.sock' % port)
+    if len(path.encode('utf-8')) <= SOCKET_PATH_MAX:
+        return path
+    # A long XDG_STATE_HOME or home directory would overflow the socket path: use a short private directory.
+    base = tempfile.gettempdir()
+    if len(base) > 48:
+        base = '/tmp'
+    private = os.path.join(base, 'kovan-%d' % os.getuid())
+    os.makedirs(private, mode=0o700, exist_ok=True)
+    st = os.lstat(private)
+    if not stat_is_private_dir(st):
+        raise KovanError('%s is not a private directory owned by you; refusing to put the session socket there' % private, 500)
+    return os.path.join(private, 'holder-%s-%d.sock' % (hashlib.sha1(state_dir.encode('utf-8')).hexdigest()[:10], port))
+
+
+def stat_is_private_dir(st):
+    return stat.S_ISDIR(st.st_mode) and st.st_uid == os.getuid() and not st.st_mode & 0o077
 
 
 def open_window(url):
@@ -1908,7 +1985,8 @@ def close_holder(port):
 
 
 def serve(args):
-    global STORE, MANAGER, HOLDER, SETTINGS
+    global STORE, MANAGER, HOLDER, SETTINGS, CREWS, SWARM
+    from . import crew, swarm
     CFG.port = args.port
     CFG.permission_mode = args.permission_mode
     CFG.claude_bin = args.claude_bin
@@ -1927,8 +2005,16 @@ def serve(args):
     STORE = Store(CFG.claude_home, CFG.dirs, CFG.notes, task_roots)
     MANAGER = Manager(CFG.dirs)
     HOLDER = HolderClient(holder_socket(args.port))
+    CREWS = crew.Crews(STATE_DIR, read_only=args.demo)
+    for d in CREWS.directories():     # watch crew workspaces before the holder hands back their sessions
+        STORE.add_dir(d)
+        MANAGER.add_dir(d)
+    if args.swarm:
+        SWARM = swarm.Swarm(args.swarm, os.environ.get('KOVAN_SWARM_TOKEN') or os.environ.get('AIDEVSWARM_API_TOKEN'))
     if args.demo:
         demo.attach(MANAGER, BUS, info)
+        demo.attach_crews(CREWS, info)
+        SWARM = swarm.DemoSwarm(info['swarm'])
     elif HOLDER.connect(spawn=False):
         log('connected to the session holder; %d session(s) still running' % len(MANAGER.owned_items()))
     t0 = time.time()
@@ -1941,6 +2027,10 @@ def serve(args):
     server.allowed_hosts = {'127.0.0.1:%d' % args.port, 'localhost:%d' % args.port}
     server.allowed_origins = {'http://127.0.0.1:%d' % args.port, 'http://localhost:%d' % args.port}
     threading.Thread(target=watcher, daemon=True, name='watcher').start()
+    if not args.demo:
+        crew.Runner(CREWS).start()
+    if SWARM and not args.demo:
+        log('swarm: %s%s' % (SWARM.url, ' (with API token)' if SWARM.token else ''))
     os.makedirs(STATE_DIR, mode=0o700, exist_ok=True)
     with open(pid_file(args.port), 'w') as f:
         f.write(str(os.getpid()))
@@ -1976,6 +2066,9 @@ def build_parser(defaults):
     p.add_argument('--claude-bin', default=defaults.get('claude_bin'), help='path to the claude executable')
     p.add_argument('--claude-home', default=defaults.get('claude_home') or os.environ.get('KOVAN_CLAUDE_HOME') or
                    os.path.join(HOME, '.claude'), help=argparse.SUPPRESS)
+    p.add_argument('--swarm', default=defaults.get('swarm'), metavar='URL',
+                   help='show the boardroom of a running swarm engine, e.g. http://127.0.0.1:8080 (loopback only; '
+                        'token from KOVAN_SWARM_TOKEN)')
     p.add_argument('--demo', action='store_true', help='run with synthetic sessions (read-only; nothing real is touched)')
     p.add_argument('--window', action='store_true', help='open in a chromeless browser window')
     p.add_argument('--no-browser', action='store_true', help='do not open a browser')
@@ -1992,6 +2085,12 @@ def main(argv=None):
     args.port = args.port or (DEMO_PORT if args.demo else defaults.get('port', DEFAULT_PORT))
     args.dir = [os.path.abspath(os.path.expanduser(d)) for d in (args.dir or defaults.get('dirs') or [os.getcwd()])]
     args.note = args.note or defaults.get('notes') or []
+    if args.swarm:
+        from .swarm import check_url
+        try:
+            args.swarm = check_url(args.swarm)
+        except ValueError as e:
+            sys.exit('kovan: %s' % e)
     url = 'http://127.0.0.1:%d' % args.port
 
     if args.stop or args.stop_all:
@@ -2025,6 +2124,8 @@ def main(argv=None):
             cmd += ['--note', os.path.abspath(os.path.expanduser(n))]
         if args.claude_bin:
             cmd += ['--claude-bin', args.claude_bin]
+        if args.swarm:
+            cmd += ['--swarm', args.swarm]
         if args.demo:
             cmd.append('--demo')
         subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True,

@@ -12,7 +12,7 @@ from http.server import ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from kovan import demo, server  # noqa: E402
+from kovan import crew, demo, server, swarm  # noqa: E402
 
 
 def setup_demo():
@@ -25,6 +25,9 @@ def setup_demo():
     server.HOLDER = None
     server.STORE = server.Store(info['claude_home'], info['dirs'], info['notes'], info['task_roots'])
     demo.attach(server.MANAGER, server.BUS, info)
+    server.CREWS = crew.Crews(info['root'], read_only=True)
+    demo.attach_crews(server.CREWS, info)
+    server.SWARM = swarm.DemoSwarm(info['swarm'])
     return info
 
 
@@ -52,6 +55,16 @@ class HelperTests(unittest.TestCase):
         harmless = 'Ran 24 tests in 3.4s — all green; see src/password_reset.py for the flow'
         self.assertEqual(server.mask_secrets(harmless), (harmless, 0))
 
+    def test_holder_socket_fits_the_unix_path_limit(self):
+        short = server.holder_socket(8787, '/home/u/.local/state/kovan')
+        self.assertEqual(short, '/home/u/.local/state/kovan/holder-8787.sock')
+        deep = '/' + '/'.join(['a-rather-long-directory-name'] * 6)
+        path = server.holder_socket(8787, deep)
+        self.assertLessEqual(len(path.encode()), server.SOCKET_PATH_MAX)
+        self.assertNotEqual(path, server.holder_socket(8787, deep + 'x'))      # one socket per state directory
+        st = os.lstat(os.path.dirname(path))
+        self.assertTrue(server.stat_is_private_dir(st))
+
     def test_project_folder_encoding(self):
         self.assertTrue(server.project_folder('/h', '/Users/x/my.project').endswith('projects/-Users-x-my-project'))
 
@@ -64,7 +77,9 @@ class StoreTests(unittest.TestCase):
         cls.by_name = {s['name']: s for s in cls.state['sessions']}
 
     def test_sessions_places_and_statuses(self):
-        self.assertEqual(len(self.state['sessions']), 8)
+        self.assertEqual(len(self.state['sessions']), 13)       # 8 team sessions + 5 crew role sessions
+        self.assertEqual(self.by_name['tablefmt · Developer']['place'], 'kovan')
+        self.assertEqual(self.by_name['tablefmt · Developer']['status'], 'working')
         self.assertEqual(self.by_name['API refactor']['place'], 'kovan')
         self.assertEqual(self.by_name['Release prep']['status'], 'awaiting')
         self.assertEqual(self.by_name['Infra']['place'], 'vscode')
@@ -156,6 +171,45 @@ class HttpTests(unittest.TestCase):
             h['Origin'] = 'http://127.0.0.1:%d' % self.port
         h.update(extra or {})
         return self.request('POST', path, body, h)
+
+    def get_json(self, path):
+        status, data = self.request('GET', path)
+        return status, json.loads(data)
+
+    def test_state_lists_crews_swarm_and_role_tags(self):
+        status, d = self.get_json('/api/state')
+        self.assertEqual(status, 200)
+        self.assertEqual({c['name'] for c in d['crews']}, {'tablefmt', 'Weekend idea'})
+        self.assertEqual(d['swarm']['url'], 'http://127.0.0.1:8080')
+        roles = {s['name']: s['crew']['role'] for s in d['sessions'] if s.get('crew')}
+        self.assertEqual(roles['tablefmt · Developer'], 'developer')
+        self.assertEqual(roles['Weekend idea · Ideator'], 'ideator')
+
+    def test_crew_detail(self):
+        status, d = self.get_json('/api/crew?id=c7ab1e5f0')
+        self.assertEqual(status, 200)
+        self.assertEqual(len(d['plan']['milestones']), 5)
+        self.assertEqual(d['board'][-1]['speaker'], 'reviewer')
+        self.assertNotIn('prompt', d['wait'] or {})       # role prompts stay server-side
+        self.assertEqual(self.request('GET', '/api/crew?id=nope')[0], 404)
+
+    def test_swarm_rooms(self):
+        status, d = self.get_json('/api/swarm')
+        self.assertEqual([p['name'] for p in d['projects']], ['ledgerline', 'quietpager'])
+        pid = d['projects'][0]['id']
+        decisions = self.get_json('/api/swarm/board?project=' + pid)[1]['entries']
+        everything = self.get_json('/api/swarm/board?all=1&project=' + pid)[1]['entries']
+        self.assertTrue(decisions and all(e['kind'] == 'decision' for e in decisions))
+        self.assertGreater(len(everything), len(decisions))
+        self.assertEqual(self.request('GET', '/api/swarm/board?project=../../etc')[0], 400)
+
+    def test_crew_writes_are_guarded_and_read_only_in_demo(self):
+        body = {'id': 'c7ab1e5f0', 'action': 'pause'}
+        self.assertEqual(self.post('/api/crew/action', body, token=False)[0], 403)
+        self.assertEqual(self.post('/api/crew/action', body, extra={'Origin': 'http://evil.example'})[0], 403)
+        self.assertEqual(self.post('/api/crew/action', body)[0], 403)            # demo: read-only
+        self.assertEqual(self.post('/api/crew/new', {'name': 'x', 'goal': 'y', 'directory': '/tmp/x'})[0], 403)
+        self.assertEqual(self.post('/api/swarm/command', {'intent': 'approve', 'project': 'x'})[0], 403)
 
     def test_page_and_state(self):
         status, page = self.request('GET', '/')

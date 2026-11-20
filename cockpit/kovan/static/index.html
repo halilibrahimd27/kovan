@@ -62,7 +62,7 @@ time,.rel{font-variant-numeric:tabular-nums}
 .item.unread .i-name::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:1px}
 .i-time{font-size:11.5px;color:var(--faint);white-space:nowrap}
 .i-sub{grid-column:2/4;font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.i-sub .busy{color:var(--busy)}.i-sub .ask{color:var(--ask);font-weight:600}
+.crew-badge{color:var(--c);font-weight:650}.i-sub .busy{color:var(--busy)}.i-sub .ask{color:var(--ask);font-weight:600}
 .more{border:0;background:none;color:var(--faint);font-size:12px;cursor:pointer;padding:4px 8px}
 .side-foot{border-top:1px solid var(--line);padding:8px 14px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--faint)}
 .foot-row{display:flex;align-items:center;gap:8px}
@@ -83,7 +83,7 @@ nav.tabs{display:flex;gap:2px;padding:6px 18px 0;border-bottom:1px solid var(--l
 nav.tabs button{border:0;background:none;color:var(--muted);padding:9px 11px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
 nav.tabs button:hover{color:var(--text)}
 nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
-nav.tabs .count{font-size:11px;color:var(--faint);margin-left:4px}
+nav.tabs .count{font-size:11px;color:var(--faint);margin-left:4px}nav.tabs .count.hot{color:var(--ask)}
 .menu-btn{display:none;border:0;background:none;font-size:18px;cursor:pointer;padding:6px 8px 6px 0;color:var(--muted)}
 .view{flex:1;min-height:0;overflow:auto}
 .view.padded{padding:20px 24px 40px}
@@ -380,6 +380,149 @@ dialog.palette{padding:0;width:min(640px,94vw);top:12vh;margin-top:0;overflow:hi
 .toast span{color:var(--muted);font-size:12.5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .toast.out{opacity:0;transform:translateX(20px)}
 @keyframes in{from{opacity:0;transform:translateY(8px)}}
+/* boardroom */
+.board-grid{display:grid;grid-template-columns:262px 1fr;height:100%;min-height:0}
+.rooms{border-right:1px solid var(--line);padding:6px 10px 20px;overflow:auto;background:color-mix(in srgb,var(--side) 55%,var(--bg))}
+.rooms .group{align-items:center}.rooms .group .link{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600}
+.room-btn{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:10px;width:100%;text-align:left;border:0;background:none;border-radius:10px;padding:8px 9px;cursor:pointer;align-items:center}
+.room-btn:hover{background:color-mix(in srgb,var(--panel) 70%,transparent)}
+.room-btn.on{background:var(--panel);box-shadow:var(--shadow)}
+.room-btn b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room-btn small{grid-column:2/4;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hot-dot{width:8px;height:8px;border-radius:50%;background:var(--ask)}
+.ic{grid-row:1/3;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:var(--panel2);color:var(--muted);flex:none}
+.ic-crew{color:#d9a21b;background:color-mix(in srgb,#d9a21b 14%,var(--panel))}
+.ic-swarm{color:var(--msgc);background:var(--msg)}
+.ic.busy{box-shadow:0 0 0 2px var(--busy)}
+.rooms-hint{font-size:12.5px;color:var(--faint);padding:10px 9px;line-height:1.5}
+.rooms-hint.err{color:var(--red)}
+.room{display:flex;flex-direction:column;min-height:0;height:100%;min-width:0}
+.room-head{padding:14px 24px 0;display:flex;gap:6px 12px;align-items:center;flex-wrap:wrap}
+.rh-title{display:flex;gap:10px;align-items:center;min-width:0}
+.rh-title .ic{grid-row:auto}
+.room-head h2{margin:0;font-size:18px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room-head p{flex-basis:100%;margin:2px 0 0;color:var(--muted);font-size:13px;-webkit-line-clamp:2}
+.room-head .acts,.crew-top .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.seg-chips{display:inline-flex;gap:4px;margin-right:4px}
+.table-wrap{padding:4px 24px 0;flex:none}
+.table-svg{width:100%;max-width:780px;max-height:min(290px,34vh);height:auto;display:block;margin:0 auto}
+.seat.away{opacity:.38}
+.tbl{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}
+.t-now{font-size:13px;font-weight:650;fill:var(--text)}
+.t-sub{font-size:11.5px;fill:var(--faint)}
+.seat .ini{font-size:12px;font-weight:700;fill:#fff;pointer-events:none}
+.seat .nm{font-size:12px;font-weight:650;fill:var(--text)}
+.seat .rl{font-size:10.5px;fill:var(--faint)}
+.seat[data-open]{cursor:pointer}.seat[data-open]:hover .nm{text-decoration:underline}
+.seat .ring{fill:none;stroke:var(--busy);stroke-width:2.4;animation:seatpulse 1.6s ease-in-out infinite}
+.seat .ring.ask{stroke:var(--ask);animation:none}
+@keyframes seatpulse{50%{stroke-opacity:.2}}
+.talk{fill:none;stroke-width:2;stroke-linecap:round;opacity:.22}
+.talk.last{opacity:.95;stroke-width:2.6;stroke-dasharray:7 6;animation:talk .9s linear infinite}
+@keyframes talk{to{stroke-dashoffset:-13}}
+.stream{flex:1;min-height:0;overflow:auto;padding:6px 24px 14px;border-top:1px solid var(--line)}
+.stream-inner{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.say{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
+.say .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12.5px;background:var(--c);box-shadow:0 0 0 3px var(--bg)}
+.say .av[data-open]{cursor:pointer}
+.say .bub{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:4px 14px 14px 14px;padding:8px 14px 9px;box-shadow:var(--shadow);min-width:0}
+.say.hot .bub{border-color:color-mix(in srgb,var(--ask) 50%,var(--line));border-left-color:var(--ask)}
+.say .who{display:flex;gap:4px 8px;align-items:center;font-size:12.5px;flex-wrap:wrap;margin-bottom:2px}
+.say .who b{color:var(--c)}
+.say .who .to{color:var(--muted);font-weight:600}
+.say .who time{color:var(--faint);margin-left:auto;font-size:11.5px}
+.say .k{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;border-radius:5px;background:var(--panel2);color:var(--muted)}
+.say .k-verdict,.say .k-decision{background:color-mix(in srgb,#a979d6 16%,transparent);color:#8a5cb8}
+.say .k-check{background:color-mix(in srgb,var(--busy) 14%,transparent);color:var(--busy)}
+.say .k-blocked,.say .k-attention,.say .k-waiting{background:color-mix(in srgb,var(--ask) 14%,transparent);color:var(--ask)}
+.say .k-finance{background:color-mix(in srgb,#2fabb3 14%,transparent);color:#1f8c93}
+.say .k-plan,.say .k-replan,.say .k-milestone{background:color-mix(in srgb,#4f8fdc 14%,transparent);color:#3b78c2}
+.say .dl{font-size:11px;color:var(--busy);font-weight:600}
+.say .md{font-size:13.5px}.say .md p{margin:.2em 0}.say .md pre{max-height:240px}
+.say.you{grid-template-columns:minmax(0,1fr) 34px}.say.you .av{grid-column:2;grid-row:1}.say.you .bub{grid-column:1;grid-row:1;background:var(--mine);border-left:1px solid var(--line);border-right:3px solid var(--c);border-radius:14px 4px 14px 14px;justify-self:end;max-width:88%}
+.say.sys{display:flex;justify-content:center;gap:8px;align-items:baseline;font-size:12.5px;color:var(--faint);text-align:center;padding:0 40px}
+.say.sys .md{font-size:12.5px}.say.sys time{font-size:11px}
+.room-need{flex:none;max-height:40vh;overflow:auto;padding-top:8px}
+.room-need:empty{display:none}
+.speak{border-top:1px solid var(--line);padding:10px 24px 14px;flex:none}
+.speak-inner{max-width:880px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
+.speak textarea{flex:1;border:1px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--panel);resize:none;min-height:42px;max-height:160px;outline:none}
+.speak textarea:focus{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.speak select{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:8px 8px;max-width:190px}
+/* need cards */
+.need p{margin:4px 0 8px}
+.need .kv{padding:4px 0 8px}
+.plan-ms{margin:6px 0 10px;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+.plan-ms>li div{font-size:13px;color:var(--muted)}
+.plan-ms ul{margin:3px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
+.ideas{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin:6px 0 10px}
+.idea{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg);display:flex;flex-direction:column;gap:4px}
+.idea p{margin:0;font-size:13px}
+.idea .btn{align-self:flex-start;margin-top:4px}
+.idea-h{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.score{font-size:12px;font-weight:700;border-radius:999px;padding:0 8px;background:var(--panel2);color:var(--muted)}
+.score.good{background:color-mix(in srgb,var(--busy) 15%,transparent);color:var(--busy)}
+.scores{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--faint)}.scores b{color:var(--text)}
+.small{font-size:12px}
+/* crews page */
+.crews-head{display:flex;gap:18px;align-items:flex-start;margin-bottom:18px}
+.crews-head h2{margin:0 0 4px;font-size:20px}
+.crews-head p{margin:0;max-width:780px;font-size:13.5px}
+.crews-head .btn{margin-left:auto}
+.crews-empty{padding:40px;text-align:center;color:var(--muted)}
+.hex{color:#d9a21b;font-size:18px;line-height:1}
+.hex.big{font-size:42px}
+.crew-card .prog{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}
+.progress{flex:1;height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;display:block}
+.progress i{display:block;height:100%;background:var(--busy);border-radius:3px}
+.crew-card .why{font-size:12.5px;color:var(--ask);font-weight:600}
+.crew-card footer .link{margin-left:auto}
+.back{margin-bottom:10px;font-size:13px}
+.crew-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.crew-top .hex{font-size:28px}
+.crew-top h2{margin:0;font-size:20px}
+.crew-top .muted{font-size:12.5px}
+.goal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 16px;margin-bottom:14px;font-size:13.5px}
+.crew-cols{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+.ms{list-style:none;margin:0;padding:0}
+.ms>li{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:4px 12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.ms>li:last-child{border-bottom:0}
+.ms .st{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;border:1.5px solid var(--line);color:var(--faint)}
+.ms>li.done .st{background:var(--busy);border-color:var(--busy);color:#fff}
+.ms>li.cur .st,.ms>li.active .st{border-color:var(--busy);color:var(--busy);box-shadow:0 0 0 3px color-mix(in srgb,var(--busy) 18%,transparent)}
+.ms>li.failed .st{border-color:var(--red);color:var(--red)}
+.ms>li.skipped{opacity:.55}
+.ms .g{font-size:13px;margin-top:2px}
+.ms details{margin-top:4px;font-size:12.5px;color:var(--muted)}.ms details summary{cursor:pointer;color:var(--faint)}
+.ms details ul{margin:4px 0;padding-left:18px}.ms .lg{list-style:none;padding-left:0;border-top:1px dashed var(--line);padding-top:4px}
+.ms-r{display:flex;flex-direction:column;gap:4px;align-items:flex-end;font-size:11.5px}
+.ck{font-weight:600}.ck.ok{color:var(--busy)}.ck.bad{color:var(--red)}
+.pipe{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.pipe span{font-size:11px;padding:1px 9px;border-radius:999px;background:var(--panel2);color:var(--faint)}
+.pipe span.done{color:var(--busy)}
+.pipe span.now{background:color-mix(in srgb,var(--busy) 15%,transparent);color:var(--busy);font-weight:700}
+.pipe i{font-style:normal;color:var(--faint);font-size:11px}
+.pipe em{font-style:normal;font-size:11px;color:var(--wait);margin-left:6px;font-weight:600}
+.role-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line)}
+.role-row:last-child{border-bottom:0}
+.role-row[data-open]{cursor:pointer}.role-row[data-open]:hover{background:var(--panel2)}
+.role-row .dot{grid-row:auto}
+.role-row small{display:block;font-size:11.5px;color:var(--faint)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px;padding:10px 14px}
+.kv>span{color:var(--faint)}.kv>b{font-weight:550;min-width:0;overflow-wrap:anywhere}
+.box.pad{padding:4px 16px}
+.mini-board{padding:8px 12px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.mini-board>div{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.mini-board .link{align-self:flex-start;font-size:12.5px}
+dialog .opt{flex-direction:row;align-items:center;gap:8px;font-weight:500;margin-bottom:0}
+dialog .seg{display:flex;gap:18px;margin-bottom:14px}
+dialog .toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:2px 0 14px}
+dialog .row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+dialog small{font-weight:400;color:var(--faint);font-size:12px}
+@media (max-width:1100px){.crew-cols{grid-template-columns:1fr}}
+@media (max-width:860px){.board-grid{grid-template-columns:1fr;grid-template-rows:auto 1fr}.rooms{border-right:0;border-bottom:1px solid var(--line);max-height:30vh}
+  .room-head,.stream,.speak,.table-wrap{padding-left:12px;padding-right:12px}.crews-head{flex-direction:column}.crews-head .btn{margin-left:0}
+  dialog .row3,dialog .toggles{grid-template-columns:1fr}}
 @media (max-width:1100px){.info{position:absolute;right:0;top:0;bottom:0;z-index:6;box-shadow:-8px 0 24px rgba(0,0,0,.15)}.c-body{position:relative}}
 @media (max-width:860px){
   .app{grid-template-columns:1fr}
@@ -414,6 +557,8 @@ dialog.palette{padding:0;width:min(640px,94vw);top:12vh;margin-top:0;overflow:hi
     <nav class="tabs">
       <button class="menu-btn" data-menu aria-label="Sessions">☰</button>
       <button data-view="chat">Chat</button>
+      <button data-view="board">Boardroom<span class="count" id="board-count"></span></button>
+      <button data-view="crews">Crews<span class="count" id="crew-count"></span></button>
       <button data-view="overview">Overview</button>
       <button data-view="messages">Messages<span class="count" id="msg-count"></span></button>
       <button data-view="feed">Activity</button>
@@ -456,6 +601,19 @@ dialog.palette{padding:0;width:min(640px,94vw);top:12vh;margin-top:0;overflow:hi
     </section>
     <section class="view padded" id="v-feed" hidden><div class="chips" id="feed-filter"></div><div class="box" id="feed-list"></div></section>
     <section class="view padded" id="v-notes" hidden><div id="notes"></div></section>
+    <section class="view" id="v-board" hidden>
+      <div class="board-grid">
+        <aside class="rooms" id="rooms"></aside>
+        <div class="room">
+          <header class="room-head" id="room-head"></header>
+          <div class="table-wrap" id="room-table"></div>
+          <div class="stream" id="room-stream"><div class="stream-inner" id="room-list"></div></div>
+          <div class="room-need" id="room-need"></div>
+          <form class="speak" id="speak"><div class="speak-inner"><select id="speak-to" aria-label="Speak to"></select><textarea id="speak-text" rows="1" placeholder="Speak in the room…"></textarea><button class="btn primary" type="submit" id="speak-btn">Speak</button></div></form>
+        </div>
+      </div>
+    </section>
+    <section class="view padded" id="v-crews" hidden><div id="crews"></div></section>
   </main>
 </div>
 <dialog id="new-dialog">
@@ -466,6 +624,31 @@ dialog.palette{padding:0;width:min(640px,94vw);top:12vh;margin-top:0;overflow:hi
     <label>First message<textarea name="text" placeholder="What should it do? (optional)"></textarea></label>
     <p class="muted" style="font-size:12.5px;margin:-4px 0 14px">Starts with your normal Claude Code settings and memory.</p>
     <div class="ask-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Start</button></div>
+  </form>
+</dialog>
+<dialog id="crew-dialog" class="wide">
+  <form id="crew-form">
+    <h3>New crew</h3>
+    <div class="seg"><label class="opt"><input type="radio" name="mode" value="goal" checked> I have a goal</label><label class="opt"><input type="radio" name="mode" value="ideas"> Suggest ideas</label></div>
+    <p class="muted" style="font-size:12.5px;margin:-6px 0 12px" data-mode-hint></p>
+    <label>Name<input name="name" maxlength="60" required placeholder="e.g. Markdown table formatter" autocomplete="off"></label>
+    <label data-mode="goal">Goal<textarea name="goal" placeholder="What should the crew build? Be concrete: who uses it, what it must do, constraints (language, no network, …)."></textarea></label>
+    <label data-mode="ideas" hidden>Theme <small>optional</small><textarea name="theme" placeholder="e.g. developer tools for data engineers; command-line only; Python"></textarea></label>
+    <label>Workspace folder<input name="directory" required placeholder="~/code/table-formatter" autocomplete="off" spellcheck="false"><small>An empty folder or a clean git repository; kovan creates it if needed. Every accepted milestone becomes a commit.</small></label>
+    <label>Check command <small>runs after every milestone — the crew's CI gate</small><input name="check" placeholder="e.g. python3 -m pytest -q   (leave empty and the Planner proposes one for you to approve)" autocomplete="off" spellcheck="false"></label>
+    <div class="toggles">
+      <label class="opt"><input type="checkbox" name="plan_approval" checked> Ask me to approve the plan</label>
+      <label class="opt"><input type="checkbox" name="tester"> Add a Tester</label>
+      <label class="opt"><input type="checkbox" name="milestone_approval"> Pause after every milestone</label>
+      <label class="opt"><input type="checkbox" name="commit" checked> Commit each milestone</label>
+      <label class="opt"><input type="checkbox" name="push"> Push after each commit</label>
+    </div>
+    <div class="row3">
+      <label>Permissions<select name="policy"><option value="safe" selected>Safe — edits in the workspace, tests and read-only git run by themselves; anything else asks you</option><option value="ask">Ask — every permission prompt comes to you</option><option value="trusted">Trusted — never ask (bypass permissions)</option></select></label>
+      <label>Attempts<input name="max_attempts" type="number" min="1" max="10" value="3"></label>
+      <label>Usage pause %<input name="quota_pause" type="number" min="50" max="100" value="90"></label>
+    </div>
+    <div class="ask-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Start crew</button></div>
   </form>
 </dialog>
 <dialog id="confirm-dialog"><h3 id="confirm-title"></h3><div id="confirm-body"></div><div class="ask-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" id="confirm-ok">OK</button></div></dialog>
@@ -480,7 +663,7 @@ const TOKEN='__TOKEN__';
 const COLORS=['#d97757','#4f8fdc','#2fa872','#a979d6','#cf9a2e','#2fabb3','#d9668f','#7f9a2f','#8193ad','#c0703a','#5c7ae0','#b05fb8'];
 const STATUS={working:['Working','busy'],awaiting:['Needs your answer','ask'],starting:['Starting','idle'],your_turn:['Your turn','wait'],idle:['Idle','idle'],closed:['Closed','off'],other:['Waiting','wait']};
 const PLACE={kovan:'In kovan',vscode:'In VS Code',elsewhere:'Elsewhere',closed:'Closed',archive:'Archive'};
-const VIEWS=['chat','overview','messages','feed','notes'];
+const VIEWS=['chat','board','crews','overview','messages','feed','notes'];
 const KINDS=[['prompt','Your prompts'],['reply','Replies'],['sent','Sent messages'],['received','Received messages'],['notice','Notices'],['tool','Tool calls']];
 const KIND_LABEL={prompt:'your prompt',reply:'reply',sent:'message sent',received:'message received',tool:'tool call',notice:'notice',note:'note'};
 const EFFORTS=[['low','Low'],['medium','Medium'],['high','High'],['xhigh','Extra high'],['max','Max']];
@@ -495,7 +678,7 @@ const S={d:null,rev:'',view:store('kovan.view')||'chat',sel:store('kovan.sel')||
   live:{},pending:{},drafts:{},atts:[],seen:storeJson('kovan.seen',{}),
   open:new Set(),closed:new Set(),openTools:new Set(),toolCache:{},feedKinds:new Set(['prompt','reply','sent','received','notice']),feedSession:'',msgSession:'',showSub:false,
   notes:null,notesAt:0,err:null,info:store('kovan.info')==='1',notify:store('kovan.notify')==='1',allClosed:false,archiveOpen:false,connected:false,slashSel:0,
-  renaming:null,headSig:'',focus:null};
+  renaming:null,headSig:'',focus:null,room:store('kovan.room')||null,crew:null,crewDetail:null,swarm:null,swarmBoards:{},boardAll:false};
 if(!VIEWS.includes(S.view))S.view='chat';
 
 /* ---------------- formatting */
@@ -564,7 +747,7 @@ function scheduleLive(){if(rafPending)return;rafPending=true;requestAnimationFra
 function onEvent(e){
   const name=(sess(e.sid)||{}).name||'Session';
   switch(e.type){
-    case 'changed':refresh();break;
+    case 'changed':case 'crew':refresh();break;
     case 'chunk':{const l=lv(e.sid);if(l.ended){l.text='';l.ended=false;}l.text+=e.text;l.thinking=false;l.status='working';if(e.sid===S.sel)scheduleLive();break;}
     case 'text_start':{const l=lv(e.sid);l.text='';l.ended=false;l.thinking=false;if(e.sid===S.sel)scheduleLive();break;}
     case 'text_end':{lv(e.sid).ended=true;if(e.sid===S.sel)scheduleLive();refresh(60);break;}
@@ -608,6 +791,8 @@ async function refreshNow(){
     else tickTimes();
     if(S.view==='chat'&&S.sel)await refreshDetail();
     if(S.view==='notes'&&await loadNotes())render();
+    if(S.view==='board'&&S.d&&await refreshBoard())renderBoard();
+    if(S.view==='crews'&&S.crew&&S.d&&await loadCrew(S.crew))renderCrews();
     S.err=null;
   }catch(e){S.err='cannot reach the kovan server';}
   finally{rBusy=false;renderConn();updateTitle();if(rAgain){rAgain=false;refresh(50);}}
@@ -617,6 +802,10 @@ function diffToasts(old,cur){
   const had=new Set(old.messages.map(m=>m.id));
   for(const m of cur.messages){if(had.has(m.id)||m.subagent)continue;const a=sess(m.from),b=sess(m.to);
     toast((a?a.name:(m.from_name||'?'))+' → '+(b?b.name:(m.to_name||'?')),m.summary||plain(m.text).slice(0,140),m.to||m.from,'msg');}
+  const was=new Map((old.crews||[]).map(c=>[c.id,c]));
+  for(const c of cur.crews||[]){const p=was.get(c.id);if(!p)continue;
+    if(crewNeedsYou(c)&&(!crewNeedsYou(p)||p.phase!==c.phase||JSON.stringify(p.attention)!==JSON.stringify(c.attention)))toast('Crew '+c.name+' needs you',c.attention?roleName(c.attention.role)+': '+c.attention.summary:(c.reason||''),null,'ask');
+    else if(c.phase==='done'&&p.phase!=='done')toast('Crew '+c.name+' is done',(c.progress||{}).done+' milestones');}
   const prev=new Map(old.sessions.map(o=>[o.sid,o]));
   for(const o of cur.sessions){const p=prev.get(o.sid);if(!p||o.place==='kovan')continue;
     if(p.status==='working'&&o.status!=='working'&&o.live&&!visible(o.sid))toast(o.name+' ('+PLACE[o.place]+') replied',o.last_reply?plain(o.last_reply.text).slice(0,160):'',o.sid);}
@@ -634,7 +823,8 @@ function render(){
   const mc=S.d?S.d.messages.filter(m=>!m.subagent).length:0;$('#msg-count').textContent=mc||'';
   renderSide();
   if(!S.d)return;
-  ({chat:renderChat,overview:renderOverview,messages:renderMessages,feed:renderFeed,notes:renderNotes})[S.view]();
+  const crews=S.d.crews||[],hot=crews.filter(crewNeedsYou).length;$('#crew-count').textContent=crews.length?(hot?hot+' need you':crews.length):'';$('#board-count').textContent=hot?'●':'';$('#board-count').classList.toggle('hot',!!hot);
+  ({chat:renderChat,board:renderBoard,crews:renderCrews,overview:renderOverview,messages:renderMessages,feed:renderFeed,notes:renderNotes})[S.view]();
   markSeen();updateTitle();
 }
 let sideT=null;function scheduleSide(){if(sideT)return;sideT=setTimeout(()=>{sideT=null;renderSide();},250);}
@@ -646,6 +836,7 @@ function itemHTML(o){
   else if(o.status==='starting')sub='starting…';
   else sub=esc(plain(o.last_reply?o.last_reply.text:(o.topic||'')))||'<span class="muted">no messages yet</span>';
   const t=o.status==='working'&&o.turn_started_at?relSpan(o.turn_started_at,'dur'):relSpan(o.last_activity,'short');
+  if(o.crew)sub='<span class="crew-badge" style="--c:'+roleColor(o.crew.role)+'">⬢ '+esc(roleName(o.crew.role))+'</span> '+sub;
   return '<button class="item'+(o.sid===S.sel&&S.view==='chat'?' selected':'')+(unread(o)?' unread':'')+'" data-open="'+o.sid+'" title="'+esc(o.name)+'"><span class="dot '+cls+'" style="--c:'+colorI(o.color)+'"></span><span class="i-name">'+esc(o.name)+'</span><span class="i-time">'+t+'</span><span class="i-sub">'+sub+'</span></button>';
 }
 function sideGroups(){const os=S.d?S.d.sessions:[];const g={kovan:[],vscode:[],elsewhere:[],closed:[],archive:[]};os.forEach(o=>{const k=(o.archived&&o.place==='closed')?'archive':o.place;(g[k]||g.closed).push(o);});return g;}
@@ -1011,8 +1202,222 @@ function renderNotes(){if(!S.notes){$('#notes').innerHTML='<div class="empty">Lo
   $('#notes').innerHTML=S.notes.map(n=>'<div class="box note-card"><div class="note-head"><b>'+esc(n.title)+'</b><span>'+esc(n.path)+(n.modified?' · updated '+relSpan(n.modified):'')+'</span></div>'+
     (n.kind==='journal'?n.entries.map((x,i)=>{const k='n-'+n.title+'-'+x.heading;const open=S.open.has(k)||(i===0&&!S.closed.has(k));return '<details class="entry" data-k="'+esc(k)+'"'+(open?' open':'')+'><summary>'+inl(x.heading)+'</summary><div class="md">'+md(x.body)+'</div></details>';}).join(''):'<div class="doc md">'+md(n.content)+'</div>')+'</div>').join('');}
 
+/* ---------------- crews & boardroom */
+const PHASE={ideating:['Ideating','busy'],choosing:['Pick an idea','ask'],planning:['Planning','busy'],plan_review:['Approve the plan','ask'],building:['Building','busy'],milestone_review:['Waiting for you','ask'],blocked:['Needs you','ask'],paused:['Paused','wait'],done:['Done','idle'],stopped:['Stopped','off']};
+const STEPS=[['develop','Develop'],['test','Test'],['check','Check'],['review','Review'],['commit','Commit']];
+const ROLE_T={you:'You',human:'You',operator:'Operator',kovan:'Kovan',planner:'Planner',developer:'Developer',tester:'Tester',reviewer:'Reviewer',finance:'Finance',ideator:'Ideator',pm:'PM'};
+const ROLE_C={you:'#c4623f',human:'#c4623f',operator:'#c4623f',kovan:'#8193ad',planner:'#4f8fdc',pm:'#4f8fdc',architect:'#5c7ae0',developer:'#2fa872',tester:'#cf9a2e',reviewer:'#a979d6',finance:'#2fabb3',ideator:'#d9668f',diagnostician:'#c0703a'};
+const ROLE_DO={planner:'plans the milestones and replans between them',developer:'builds one milestone at a time',tester:'strengthens the tests',reviewer:'approves or sends work back',ideator:'proposes and scores ideas',finance:'watches usage limits',kovan:'runs the checks, commits, keeps order',you:'decides'};
+const KIND_T={goal:'goal',plan:'plan',idea:'idea',handoff:'hand-off',verdict:'verdict',check:'check',milestone:'milestone',replan:'replan',decision:'decision',finance:'finance',blocked:'needs you',attention:'needs your OK',waiting:'your turn',note:'note',done:'done'};
+const YOU_KEYS=['you','human','operator'];
+function roleKey(r){return String(r||'').toLowerCase().replace(/[^a-z0-9]+/g,'_');}
+function roleColor(r){const k=roleKey(r);if(ROLE_C[k])return ROLE_C[k];let h=0;for(const c of k)h=(h*31+c.charCodeAt(0))|0;return COLORS[Math.abs(h)%COLORS.length];}
+function roleName(r){const k=roleKey(r);return ROLE_T[k]||String(r||'?').replace(/^./,c=>c.toUpperCase());}
+function initials(n){const all=String(n||'?').trim().split(/\s+/),w=all.filter(x=>/[\p{L}\p{N}]/u.test(x));if(w.length>2)w.splice(0,w.length-2);if(!w.length)return'?';return (w.length>1?w[0][0]+w[1][0]:(w[0].length<=3?w[0]:w[0][0])).toUpperCase();}
+function phasePill(p){const[l,c]=PHASE[p]||[p,'idle'];return '<span class="pill '+c+'"><i></i>'+esc(l)+'</span>';}
+function crewOf(id){return ((S.d&&S.d.crews)||[]).find(c=>c.id===id)||null;}
+function crewNeedsYou(c){return ['choosing','plan_review','milestone_review','blocked'].includes(c.phase)||!!c.attention;}
+function f1(n){return n.toFixed(1);}
+
+async function loadCrew(id,force){const c=crewOf(id);if(!c)return false;const have=S.crewDetail&&S.crewDetail.id===id?S.crewDetail.d:null;
+  if(!force&&have&&have.updated_at===c.updated_at&&have.busy===c.busy)return false;
+  try{S.crewDetail={id,d:await get('/api/crew?'+new URLSearchParams({id}))};return true;}catch(e){return false;}}
+async function loadSwarm(force){if(!S.d||!S.d.swarm)return false;if(!force&&S.swarm&&Date.now()-S.swarm.at<8000)return false;
+  try{const j=await get('/api/swarm');S.swarm={projects:j.projects||[],at:Date.now(),error:null};}catch(e){S.swarm={projects:(S.swarm&&S.swarm.projects)||[],at:Date.now(),error:e.message};}return true;}
+function boardKey(pid){return pid+(S.boardAll?':all':'');}
+async function loadSwarmBoard(pid,force){const k=boardKey(pid),h=S.swarmBoards[k];if(!force&&h&&Date.now()-h.at<4000)return false;
+  try{const j=await get('/api/swarm/board?'+new URLSearchParams({project:pid,all:S.boardAll?'1':''}));S.swarmBoards[k]={entries:j.entries||[],at:Date.now()};}
+  catch(e){S.swarmBoards[k]={entries:(h&&h.entries)||[],at:Date.now(),error:e.message};}return true;}
+function rooms(){const r=[];const crews=(S.d&&S.d.crews)||[];
+  crews.forEach(c=>{const p=c.progress||{};r.push({id:'crew:'+c.id,kind:'crew',name:c.name,sub:(PHASE[c.phase]||[c.phase])[0]+(p.total?' · '+p.done+'/'+p.total+' milestones':''),hot:crewNeedsYou(c),busy:(PHASE[c.phase]||[])[1]==='busy'});});
+  const mc=S.d?S.d.messages.filter(m=>!m.subagent).length:0;
+  r.push({id:'sessions',kind:'sessions',name:'Sessions',sub:mc?mc+' message'+(mc===1?'':'s')+' between sessions':'messages between sessions'});
+  if(S.d&&S.d.swarm)((S.swarm&&S.swarm.projects)||[]).forEach(p=>r.push({id:'swarm:'+p.id,kind:'swarm',name:p.name,sub:p.state.replace(/_/g,' ')+(p.total?' · '+p.done+'/'+p.total:''),busy:p.state==='building',hot:p.state==='awaiting_approval'}));
+  return r;}
+function pickRoom(){const rs=rooms();const pendingSwarm=String(S.room).startsWith('swarm:')&&S.d&&S.d.swarm&&!S.swarm;if(!S.room||(!rs.find(x=>x.id===S.room)&&!pendingSwarm)){const hot=rs.find(x=>x.hot)||rs.find(x=>x.kind==='crew')||rs[0];S.room=hot?hot.id:'sessions';}return rs;}
+async function refreshBoard(){if(!S.d)return false;let ch=await loadSwarm();pickRoom();const r=S.room||'';
+  if(r.startsWith('crew:'))ch=(await loadCrew(r.slice(5)))||ch;else if(r.startsWith('swarm:'))ch=(await loadSwarmBoard(r.slice(6)))||ch;return ch;}
+
+/* ---- rooms */
+function seatMap(seats){const m={};seats.forEach(s=>{m[s.key]=s;});return m;}
+function sessionsRoom(){
+  const ms=S.d.messages.filter(m=>!m.subagent).slice().reverse();const ids=[];const add=x=>{if(x&&sess(x)&&!ids.includes(x))ids.push(x);};
+  ms.forEach(m=>{add(m.from);add(m.to);});S.d.sessions.filter(o=>o.live&&!o.crew).forEach(o=>add(o.sid));
+  const seats=ids.slice(0,12).map(sid=>{const o=sess(sid);return{key:sid,name:o.name,role:(PLACE[o.place]||'').toLowerCase(),color:colorI(o.color),busy:o.status==='working',ask:o.status==='awaiting',sid};});
+  const entries=ms.map(m=>({id:m.id,ts:m.ts,speaker:m.from||'?',speakerName:m.from&&sess(m.from)?sess(m.from).name:(m.from_name||'?'),to:m.to,toName:m.to&&sess(m.to)?sess(m.to).name:m.to_name,kind:m.delivered?'delivered':'',text:m.text}));
+  const targets=S.d.sessions.filter(o=>o.place==='kovan'&&o.live);
+  return{key:'sessions',title:'Sessions',icon:'💬',sub:'Your Claude Code sessions talking to each other: every message one session sent another, with delivery confirmed from the receiving transcript.',
+    seats,entries,acts:'<button class="btn small" data-view="messages">Graph view</button>',
+    speak:{targets:targets.map(o=>({v:o.sid,l:'To '+o.name})),placeholder:targets.length?'Write to a session kovan drives…':'Continue a session in kovan to speak to it from here',disabled:!targets.length},
+    empty:'No messages between sessions yet. When one session uses SendMessage to reach another, the exchange appears here.'};}
+function crewRoles(c){const r=['planner','developer'];if(c.options&&c.options.tester)r.push('tester');r.push('reviewer');if(c.mode==='ideas')r.unshift('ideator');return r;}
+function crewRoom(c){
+  const h=S.crewDetail&&S.crewDetail.id===c.id?S.crewDetail.d:null;const roles=crewRoles(c),wait=h&&h.wait;
+  const seat=k=>{const sid=(c.roles||{})[k],o=sid&&sess(sid);
+    let role=ROLE_DO[k]||'';if(o){role=o.status==='working'?'working…':o.status==='awaiting'?'needs your OK':o.status==='starting'?'joining…':wait&&wait.role===k?'has the floor':'in session';}else if(roles.includes(k))role=sid?'session closed':'not started yet';
+    if(k==='kovan'&&c.busy)role='running the '+c.busy+'…';
+    return{key:k,name:roleName(k),role,color:roleColor(k),busy:!!(o&&o.status==='working')||(k==='kovan'&&!!c.busy),ask:!!(o&&o.status==='awaiting')||(k==='you'&&crewNeedsYou(c)),away:roles.includes(k)&&!o,sid:o?sid:null};};
+  const seats=['you'].concat(roles,['finance','kovan']).map(seat);
+  const entries=h?h.board.map(e=>({id:e.id,ts:e.ts,speaker:e.speaker,to:e.to,kind:e.kind,text:e.text})):null;
+  const paused=c.phase==='paused',fin=c.phase==='done'||c.phase==='stopped';
+  const acts=(fin?'':'<button class="btn small" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button>')+'<button class="btn small" data-crew="'+c.id+'">Milestones & settings</button>';
+  return{key:'crew:'+c.id,title:c.name,icon:'⬢',crew:c,detail:h,sub:c.goal||(c.theme?'Ideas about: '+c.theme:''),pill:phasePill(c.phase),seats,entries,acts,
+    need:h?needHTML(c,h,true):'',
+    speak:{targets:[{v:'',l:'To everyone'}].concat(roles.map(r=>({v:r,l:'To the '+roleName(r)}))),placeholder:fin?'This crew has finished':'Speak to the crew — a steering note reaches a busy role right away, otherwise its next task',disabled:fin},
+    empty:'The meeting is about to start…'};}
+function swarmRoom(p){
+  const b=S.swarmBoards[boardKey(p.id)];const es=b?b.entries:null;const keys=[];
+  (es||[]).forEach(e=>{const k=roleKey(e.speaker);if(k&&!keys.includes(k)&&!YOU_KEYS.includes(k))keys.push(k);});
+  const seats=['human'].concat(keys.slice(0,11)).map(k=>({key:k,name:k==='human'?'You':(keys.length&&es.find(e=>roleKey(e.speaker)===k)||{}).speaker||roleName(k),role:k==='human'?'operator':'swarm',color:roleColor(k),busy:false,ask:k==='human'&&p.state==='awaiting_approval'}));
+  const entries=es?es.map(e=>({id:e.id,ts:e.ts,speaker:YOU_KEYS.includes(roleKey(e.speaker))?'human':roleKey(e.speaker),speakerName:e.speaker,kind:S.boardAll&&e.kind!=='decision'?e.kind:'',text:e.text})):null;
+  const acts='<span class="seg-chips"><button class="chip'+(S.boardAll?'':' on')+'" data-board-all="0">Decisions</button><button class="chip'+(S.boardAll?' on':'')+'" data-board-all="1">Everything</button></span>'+
+    (p.state==='awaiting_approval'?'<button class="btn small primary" data-swarm-act="approve" data-id="'+p.id+'">Approve plan</button>':'')+
+    '<button class="btn small" data-swarm-act="pause_project" data-id="'+p.id+'">❚❚ Pause</button><button class="btn small" data-swarm-act="resume_project" data-id="'+p.id+'">▶ Resume</button>';
+  return{key:'swarm:'+p.id,title:p.name,icon:'▦',sub:'Swarm engine · '+p.state.replace(/_/g,' ')+(p.total?' · '+p.done+'/'+p.total+' milestones':'')+(p.cost?' · $'+p.cost.toFixed(2):'')+(p.detail?' — '+p.detail:''),
+    seats,entries,acts,error:b&&b.error,
+    speak:{targets:[{v:'',l:'To everyone'}],placeholder:'Speak in the swarm’s boardroom — the next agent step for this project reads your note',disabled:false},
+    empty:'No decisions yet — they appear as the staff make calls.'};}
+function currentRoom(){const r=S.room||'';
+  if(r.startsWith('crew:')){const c=crewOf(r.slice(5));return c?crewRoom(c):null;}
+  if(r.startsWith('swarm:')){const p=((S.swarm&&S.swarm.projects)||[]).find(x=>x.id===r.slice(6));return p?swarmRoom(p):null;}
+  return sessionsRoom();}
+
+/* ---- the table */
+function tableSVG(R){
+  const seats=R.seats,n=seats.length;if(!n)return'';
+  const W=780,H=318,cx=W/2,cy=H/2,rx=210,ry=52,sx=rx+92,sy=ry+52,pos={};
+  seats.forEach((s,i)=>{const a=Math.PI/2+2*Math.PI*i/n;pos[s.key]={x:cx+sx*Math.cos(a),y:cy+sy*Math.sin(a),a};});
+  const talks=(R.entries||[]).filter(e=>pos[e.speaker]&&!(roleKey(e.speaker)==='kovan'&&e.kind==='status')).slice(-9);
+  let arcs='',lastCol='var(--faint)';talks.forEach((e,i)=>{const p=pos[e.speaker];
+    if(!e.to||!pos[e.to]||e.to===e.speaker){   // spoken to the whole table: a line to the table's edge
+      const col=(R.map[e.speaker]||{}).color||roleColor(e.speaker),last=i===talks.length-1;if(last)lastCol=col;
+      const tx=cx+rx*.78*Math.cos(p.a),ty=cy+ry*.78*Math.sin(p.a),L=Math.hypot(tx-p.x,ty-p.y)||1,a1=p.x+(tx-p.x)/L*23,b1=p.y+(ty-p.y)/L*23;
+      arcs+='<path class="talk'+(last?' last':'')+'" d="M'+f1(a1)+' '+f1(b1)+'L'+f1(tx)+' '+f1(ty)+'" stroke="'+col+'"/>';return;}
+    const q=pos[e.to],mx=(p.x+q.x)/2,my=(p.y+q.y)/2,kx=mx+(cx-mx)*.6,ky=my+(cy-my)*.6;
+    const u=Math.hypot(kx-p.x,ky-p.y)||1,v=Math.hypot(q.x-kx,q.y-ky)||1,a1=p.x+(kx-p.x)/u*23,b1=p.y+(ky-p.y)/u*23,a2=q.x-(q.x-kx)/v*26,b2=q.y-(q.y-ky)/v*26;
+    const col=(R.map[e.speaker]||{}).color||roleColor(e.speaker),last=i===talks.length-1;if(last)lastCol=col;
+    arcs+='<path class="talk'+(last?' last':'')+'" d="M'+f1(a1)+' '+f1(b1)+'Q'+f1(kx)+' '+f1(ky)+' '+f1(a2)+' '+f1(b2)+'" stroke="'+col+'"'+(last?' marker-end="url(#tk-end)"':'')+'/>';});
+  const lastE=(R.entries||[])[R.entries&&R.entries.length-1];
+  let center='';if(lastE){const who=(R.map[lastE.speaker]||{}).name||lastE.speakerName||roleName(lastE.speaker);const to=lastE.to?((R.map[lastE.to]||{}).name||lastE.toName||roleName(lastE.to)):'';
+    center='<text class="t-now" x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle">'+esc(who+(to?' → '+to:''))+'</text><text class="t-sub" x="'+cx+'" y="'+(cy+14)+'" text-anchor="middle">'+esc(clip1(plain(lastE.text),62))+'</text>';}
+  else center='<text class="t-sub" x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle">'+esc(R.entries?'quiet so far':'joining…')+'</text>';
+  let st='';seats.forEach(s=>{const p=pos[s.key],below=Math.sin(p.a)>0.05,ly=below?p.y+34:p.y-37;
+    st+='<g class="seat'+(s.busy?' busy':'')+(s.ask?' ask':'')+(s.away?' away':'')+'"'+(s.sid?' data-open="'+s.sid+'"':'')+'><title>'+esc(s.name+(s.role?' — '+s.role:'')+(s.sid?' · click to open the session':''))+'</title>'+
+      (s.busy?'<circle class="ring" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="24"/>':'')+(s.ask?'<circle class="ring ask" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="24"/>':'')+
+      '<circle cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="19" fill="'+s.color+'" stroke="var(--bg)" stroke-width="3"/><text class="ini" x="'+f1(p.x)+'" y="'+f1(p.y+4.5)+'" text-anchor="middle">'+esc(initials(s.name))+'</text>'+
+      '<text class="nm" x="'+f1(p.x)+'" y="'+f1(ly)+'" text-anchor="middle">'+esc(clip1(s.name,22))+'</text>'+(s.role?'<text class="rl" x="'+f1(p.x)+'" y="'+f1(ly+13)+'" text-anchor="middle">'+esc(clip1(s.role,30))+'</text>':'')+'</g>';});
+  return '<svg class="table-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Who is at the table and who spoke to whom"><defs><marker id="tk-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="'+lastCol+'"/></marker></defs>'+
+    '<ellipse class="tbl" cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'"/>'+arcs+center+st+'</svg>';}
+function clip1(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s;}
+
+/* ---- the stream */
+function sayHTML(e,R){
+  const seat=R.map[e.speaker],name=e.speakerName||(seat?seat.name:roleName(e.speaker)),c=seat?seat.color:roleColor(e.speaker);
+  if(roleKey(e.speaker)==='kovan'&&(e.kind==='status'||!e.kind))return '<div class="say sys"><span class="md">'+inl(e.text)+'</span><time>'+clock(e.ts)+'</time></div>';
+  const you=YOU_KEYS.includes(roleKey(e.speaker));
+  const to=e.to?((R.map[e.to]||{}).name||e.toName||roleName(e.to)):'';
+  const kind=e.kind==='delivered'?'<span class="dl" title="Seen in the receiving session’s transcript">✓ delivered</span>':(KIND_T[e.kind]?'<span class="k k-'+esc(e.kind)+'">'+KIND_T[e.kind]+'</span>':(e.kind?'<span class="k">'+esc(e.kind)+'</span>':''));
+  return '<div class="say'+(you?' you':'')+(e.kind==='blocked'||e.kind==='attention'?' hot':'')+'" style="--c:'+c+'"><div class="av"'+(seat&&seat.sid?' data-open="'+seat.sid+'" title="Open '+esc(name)+'"':'')+'>'+esc(initials(name))+'</div><div class="bub"><div class="who"><b>'+esc(name)+'</b>'+(to?'<span class="to">→ '+esc(to)+'</span>':'')+kind+'<time>'+clock(e.ts)+'</time></div><div class="md">'+md(e.text)+'</div></div></div>';}
+
+function renderBoard(){
+  const rs=pickRoom();
+  $('#rooms').innerHTML='<div class="group"><span>Rooms</span><button class="link" data-new-crew>＋ New crew</button></div>'+rs.map(r=>'<button class="room-btn'+(r.id===S.room?' on':'')+(r.hot?' hot':'')+'" data-room="'+esc(r.id)+'"><span class="ic ic-'+r.kind+(r.busy?' busy':'')+'">'+({crew:'⬢',sessions:'💬',swarm:'▦'})[r.kind]+'</span><b>'+esc(r.name)+'</b>'+(r.hot?'<span class="hot-dot" title="Needs you"></span>':'')+'<small>'+esc(r.sub)+'</small></button>').join('')+
+    (!((S.d&&S.d.crews)||[]).length?'<div class="rooms-hint">No crews yet. A crew is a Planner, a Developer and a Reviewer — real Claude Code sessions — building something in milestones while you watch the meeting. <button class="link" data-new-crew>Start one</button></div>':'')+
+    (S.d&&S.d.swarm?(S.swarm&&S.swarm.error?'<div class="rooms-hint err">'+esc(S.swarm.error)+'</div>':''):'<div class="rooms-hint">Running the swarm engine too? Start kovan with <code>--swarm http://127.0.0.1:8080</code> to sit in on its boardroom here.</div>');
+  const R=currentRoom();
+  if(!R){$('#room-head').innerHTML='';$('#room-table').innerHTML='';$('#room-list').innerHTML='<div class="empty">Loading…</div>';$('#room-need').innerHTML='';return;}
+  R.map=seatMap(R.seats);
+  const head='<div class="rh-title"><span class="ic ic-'+(R.key.split(':')[0])+'">'+R.icon+'</span><h2>'+esc(R.title)+'</h2>'+(R.pill||'')+'</div><div class="acts">'+R.acts+'</div>'+(R.sub?'<p class="clamp c2" title="'+esc(R.sub)+'">'+esc(R.sub)+'</p>':'');
+  if($('#room-head').dataset.sig!==head){$('#room-head').dataset.sig=head;$('#room-head').innerHTML=head;}
+  const tbl=tableSVG(R);if($('#room-table').dataset.sig!==tbl){$('#room-table').dataset.sig=tbl;$('#room-table').innerHTML=tbl;}
+  const box=$('#room-stream'),list=$('#room-list');
+  const changed=list.dataset.room!==R.key;const atBottom=changed||box.scrollHeight-box.scrollTop-box.clientHeight<80;
+  const es=R.entries;const sig=R.key+':'+(es?es.length+':'+((es[es.length-1]||{}).id||''):'loading')+':'+(R.error||'')+':'+S.d.sessions.length;
+  if(list.dataset.sig!==sig){list.dataset.sig=sig;list.dataset.room=R.key;
+    list.innerHTML=(R.error?'<div class="rooms-hint err">'+esc(R.error)+'</div>':'')+(es==null?'<div class="empty">Loading…</div>':es.length?es.map(e=>sayHTML(e,R)).join(''):'<div class="empty">'+esc(R.empty)+'</div>');
+    if(atBottom)requestAnimationFrame(()=>{box.scrollTop=box.scrollHeight;});}
+  const need=R.need||'';const nb=$('#room-need');if(nb.dataset.sig!==need&&!nb.contains(document.activeElement)){nb.dataset.sig=need;nb.innerHTML=need;}
+  const sp=R.speak,sel=$('#speak-to'),txt=$('#speak-text'),ssig=JSON.stringify(sp.targets);
+  if(sel.dataset.sig!==ssig||sel.dataset.room!==R.key){const keep=sel.dataset.room===R.key?sel.value:'';sel.dataset.sig=ssig;sel.dataset.room=R.key;sel.innerHTML=sp.targets.map(t=>'<option value="'+esc(t.v)+'">'+esc(t.l)+'</option>').join('');if(keep&&sp.targets.find(t=>t.v===keep))sel.value=keep;}
+  sel.hidden=sp.targets.length<2&&!R.key.startsWith('sessions');txt.placeholder=sp.placeholder;txt.disabled=!!sp.disabled;$('#speak-btn').disabled=!!sp.disabled;}
+
+/* ---- "needs you" cards (shared by the boardroom and the crew page) */
+function needHTML(c,d,compact){
+  let h='';
+  if(c.phase==='plan_review'&&d.plan){const p=d.plan;
+    h+='<div class="card-ask need"><div class="ask-title">⬢ The Planner proposes a plan — approve it to start building</div>'+(p.summary?'<p>'+inl(p.summary)+'</p>':'')+
+      '<div class="kv">'+(p.stack?'<span>Stack</span><b>'+esc(p.stack)+'</b>':'')+'<span>Check</span><b>'+(c.options.check||p.check_command?'<code>'+esc(c.options.check||p.check_command)+'</code>':'none — only the Reviewer gates milestones')+'</b></div>'+
+      '<ol class="plan-ms">'+p.milestones.map(m=>'<li><b>'+esc(m.title)+'</b>'+(m.goal?'<div>'+inl(m.goal)+'</div>':'')+(m.acceptance&&m.acceptance.length?'<ul>'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>':'')+'</li>').join('')+'</ol>'+
+      '<textarea data-feedback placeholder="Want changes? Describe them and press Revise."></textarea><div class="ask-actions"><button class="btn" data-crew-act="revise" data-id="'+c.id+'">Revise</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">Stop</button><button class="btn primary" data-crew-act="approve" data-id="'+c.id+'">Approve plan</button></div></div>';}
+  if(c.phase==='choosing'){const ideas=d.ideas||[];
+    h+='<div class="card-ask need"><div class="ask-title">⬢ The Ideator has '+ideas.length+' idea'+(ideas.length===1?'':'s')+' — pick one to build</div><div class="ideas">'+ideas.map((x,i)=>{const sc=x.scores||{};
+      return '<div class="idea"><div class="idea-h"><b>'+esc(x.title)+'</b>'+(x.total!=null?'<span class="score'+(x.total>=80?' good':'')+'" title="Ideator score (pass ≥ 80)">'+esc(x.total)+'</span>':'')+'</div><p'+(compact?' class="clamp c3"':'')+'>'+inl(x.summary||'')+'</p>'+(compact?'':(x.why?'<p class="muted">'+inl(x.why)+'</p>':'')+
+        (x.stack?'<div class="muted small">Stack: '+esc(x.stack)+'</div>':'')+(x.novelty_check?'<div class="muted small">Novelty: '+inl(x.novelty_check)+'</div>':'')+
+        (Object.keys(sc).length?'<div class="scores">'+Object.keys(sc).map(k=>'<span title="'+esc(k)+'">'+esc(k.slice(0,4))+' <b>'+esc(sc[k])+'</b></span>').join('')+'</div>':''))+
+        '<button class="btn small primary" data-pick-idea="'+i+'" data-id="'+c.id+'">Build this</button></div>';}).join('')+'</div>'+
+      '<textarea data-feedback placeholder="Not quite? Say what you want instead and ask for more ideas."></textarea><div class="ask-actions">'+(compact?'<button class="btn" data-crew="'+c.id+'">Details & scores</button>':'')+'<button class="btn" data-crew-act="more_ideas" data-id="'+c.id+'">More ideas</button></div></div>';}
+  if(c.phase==='blocked')h+='<div class="card-ask need"><div class="ask-title">⬢ The crew is blocked</div><p>'+inl(c.reason||'')+'</p><textarea data-feedback placeholder="Optional hint for the next attempt"></textarea><div class="ask-actions">'+
+      (d.plan?'<button class="btn" data-crew-act="skip" data-id="'+c.id+'">Skip this milestone</button>':'')+'<button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">Stop</button><button class="btn primary" data-crew-act="retry" data-id="'+c.id+'">Retry</button></div></div>';
+  if(c.phase==='milestone_review')h+='<div class="card-ask need"><div class="ask-title">⬢ Milestone finished — continue?</div><p class="muted">You asked the crew to pause after every milestone. Look at the commit, steer it with a note, then continue.</p><div class="ask-actions"><button class="btn" data-crew-act="pause" data-id="'+c.id+'">Pause</button><button class="btn primary" data-crew-act="continue" data-id="'+c.id+'">Continue</button></div></div>';
+  if(c.attention){const a=c.attention;h+='<div class="card-ask need"><div class="ask-title">'+esc(roleName(a.role))+' needs your OK</div><p><code>'+esc(a.summary||a.tool)+'</code></p><p class="muted">This is outside what the crew’s permission policy allows by itself. Answer it in the '+esc(roleName(a.role))+' session.</p><div class="ask-actions"><button class="btn primary" data-open="'+a.sid+'">Open the '+esc(roleName(a.role))+' session</button></div></div>';}
+  if(c.phase==='paused'&&!compact)h+='<div class="banner">Paused'+(c.reason?' — '+esc(c.reason):'')+(d.resume_at?' · resumes by itself '+relSpan(d.resume_at):'')+'<button class="btn small" data-crew-act="resume" data-id="'+c.id+'">▶ Resume</button></div>';
+  return h;}
+
+/* ---- the crews page */
+function crewCard(c){const p=c.progress||{},cls=(PHASE[c.phase]||[])[1]||'';const pct=p.total?Math.round(100*p.done/p.total):0;
+  return '<article class="ocard crew-card '+(crewNeedsYou(c)?'ask':cls==='busy'?'busy':'')+'" data-crew="'+c.id+'"><header><span class="hex">⬢</span><h3 title="'+esc(c.name)+'">'+esc(c.name)+'</h3>'+phasePill(c.phase)+'</header>'+
+    (c.goal||c.theme?'<p class="clamp c2 muted" style="margin:0">'+esc(c.goal?plain(c.goal):'Ideas about: '+c.theme)+'</p>':'')+
+    '<div class="prog"><span class="progress"><i style="width:'+pct+'%"></i></span><span>'+(p.total?p.done+'/'+p.total+' milestones':c.mode==='ideas'&&!c.goal?'choosing what to build':'planning')+'</span></div>'+
+    (c.current?'<div class="now"><span class="label">Now</span><span class="t">'+esc(c.current.title)+' · '+esc(c.busy||c.current.step||'')+(c.current.attempts?' (attempt '+(c.current.attempts+1)+')':'')+'</span></div>':'')+
+    (c.reason&&crewNeedsYou(c)?'<div class="why">'+esc(c.reason)+'</div>':'')+
+    (c.last?'<div class="block"><div class="bh"><span class="label">'+esc(roleName(c.last.speaker))+(c.last.to?' → '+esc(roleName(c.last.to)):'')+'</span>'+relSpan(c.last.ts)+'</div><p class="clamp c2">'+esc(plain(c.last.text))+'</p></div>':'')+
+    '<footer><span>'+esc(c.dir)+'</span><span><b>'+Object.keys(c.roles||{}).length+'</b> role sessions</span><button class="link" data-room="crew:'+c.id+'">Boardroom →</button></footer></article>';}
+function msHTML(m,i,c,d){const cur=i===d.current&&c.phase!=='done';const st=m.status==='done'?'✓':m.status==='failed'?'!':m.status==='skipped'?'–':String(i+1);
+  let pipe='';if(m.status==='active'||(cur&&['building','blocked','paused','milestone_review'].includes(c.phase))){const steps=STEPS.filter(s=>s[0]!=='test'||c.options.tester);const at=steps.findIndex(s=>s[0]===(d.step||'develop'));
+    pipe='<div class="pipe">'+steps.map((s,j)=>'<span class="'+(j<at?'done':j===at?'now':'')+'">'+s[1]+'</span>').join('<i>›</i>')+(m.attempts?'<em>attempt '+(m.attempts+1)+' of '+c.options.max_attempts+'</em>':'')+'</div>';}
+  const lg=(m.log||[]).slice(-4).map(x=>'<li><b>'+esc(roleName(x.who))+'</b> '+esc(x.result)+(x.text?' — '+esc(clip1(plain(x.text),180)):'')+'</li>').join('');
+  return '<li class="'+esc(m.status)+(cur?' cur':'')+'"><span class="st">'+st+'</span><div><b>'+esc(m.title)+'</b>'+(m.goal?'<div class="muted g">'+inl(m.goal)+'</div>':'')+pipe+
+    (m.acceptance&&m.acceptance.length?'<details data-k="acc-'+m.id+'"'+(S.open.has('acc-'+m.id)?' open':'')+'><summary>'+m.acceptance.length+' acceptance criteria'+(lg?' · history':'')+'</summary><ul>'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>'+(lg?'<ul class="lg">'+lg+'</ul>':'')+'</details>':'')+
+    '</div><span class="ms-r">'+(m.commit?'<code title="Commit">'+esc(m.commit)+'</code>':'')+(m.check?'<span class="ck '+(m.check.code===0?'ok':'bad')+'" title="Check command">'+(m.check.code===0?'check ✓':'check ✗')+'</span>':'')+'</span></li>';}
+function renderCrews(){
+  const el=$('#crews');const crews=(S.d&&S.d.crews)||[];
+  const c=S.crew&&crewOf(S.crew);
+  if(!c){S.crew=null;
+    el.innerHTML='<div class="crews-head"><div><h2>Crews</h2><p class="muted">A crew turns a goal — yours, or one its Ideator proposes — into small milestones and builds them: a Planner, a Developer, an optional Tester and a Reviewer, each a real Claude Code session you can open. kovan runs your check after every milestone, commits what the Reviewer approves, pauses before the usage limit and asks you whenever a human should decide.</p></div><button class="btn primary" data-new-crew>＋ New crew</button></div>'+
+      (crews.length?'<div class="cards-grid">'+crews.map(crewCard).join('')+'</div>':'<div class="box crews-empty"><div class="hex big">⬢</div><p>No crews yet.</p><button class="btn primary" data-new-crew>＋ Start your first crew</button></div>');
+    return;}
+  const h=S.crewDetail&&S.crewDetail.id===c.id?S.crewDetail.d:null;
+  if(!h){el.innerHTML='<div class="empty">Loading…</div>';loadCrew(c.id,true).then(ok=>ok&&S.view==='crews'&&renderCrews());return;}
+  if(el.contains(document.activeElement)&&document.activeElement.matches('textarea,input'))return;   // don't wipe what you are typing
+  const plan=(h.plan&&h.plan.milestones)||[],fin=c.phase==='done'||c.phase==='stopped',paused=c.phase==='paused';
+  const team=['you'].concat(crewRoles(c)).map(k=>{if(k==='you')return'';const sid=(c.roles||{})[k],o=sid&&sess(sid);const[sl,sc]=o?(STATUS[o.status]||['?','idle']):[sid?'Closed':'Not started','off'];
+    return '<div class="role-row"'+(o?' data-open="'+sid+'"':'')+'><span class="dot '+sc+'" style="--c:'+roleColor(k)+'"></span><div><b>'+roleName(k)+'</b><small>'+esc(ROLE_DO[k]||'')+'</small></div><span class="pill '+sc+'"><i></i>'+esc(sl)+'</span></div>';}).join('');
+  const o=c.options,yes=b=>b?'yes':'no';
+  el.innerHTML='<button class="link back" data-crew-back>← All crews</button>'+
+    '<div class="crew-top"><span class="hex">⬢</span><div class="ct-main"><h2>'+esc(c.name)+'</h2><div class="muted">'+esc(c.dir)+'</div></div>'+phasePill(c.phase)+
+      '<div class="acts"><button class="btn" data-room="crew:'+c.id+'">Boardroom</button>'+(fin?'':'<button class="btn" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">■ Stop</button>')+'<button class="btn" data-crew-delete="'+c.id+'">Delete</button></div></div>'+
+    (h.goal?'<div class="goal md">'+md(h.goal)+'</div>':'')+needHTML(c,h,false)+
+    '<div class="crew-cols"><div><h2 class="section">Milestones'+(plan.length?' · '+c.progress.done+'/'+plan.length:'')+'</h2>'+(plan.length?'<ol class="box ms">'+plan.map((m,i)=>msHTML(m,i,c,h)).join('')+'</ol>':'<div class="box empty">'+(c.phase==='ideating'||c.phase==='choosing'?'The plan comes after you pick an idea.':'The Planner is writing the plan…')+'</div>')+
+      (h.plan&&h.plan.summary?'<h2 class="section">Plan</h2><div class="box pad md">'+md(h.plan.summary+(h.plan.stack?'\n\n**Stack:** '+h.plan.stack:''))+'</div>':'')+'</div>'+
+    '<div><h2 class="section">Team</h2><div class="box">'+team+'</div>'+
+      '<h2 class="section">Settings</h2><div class="box kv"><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push?' + push':''):'no commits')+'</b></div>'+
+      (h.board&&h.board.length?'<h2 class="section">Latest in the boardroom</h2><div class="box mini-board">'+h.board.slice(-5).map(e=>'<div><b style="color:'+roleColor(e.speaker)+'">'+esc(roleName(e.speaker))+'</b>'+(e.to?' → '+esc(roleName(e.to)):'')+' <span class="muted">'+esc(clip1(plain(e.text),140))+'</span></div>').join('')+'<button class="link" data-room="crew:'+c.id+'">Open the boardroom →</button></div>':'')+'</div></div>';}
+
+/* ---- actions */
+function feedbackNear(btn){const card=btn.closest('.need,.card-ask');const t=card&&card.querySelector('[data-feedback]');return t?t.value.trim():'';}
+async function crewAct(id,action,extra){try{const d=await post('/api/crew/action',Object.assign({id,action},extra||{}));if(d&&d.id){S.crewDetail={id,d};}S.rev='';refresh(0);return d;}
+  catch(e){toast('Could not do that',e.message,null,'err');}}
+function crewDialog(){const d=$('#crew-dialog'),f=$('#crew-form');f.reset();f.dataset.dirTouched='';setCrewMode(f,'goal');d.showModal();f.elements.name.focus();}
+function setCrewMode(f,mode){f.querySelectorAll('[data-mode]').forEach(x=>{x.hidden=x.dataset.mode!==mode;});f.querySelector('[data-mode-hint]').textContent=mode==='ideas'?'The Ideator proposes four scored ideas; you pick one, then the Planner takes over.':'The Planner reads the workspace, writes milestones with acceptance criteria and asks for your approval.';}
+function suggestDir(name){const base=((S.d&&S.d.dirs)||[])[0]||'~/code';const parent=base.replace(/\/[^/]+\/?$/,'')||'~';const slug=String(name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);return slug?parent+'/'+slug:'';}
+function speak(){const R=currentRoom(),t=$('#speak-text'),text=t.value.trim();if(!R||!text)return;const to=$('#speak-to').value;const b=$('#speak-btn');b.disabled=true;
+  let p;if(R.key.startsWith('crew:'))p=post('/api/crew/note',{id:R.crew.id,text,role:to||null}).then(j=>toast(j.delivered?'Note delivered':'Note queued',j.delivered?'The working role got it right away.':'It goes into the next task.'));
+  else if(R.key.startsWith('swarm:'))p=post('/api/swarm/command',{intent:'inject_note',project:R.key.slice(6),text}).then(()=>{toast('Note sent to the swarm','The next agent step for this project reads it.');S.swarmBoards[boardKey(R.key.slice(6))]=null;});
+  else{if(!to){b.disabled=false;return;}p=post('/api/send',{sid:to,text}).then(()=>toast('Sent',(sess(to)||{}).name||''));}
+  p.then(()=>{t.value='';refresh(0);}).catch(e=>toast('Could not send it',e.message,null,'err')).finally(()=>{b.disabled=false;});}
+
 /* ---------------- navigation */
-function writeHash(){let h='#'+S.view;if(S.view==='chat'&&S.sel)h='#chat/'+S.sel;try{history.replaceState(null,'',location.search+h);}catch(e){}}
+function writeHash(){let h='#'+S.view;if(S.view==='chat'&&S.sel)h='#chat/'+S.sel;else if(S.view==='board'&&S.room)h='#board/'+S.room;else if(S.view==='crews'&&S.crew)h='#crews/'+S.crew;try{history.replaceState(null,'',location.search+h);}catch(e){}}
 function showView(v){S.view=v;store('kovan.view',v);S.rev='';writeHash();render();refresh(0);document.body.classList.remove('side-open');}
 function openSession(sid){
   const t=$('#input');if(S.sel)S.drafts[S.sel]=t.value;
@@ -1022,7 +1427,8 @@ function openSession(sid){
   setTimeout(()=>{const o=sess(sid);if(o&&o.place==='kovan'&&!S.focus)t.focus();},0);
 }
 function readHash(){const h=decodeURIComponent(location.hash.slice(1));const m=h.match(/^chat\/([0-9a-f-]{36})$/);
-  if(m){S.sel=m[1];S.view='chat';}else if(VIEWS.includes(h))S.view=h;}
+  const b=h.match(/^board\/((?:crew|swarm):[A-Za-z0-9-]+|sessions)$/),c=h.match(/^crews\/(c[0-9a-f]{8})$/);
+  if(m){S.sel=m[1];S.view='chat';}else if(b){S.view='board';S.room=b[1];}else if(c){S.view='crews';S.crew=c[1];}else if(VIEWS.includes(h))S.view=h;}
 function toggle(set,k){set.has(k)?set.delete(k):set.add(k);}
 function newDialog(){const d=$('#new-dialog');const dirs=(S.d&&S.d.dirs)||[];$('#dir-label').hidden=dirs.length<2;$('#dir-select').innerHTML=dirs.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');d.showModal();d.querySelector('[name=name]').focus();}
 function quickDialog(){const d=$('#quick-dialog');d.querySelector('[name=items]').value=((S.d&&S.d.quick_prompts)||[]).join('\n');d.showModal();}
@@ -1033,7 +1439,19 @@ function useQuick(i){const x=((S.d&&S.d.quick_prompts)||[])[i];if(x==null)return
 document.addEventListener('toggle',e=>{const d=e.target;if(!(d instanceof HTMLDetailsElement)||!d.dataset.k)return;const k=d.dataset.k;if(d.open){S.open.add(k);S.closed.delete(k);}else{S.open.delete(k);S.closed.add(k);}},true);
 document.addEventListener('click',e=>{
   const t=e.target;
-  const vb=t.closest('[data-view]');if(vb){showView(vb.dataset.view);return;}
+  const vb=t.closest('[data-view]');if(vb){if(vb.dataset.view==='crews'&&vb.closest('nav'))S.crew=null;showView(vb.dataset.view);return;}
+  if(t.closest('[data-new-crew]')){crewDialog();return;}
+  const rb=t.closest('[data-room]');if(rb){S.room=rb.dataset.room;store('kovan.room',S.room);if(S.view!=='board')showView('board');else{writeHash();renderBoard();refresh(0);}return;}
+  const cb=t.closest('[data-crew]');if(cb&&!t.closest('[data-room],[data-open],button.link')){S.crew=cb.dataset.crew;S.crewDetail=null;showView('crews');return;}
+  if(t.closest('[data-crew-back]')){S.crew=null;showView('crews');return;}
+  const ca=t.closest('[data-crew-act]');if(ca){const a=ca.dataset.crewAct,id=ca.dataset.id,fb=feedbackNear(ca);
+    if(a==='revise'&&!fb){toast('Say what to change','Type the changes you want in the box, then press Revise.',null,'ask');return;}
+    if(a==='stop'){confirmBox('Stop this crew?','<p>The working role is interrupted and the crew stops. Its sessions, commits and boardroom stay; you can delete it later.</p>','Stop',()=>crewAct(id,'stop'));return;}
+    ca.disabled=true;crewAct(id,a,{feedback:fb}).finally(()=>{ca.disabled=false;});return;}
+  const pk=t.closest('[data-pick-idea]');if(pk){pk.disabled=true;crewAct(pk.dataset.id,'pick',{index:+pk.dataset.pickIdea}).finally(()=>{pk.disabled=false;});return;}
+  const cd=t.closest('[data-crew-delete]');if(cd){const id=cd.dataset.crewDelete,c=crewOf(id);confirmBox('Delete the crew “'+esc(c?c.name:'')+'”?','<p>kovan forgets the crew and its boardroom. The workspace, its commits and the role sessions’ transcripts stay on disk.</p><label class="opt"><input type="checkbox" id="crew-release" checked> Also close its running role sessions</label>','Delete',()=>{post('/api/crew/action',{id,action:'delete',release:!!($('#crew-release')||{}).checked}).then(()=>{S.crew=null;S.crewDetail=null;if(S.room==='crew:'+id)S.room=null;toast('Crew deleted');S.rev='';refresh(0);}).catch(x=>toast('Could not delete it',x.message,null,'err'));});return;}
+  const sa=t.closest('[data-swarm-act]');if(sa){const intent=sa.dataset.swarmAct;post('/api/swarm/command',{intent,project:sa.dataset.id}).then(()=>{toast({approve:'Plan approved',pause_project:'Project paused',resume_project:'Project resumed'}[intent]||'Done');S.swarm=null;S.swarmBoards={};refresh(0);}).catch(x=>toast('The swarm refused',x.message,null,'err'));return;}
+  const ba=t.closest('[data-board-all]');if(ba){S.boardAll=ba.dataset.boardAll==='1';renderBoard();refresh(0);return;}
   if(t.closest('[data-menu]')){document.body.classList.toggle('side-open');return;}
   if(t.closest('[data-new]')){newDialog();return;}
   if(t.closest('[data-palette]')){openPalette();return;}
@@ -1073,6 +1491,14 @@ document.addEventListener('click',e=>{
   const ev=t.closest('.ev');if(ev&&!String(getSelection()).length){toggle(S.open,ev.dataset.k);renderFeed();}
 });
 document.addEventListener('submit',e=>{
+  if(e.target.id==='speak'){e.preventDefault();speak();return;}
+  if(e.target.id==='crew-form'){e.preventDefault();const f=e.target,E=n=>f.elements.namedItem(n);const mode=f.querySelector('[name=mode]:checked').value;
+    const body={name:E('name').value.trim(),mode,goal:E('goal').value.trim(),theme:E('theme').value.trim(),directory:E('directory').value.trim(),
+      options:{check:E('check').value.trim(),plan_approval:E('plan_approval').checked,tester:E('tester').checked,milestone_approval:E('milestone_approval').checked,commit:E('commit').checked,push:E('push').checked,policy:E('policy').value,max_attempts:+E('max_attempts').value||3,quota_pause:+E('quota_pause').value||90}};
+    if(mode==='goal'&&!body.goal){toast('Describe the goal','Or choose “Suggest ideas”.',null,'ask');return;}
+    const b=f.querySelector('[type=submit]');b.disabled=true;
+    post('/api/crew/new',body).then(j=>{$('#crew-dialog').close();S.room='crew:'+j.id;store('kovan.room',S.room);S.rev='';showView('board');toast('Crew started',body.name+' — the '+(mode==='ideas'?'Ideator':'Planner')+' goes first');})
+      .catch(x=>toast('Could not start the crew',x.message,null,'err')).finally(()=>{b.disabled=false;});return;}
   if(e.target.id==='new-form'){e.preventDefault();const f=e.target;const name=f.name.value.trim(),text=f.text.value.trim(),directory=f.directory.value||null;if(!name)return;
     const b=f.querySelector('[type=submit]');b.disabled=true;
     post('/api/new',{name,text,directory}).then(j=>{$('#new-dialog').close();f.reset();if(text)(S.pending[j.sid]=[]).push({text,ts:Date.now()});S.rev='';refresh(0);setTimeout(()=>openSession(j.sid),400);toast('Session started',name,j.sid);})
@@ -1092,9 +1518,12 @@ document.addEventListener('change',e=>{
     else if(k==='effort'&&v)act('/api/effort',{effort:v},'Effort set to '+v);
     else if(k==='mode')act('/api/permission-mode',{mode:v},'Permissions: '+((MODES.find(x=>x[0]===v)||[])[1]||v));return;}
   if(t.id==='show-sub'){S.showSub=t.checked;renderMessages();}
+  if(t.name==='mode'&&t.closest('#crew-form'))setCrewMode(t.closest('form'),t.value);
   if(t.id==='feed-session'){S.feedSession=t.value;renderFeed();}
   if(t.id==='file'){addFiles([...t.files]);t.value='';}
 });
+document.addEventListener('input',e=>{const t=e.target;const f=t.closest&&t.closest('#crew-form');if(f){if(t.name==='directory')f.dataset.dirTouched='1';else if(t.name==='name'&&!f.dataset.dirTouched)f.elements.namedItem('directory').value=suggestDir(t.value);}
+  if(t.id==='speak-text'){t.style.height='auto';t.style.height=Math.min(t.scrollHeight,160)+'px';}});
 document.addEventListener('focusin',e=>{if(e.target.classList&&e.target.classList.contains('other-text')){const r=e.target.closest('.option').querySelector('input[type=radio],input[type=checkbox]');if(r)r.checked=true;}});
 document.addEventListener('keydown',e=>{
   if(e.target&&e.target.id==='name-input'){if(e.key==='Enter'){e.preventDefault();saveName();}else if(e.key==='Escape'){e.preventDefault();S.renaming=null;S.headSig='';renderHead(sess(S.sel));}return;}
@@ -1105,6 +1534,7 @@ document.addEventListener('keydown',e=>{
     else if(e.key==='ArrowUp'){e.preventDefault();P.sel=Math.max(P.sel-1,0);renderPalette();}
     else if(e.key==='Enter'){e.preventDefault();pickPalette(P.sel);}
     return;}
+  if(e.target&&e.target.id==='speak-text'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();speak();return;}
   if(e.key==='Escape'&&document.body.classList.contains('side-open'))document.body.classList.remove('side-open');
 });
 document.addEventListener('focusout',e=>{if(e.target&&e.target.id==='name-input'&&S.renaming)setTimeout(()=>{if(S.renaming&&document.activeElement.id!=='name-input')saveName();},120);});
@@ -1138,9 +1568,10 @@ const theme=store('kovan.theme');if(theme)document.documentElement.dataset.theme
 const POLL=new URLSearchParams(location.search).has('poll');
 readHash();render();
 if(POLL){S.connected=true;setInterval(()=>{if(!document.hidden)refresh(0);},2500);}else connect();
-refreshNow().then(()=>{if(!S.d)return;if(!S.sel||!sess(S.sel)){const first=S.d.sessions.find(o=>o.place==='kovan');if(first)openSession(first.sid);else{S.sel=null;render();}}else if(S.view==='chat')openSession(S.sel);});
+refreshNow().then(()=>{if(!S.d||S.view!=='chat')return;if(!S.sel||!sess(S.sel)){const first=S.d.sessions.find(o=>o.place==='kovan');if(first)openSession(first.sid);else{S.sel=null;render();}}else openSession(S.sel);});
 setInterval(()=>{tickTimes();if(!document.hidden&&!S.connected)refresh(0);},5000);
 setInterval(()=>{if(!document.hidden)refresh(0);},20000);
+setInterval(()=>{if(!document.hidden&&S.view==='board'&&String(S.room).startsWith('swarm:'))refreshBoard().then(ch=>ch&&renderBoard()).catch(()=>{});},4000);
 </script>
 </body>
 </html>

@@ -1,12 +1,106 @@
-# ai-dev-swarm
+<p align="center"><img src="cockpit/docs/icon.png" width="104" alt=""></p>
 
-[![verify](https://github.com/halilibrahimd27/ai-dev-swarm/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/halilibrahimd27/ai-dev-swarm/actions/workflows/verify.yml)
+<h1 align="center">kovan</h1>
 
-**Run a senior-level autonomous software-engineering swarm on your own
-laptop.** Three CrewAI crews — ideation, planning, build — pick deep,
-niche projects, decompose them into milestones, and ship them to
-GitHub. You watch it work over SSE, steer it with one-line notes,
-and stop it with one button.
+<p align="center">
+  <b>A hive of Claude Code agents you can watch think together.</b><br>
+  Run your own sessions side by side, hand a goal to a crew of AI roles, and sit in on their meeting.
+</p>
+
+<p align="center">
+  <a href="https://github.com/halilibrahimd27/kovan/actions/workflows/cockpit.yml"><img src="https://github.com/halilibrahimd27/kovan/actions/workflows/cockpit.yml/badge.svg?branch=main" alt="cockpit"></a>
+  <a href="https://github.com/halilibrahimd27/kovan/actions/workflows/verify.yml"><img src="https://github.com/halilibrahimd27/kovan/actions/workflows/verify.yml/badge.svg?branch=main" alt="verify"></a>
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
+</p>
+
+![The boardroom: a crew's Reviewer sends a milestone back to the Developer](cockpit/docs/screenshots/boardroom.png)
+
+*Kovan* is Turkish for beehive. This repository holds two ways to put many Claude agents to work — and one
+place to watch them:
+
+| | **The cockpit** — [`cockpit/`](cockpit/) | **The swarm engine** — [`src/aidevswarm/`](src/aidevswarm/) |
+|---|---|---|
+| What | A local control room for Claude Code sessions, plus **crews**: a Planner, a Developer, an optional Tester and a Reviewer — real Claude Code sessions — that build your goal milestone by milestone | A 24/7 autonomous swarm (CrewAI + Claude Agent SDK) that ideates, plans, builds and ships projects on its own, for days |
+| Runs on | Your Claude Code login · Python 3.9+, **no dependencies, no Docker** | An Anthropic API key · Docker (Postgres + pgvector, Redis, Phoenix) |
+| You | Drive it: approve plans, answer questions, steer with notes | Supervise it: approve, pause, steer, kill switch — web panel or Telegram |
+| Start | `kovan` | `docker compose up -d` |
+
+Both share the same ideas — a milestone graph, role charters, a replanner that continues, amends, splits or
+escalates, a CI gate before every review, steering notes and a finance officer — and both hold their meetings
+in a **boardroom** the cockpit can show you.
+
+## The boardroom
+
+Agents that talk to each other usually do it in logs nobody reads. The boardroom puts the conversation at a
+table: everyone in the meeting has a seat, a pulsing ring shows who is working right now, and arcs show who
+spoke to whom — the newest one animated. Below the table the meeting reads like a chat: hand-offs, check
+results, verdicts, replans, the finance officer's notes and your own decisions, each with who it was meant
+for. You can speak in any room.
+
+| Room | Who is at the table |
+|---|---|
+| **A crew** | You, the crew's roles, the Finance officer and kovan itself (it runs the checks and commits). Plan approval, idea picking and "blocked" cards appear right in the meeting. |
+| **Sessions** | Your own Claude Code sessions, and every message one sent another (`SendMessage`), with delivery confirmed from the receiving transcript. |
+| **A swarm project** | The swarm engine's PM, Architect, Reviewer, Finance and Diagnostician — its decisions, or the whole transcript. Start the cockpit with `--swarm http://127.0.0.1:8080`. |
+
+| | |
+|---|---|
+| ![A crew waiting for you to pick one of the Ideator's ideas](cockpit/docs/screenshots/ideas.png) | ![The swarm engine's boardroom inside the cockpit](cockpit/docs/screenshots/swarm-room.png) |
+| **Ideas mode** — the Ideator proposes, scores and critiques; you pick | **The swarm's boardroom** — decisions from the engine's staff |
+
+## Crews
+
+Give a crew a goal — or ask its Ideator for ideas — and a folder. kovan starts the roles as ordinary Claude
+Code sessions (you can open any of them and talk to it) and runs the loop between them:
+
+```mermaid
+flowchart LR
+    G[Your goal<br>or a picked idea] --> P[Planner<br>milestones + acceptance criteria]
+    P -->|you approve| D[Developer<br>one milestone]
+    D --> T[Tester<br>optional]
+    T --> C{kovan runs<br>your check}
+    D --> C
+    C -->|fails| D
+    C -->|passes| R[Reviewer<br>reads the real diff]
+    R -->|changes| D
+    R -->|approves| K[kovan commits]
+    K --> RP[Planner replans:<br>continue · amend · split · escalate]
+    RP --> D
+```
+
+- **Real gates, not vibes.** After every milestone kovan runs your check command (`python3 -m pytest -q`,
+  `npm test`, …) itself; the Reviewer only sees work that passed, together with the exact staged diff.
+  Each accepted milestone becomes a commit you can review, revert or push.
+- **You stay in charge.** Approve or revise the plan, pause after every milestone if you like, steer with a
+  note — it reaches a working role immediately, otherwise its next task — and get pulled in when a milestone
+  fails too often, a role is blocked, or the Planner escalates.
+- **Safe by default.** Roles run with "accept edits" and kovan answers their permission prompts with a narrow
+  policy: file tools inside the workspace, test runners, read-only git. Anything else — `rm`, network,
+  package installs, paths outside the folder — waits for you. Secret-looking files (`.env`, keys) are never
+  staged, the check runs without Claude's environment, and a check command the Planner proposes runs only
+  after you approve the plan (or, with plan approval off, if it is on the safe list). See [cockpit/SECURITY.md](cockpit/SECURITY.md).
+- **Mindful of your limits.** The finance officer reports usage and pauses the crew before your 5-hour window
+  runs out, then resumes when it resets.
+
+![A crew's milestones, team and settings](cockpit/docs/screenshots/crew.png)
+
+## The cockpit
+
+```bash
+pipx install "git+https://github.com/halilibrahimd27/kovan#subdirectory=cockpit"
+cd ~/code/my-project && kovan          # opens http://127.0.0.1:8787
+kovan --demo                           # synthetic sessions, crews and a swarm — nothing real is touched
+```
+
+Besides crews and the boardroom, the cockpit shows every Claude Code session in your project folders live —
+including the ones open in VS Code — and lets you continue any of them in the browser: streaming replies,
+question and plan cards, permission prompts, tool calls with diffs, model/effort/permission controls, rewind,
+⌘K search. It binds to `127.0.0.1`, guards every write with an Origin check and a per-start token, and its
+sessions survive restarts. Full documentation: **[cockpit/README.md](cockpit/README.md)**.
+
+---
+
+# The swarm engine (ai-dev-swarm)
 
 ```
             ┌──────────────────────────────────────────────────────┐
@@ -32,11 +126,17 @@ and stop it with one button.
                           (loopback only)
 ```
 
+**Run a senior-level autonomous software-engineering swarm on your own laptop.** Three CrewAI crews —
+ideation, planning, build — pick deep, niche projects, decompose them into milestones, and ship them to
+GitHub. You watch it work over SSE (or from the cockpit's boardroom), steer it with one-line notes, and stop
+it with one button. Its own verification gauntlet (`make verify`: lint, strict types, security scans,
+dependency audit, ≥85 % coverage, property tests, complexity and layering checks) runs on every push.
+
 ---
 
 ## What it does
 
-ai-dev-swarm is a 24/7 process on your machine that:
+The swarm engine (ai-dev-swarm, `src/aidevswarm/`) is a 24/7 process on your machine that:
 
 1. **Ideates** ambitious, deep, niche project ideas via a Scout +
    Ideator + Critic crew. The Critic rejects clones of existing
@@ -88,8 +188,8 @@ system in 5 minutes.
 
 ```bash
 # 1) Clone the repo.
-git clone https://github.com/halilibrahimd27/ai-dev-swarm.git
-cd ai-dev-swarm
+git clone https://github.com/halilibrahimd27/kovan.git
+cd kovan
 
 # 2) Copy the env template and fill 5 required keys.
 cp .env.example .env
@@ -301,6 +401,7 @@ refresh needed:
 | **Tail logs** | `docker compose logs -f orchestrator` |
 | **Look at a project's code** | `cd ./workspaces/<project>` — it's a real git repo, committed milestone-by-milestone. |
 | **Look at the trace tree** | Phoenix at http://localhost:6006 (CrewAI task → SDK invocation → tool call → MCP call). |
+| **Watch it from the cockpit** | `kovan --swarm http://127.0.0.1:8080` — each project gets a room in the cockpit's **Boardroom** (decisions or the whole transcript), where you can approve, pause, resume and speak. If you set `AIDEVSWARM_API_TOKEN`, export the same value as `KOVAN_SWARM_TOKEN`. The cockpit only sends non-destructive commands; aborts stay here. |
 
 ---
 
@@ -323,7 +424,8 @@ refresh needed:
 
 |  | local-only | multi-project | property-tested | mutation-tested | observable | kill-switchable |
 | --- | --- | --- | --- | --- | --- | --- |
-| **ai-dev-swarm** | ✅ | ✅ (`build_concurrency`) | ✅ (Hypothesis) | ✅ (`make verify-l5`) | ✅ (Phoenix + SSE) | ✅ (per-project + global) |
+| **kovan crews** (cockpit) | ✅ | ✅ (one crew per folder) | your check command | ❌ | ✅ (boardroom + every session) | ✅ (pause / stop per crew) |
+| **ai-dev-swarm** (swarm engine) | ✅ | ✅ (`build_concurrency`) | ✅ (Hypothesis) | ✅ (`make verify-l5`) | ✅ (Phoenix + SSE) | ✅ (per-project + global) |
 | AutoGPT | partial (cloud LLM) | ❌ | ❌ | ❌ | partial | partial |
 | Devin-style hosted | ❌ | ✅ | ❌ | ❌ | ✅ | partial |
 | Plain CrewAI | depends | ❌ | ❌ | ❌ | partial | ❌ |
@@ -388,12 +490,14 @@ build-kit handoff).
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE) (the cockpit carries the same license in [cockpit/LICENSE](cockpit/LICENSE)).
+Claude and Claude Code are trademarks of Anthropic, PBC; kovan is an independent project.
 
 ## Contributing
 
 Issues + PRs welcome. The orchestrator is built phase-by-phase
 following a fixed plan; the build-kit (CLAUDE.md, phase prompts,
 plans, handoffs) is gitignored on purpose — it's how the product
-was built, not part of the product. If you want to extend ai-dev-
-swarm, file an ADR under `docs/adr/` first.
+was built, not part of the product. If you want to extend the swarm
+engine, file an ADR under `docs/adr/` first. The cockpit has its own, lighter rules: Python standard
+library only, no build step — see [cockpit/README.md](cockpit/README.md#development).

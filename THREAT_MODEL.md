@@ -1,5 +1,11 @@
 # ai-dev-swarm — Threat Model
 
+> This document covers the **swarm engine** (`src/aidevswarm/`). The **cockpit** (`cockpit/`) — the local
+> control room, crews and the boardroom — has its own threat model in
+> [cockpit/SECURITY.md](cockpit/SECURITY.md). When the cockpit is started with `--swarm`, it is one more
+> loopback client of the swarm API below: it sends only non-destructive commands and the bearer token never
+> leaves the kovan server process.
+
 This document is the STRIDE-shaped threat surface for ai-dev-swarm
 as of Phase 6. It's the operator-facing answer to "what can go
 wrong, and what stops it?"

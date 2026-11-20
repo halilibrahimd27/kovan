@@ -100,6 +100,8 @@ skip automatically when the env var is empty.
 
 ## See also
 
+- [cockpit/SECURITY.md](cockpit/SECURITY.md) — the cockpit's threat model: loopback-only HTTP with Origin and
+  token checks, secret masking, and the permission policy, commit hygiene and check-command rules for crews.
 - [THREAT_MODEL.md](THREAT_MODEL.md) — STRIDE table per component.
 - [docs/adr/](docs/adr/) — the architecture decisions that shaped
   the security posture.

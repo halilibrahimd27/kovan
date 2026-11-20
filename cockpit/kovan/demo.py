@@ -328,8 +328,10 @@ def build():
                 '- [ ] Merge the service layer refactor (#412)\n- [ ] Tag the release once the version is decided\n'
                 '- [x] Fix the session cookie flags\n')
 
-    return {'root': root, 'claude_home': claude_home, 'dirs': [project], 'notes': [journal, todo],
-            'task_roots': [tasks_root], 'ids': ids, 'question': question, 'api_context': api_context}
+    crews = build_crews(claude_home, now, m)
+    return {'root': root, 'claude_home': claude_home, 'dirs': [project] + crews['dirs'], 'notes': [journal, todo],
+            'task_roots': [tasks_root], 'ids': ids, 'question': question, 'api_context': api_context,
+            'crews': crews, 'swarm': build_swarm(now, m)}
 
 
 class DemoSession(server.ManagedSession):
@@ -393,3 +395,249 @@ def attach(manager, bus, info):
             api.streaming = ''
             api.publish('text_start')
     threading.Thread(target=stream, daemon=True, name='demo-stream').start()
+
+
+# ============================================================================ crews and the swarm (synthetic)
+CREW_PLAN = [
+    ('Parse tables out of Markdown', 'Find pipe tables in a Markdown document and return them with their line ranges; '
+     'everything outside tables must round-trip byte for byte.',
+     ['Tables inside lists and block quotes are found', 'Escaped pipes and pipes in inline code stay in their cell',
+      'A document without tables is returned unchanged']),
+    ('Align columns', 'Pad every cell to its column width, honouring :--, :-: and --: alignment.',
+     ['Column width uses display width (CJK and emoji count as two)', 'Alignment markers are preserved']),
+    ('Command-line interface', '`tablefmt FILE...` rewrites files in place; `--check` reports without writing; stdin '
+     'when no file is given.', ['`--check` exits 1 when a file would change, with no output on stdout',
+                                'Standard library only', 'Exit codes are documented']),
+    ('Pre-commit hook', 'Ship a `.pre-commit-hooks.yaml` so the formatter runs on staged Markdown files.',
+     ['The hook exits non-zero when it changes a file', 'Works on a fresh clone with `pre-commit try-repo`']),
+    ('Package and document', 'pyproject metadata, a README with examples, and a release checklist.',
+     ['`pip install .` provides the `tablefmt` command', 'README shows before/after examples']),
+]
+
+
+def crew_milestones(now, m):
+    out = []
+    for i, (title, goal, acc) in enumerate(CREW_PLAN):
+        status = 'done' if i < 2 else 'active' if i == 2 else 'pending'
+        ms = {'id': 'm%06x' % (0xa11ce0 + i), 'title': title, 'goal': goal, 'acceptance': acc, 'status': status,
+              'attempts': 1 if i in (1, 2) else 0, 'commit': {0: '3f9c2a1', 1: '8b41d07'}.get(i), 'log': []}
+        if i < 3:
+            ms['check'] = {'code': 0, 'output': '%d passed' % (9 + 5 * i), 'seconds': 2.0 + i}
+        if i == 2:
+            ms['log'] = [{'ts': now - 6 * m, 'who': 'reviewer', 'result': 'rejected',
+                          'text': '--check prints the diff to stdout; it must stay silent for hooks.'}]
+        out.append(ms)
+    return out
+
+
+def crew_board(now, m):
+    seq = [
+        (95, 'you', None, 'goal', 'A command-line tool and Python library that reformats Markdown tables: aligns columns, '
+         'normalises separators, handles CJK and emoji widths and leaves everything outside tables untouched. '
+         'Ship it with tests and a pre-commit hook.'),
+        (94.8, 'kovan', None, 'status', 'Crew created in ~/code/tablefmt. The Planner goes first.'),
+        (94.7, 'kovan', None, 'status', 'Planner joined (a new Claude Code session).'),
+        (91, 'planner', 'you', 'plan', 'A small pure-Python package with a thin CLI: parsing and formatting are pure '
+         'functions so they are easy to test, and the CLI only does I/O.\n\n' + '\n'.join(
+             '%d. %s — %s' % (i + 1, t, g) for i, (t, g, _) in enumerate(CREW_PLAN))),
+        (90.9, 'kovan', None, 'waiting', 'Waiting for your approval of the plan. Check command after every milestone: '
+         '`python3 -m pytest -q`.'),
+        (88, 'you', None, 'decision', 'Plan approved — go ahead.'),
+        (87.9, 'kovan', 'developer', 'milestone', 'Milestone 1/5: **Parse tables out of Markdown**'),
+        (79, 'developer', 'tester', 'handoff', 'Added `tablefmt.parse.find_tables()`: a line scanner that tracks fenced code '
+         'blocks, so pipes in code are never mistaken for tables.\n\nFiles: tablefmt/parse.py, tests/test_parse.py'),
+        (74, 'tester', 'reviewer', 'handoff', 'Tests pass. Added 9 cases: escaped pipes, inline code with pipes, tables '
+         'inside lists and quotes, and a byte-for-byte round trip of a document without tables.'),
+        (73.5, 'kovan', 'reviewer', 'check', 'Check passed (`python3 -m pytest -q`, 2s).'),
+        (70, 'reviewer', 'kovan', 'verdict', 'Approved. The scanner is small and every acceptance criterion has a test.\n'
+         '- [low] parse.py: `_split_row` deserves a docstring'),
+        (69.8, 'kovan', None, 'milestone', '“Parse tables out of Markdown” is done — committed 3f9c2a1.'),
+        (69.7, 'finance', None, 'finance', '4 role turns so far; 5-hour usage 18%.'),
+        (68, 'planner', 'you', 'replan', 'Continue — a clean run, and the next milestone is small.'),
+        (67.9, 'kovan', 'developer', 'milestone', 'Milestone 2/5: **Align columns**'),
+        (58, 'developer', 'tester', 'handoff', 'Column widths come from the widest cell; alignment from the separator row. '
+         'Files: tablefmt/align.py, tests/test_align.py'),
+        (54, 'tester', 'developer', 'verdict', 'Tests fail: a row with a CJK cell is one column short, because `len()` '
+         'counts characters, not display width.\n```\n| 名前 | qty |\n|------|-----|   ← expected |------|\n```'),
+        (53.9, 'tester', 'developer', 'handoff', 'Back to the Developer (attempt 2/3).'),
+        (47, 'developer', 'tester', 'handoff', 'Display width now uses `unicodedata.east_asian_width`; emoji count as '
+         'two. Added the failing case as a regression test.'),
+        (44, 'tester', 'reviewer', 'handoff', 'Tests pass. 14 cases including CJK, emoji and mixed alignment.'),
+        (43.6, 'kovan', 'reviewer', 'check', 'Check passed (`python3 -m pytest -q`, 3s).'),
+        (41, 'reviewer', 'kovan', 'verdict', 'Approved. Width handling is isolated in one function with direct tests.'),
+        (40.8, 'kovan', None, 'milestone', '“Align columns” is done — committed 8b41d07.'),
+        (40.7, 'finance', None, 'finance', '9 role turns so far; 5-hour usage 31%.'),
+        (39, 'you', 'developer', 'note', 'Keep the CLI dependency-free please — standard library only.'),
+        (38, 'planner', 'you', 'replan', 'Amend — tightened milestone 4: the hook must exit non-zero when it changes a '
+         'file, so commits are blocked until the table is formatted.'),
+        (37.9, 'kovan', 'developer', 'milestone', 'Milestone 3/5: **Command-line interface**'),
+        (24, 'developer', 'tester', 'handoff', '`tablefmt FILE...` rewrites in place, `--check` reports without writing, '
+         'stdin is read when no file is given. Standard library only (argparse), as you asked.'),
+        (19, 'tester', 'reviewer', 'handoff', 'Tests pass. The CLI is exercised through a subprocess, including the '
+         '`--check` exit codes.'),
+        (18.5, 'kovan', 'reviewer', 'check', 'Check passed (`python3 -m pytest -q`, 4s).'),
+        (6, 'reviewer', 'developer', 'verdict', 'Changes requested. `--check` prints the diff to stdout, but the acceptance '
+         'criteria say it must stay silent so it can run in hooks.\n- [medium] cli.py: write the diff to stderr, keep '
+         'stdout empty\n- [low] README: document the exit codes'),
+        (5.9, 'reviewer', 'developer', 'handoff', 'Back to the Developer (attempt 2/3).'),
+    ]
+    return [{'id': 'b%04d' % i, 'ts': int(now - ago * m), 'speaker': sp, 'to': to, 'kind': kind, 'text': text,
+             'milestone': None} for i, (ago, sp, to, kind, text) in enumerate(seq)]
+
+
+IDEAS = [
+    {'title': 'driftwatch', 'summary': 'Compares the effective configuration of two environments (env vars, feature flags, '
+     'service versions) and explains every difference in plain words before a release.',
+     'why': 'Staging/production drift causes a large share of release-day surprises; existing tools diff files, not the '
+     'effective config a service actually sees.', 'stack': 'Python, Typer, pluggable collectors',
+     'novelty_check': 'Searched for config drift detectors: infrastructure-level tools exist (Terraform plan, driftctl), '
+     'nothing at the application-config level.',
+     'scores': {'depth': 26, 'usefulness': 22, 'novelty': 16, 'decomposability': 12, 'buildability': 8}, 'total': 84},
+    {'title': 'flakehunter', 'summary': 'Re-runs failing tests in isolation and in random orders to classify them as flaky, '
+     'order-dependent or real, then bisects the shared state that causes it.',
+     'why': 'Teams quarantine flaky tests by hand; telling order dependence from real failures is tedious.',
+     'stack': 'Python, pytest plugin', 'novelty_check': 'pytest-rerunfailures retries, pytest-randomly shuffles; '
+     'neither bisects the culprit.',
+     'scores': {'depth': 25, 'usefulness': 21, 'novelty': 15, 'decomposability': 12, 'buildability': 8}, 'total': 81},
+    {'title': 'schemaguard', 'summary': 'Runs every migration against a throwaway Postgres, diffs the schema and flags '
+     'operations that take long locks on big tables.', 'why': 'Lock-heavy migrations are the classic way to take a '
+     'small team’s database down at noon.', 'stack': 'Python, Docker, SQL parsing',
+     'novelty_check': 'Partly covered by squawk (lints SQL); none replays migrations against real Postgres.',
+     'scores': {'depth': 24, 'usefulness': 21, 'novelty': 12, 'decomposability': 12, 'buildability': 8}, 'total': 77},
+    {'title': 'commit-changelog', 'summary': 'Generates release notes from conventional commits.',
+     'why': 'Saves a few minutes per release.', 'stack': 'Python',
+     'novelty_check': 'Well covered by git-cliff, release-please and semantic-release — not novel.',
+     'scores': {'depth': 12, 'usefulness': 16, 'novelty': 4, 'decomposability': 14, 'buildability': 10}, 'total': 56},
+]
+
+
+def build_crews(claude_home, now, m):
+    """Two crews: one mid-build with a lively boardroom, one waiting for you to pick an idea."""
+    home = os.path.expanduser('~')
+    table_dir, idea_dir = os.path.join(home, 'code', 'tablefmt'), os.path.join(home, 'code', 'weekend-idea')
+    roles = {r: sid_for('crew-tablefmt-' + r) for r in ('planner', 'developer', 'tester', 'reviewer')}
+    ideator = sid_for('crew-weekend-ideator')
+    folder = server.project_folder(claude_home, table_dir)
+    os.makedirs(folder)
+    for role, first, last, start in (
+            ('planner', 'Plan the work. JSON shape: {"summary": …, "milestones": […]}', 'Amend — tightened milestone 4.', 92),
+            ('developer', 'Milestone 3 of 5: Command-line interface', '`tablefmt FILE...` rewrites in place; `--check` '
+             'reports without writing.', 88),
+            ('tester', 'Add or strengthen tests for every criterion and run them.', 'Tests pass.', 80),
+            ('reviewer', 'Review the staged diff for this milestone.', 'Changes requested: `--check` must keep stdout '
+             'empty.', 71)):
+        w = Writer(roles[role], now - start * m, 'tablefmt · ' + role.capitalize())
+        w.user(first)
+        if role == 'developer':
+            w.tool('Read', {'file_path': table_dir + '/tablefmt/cli.py'}, '...', {})
+            w.bash('Run the test suite', 'python3 -m pytest -q', '....................                    [100%]\n'
+                   '19 passed in 3.87s')
+        w.say(last, after=200)
+        if role == 'developer':
+            w.user('Your milestone came back from the Reviewer. Fix these problems first: `--check` prints the diff to '
+                   'stdout …', after=600)
+            w.edit(table_dir + '/tablefmt/cli.py', [hunk(41, 41, [
+                '     if args.check and changed:',
+                '-        print(diff)',
+                '+        sys.stderr.write(diff)',
+                '         return 1'])])
+        w.save(folder)
+    folder = server.project_folder(claude_home, idea_dir)
+    os.makedirs(folder)
+    w = Writer(ideator, now - 30 * m, 'Weekend idea · Ideator')
+    w.user('Propose 4 project ideas about: developer tools for small teams; command line; Python; no paid services.')
+    w.tool('WebSearch', {'query': 'config drift detection application level open source'}, '...', {})
+    w.say('Here are four ideas, scored honestly — the last one is not novel.', after=240)
+    w.save(folder)
+    opts = dict(tester=True, plan_approval=True, milestone_approval=False, policy='safe', max_attempts=3,
+                quota_pause=90, check='python3 -m pytest -q', check_timeout=900, commit=True, push=False)
+    table = {'id': 'c7ab1e5f0', 'name': 'tablefmt', 'mode': 'goal', 'dir': table_dir, 'options': opts,
+             'goal': crew_board(now, m)[0]['text'], 'theme': '', 'created_at': int(now - 95 * m), 'updated_at': int(now - 5.9 * m),
+             'phase': 'building', 'reason': None, 'roles': roles, 'primed': {r: True for r in roles},
+             'plan': {'summary': 'A small pure-Python package with a thin CLI: parsing and formatting are pure functions so '
+                                 'they are easy to test, and the CLI only does I/O.', 'stack': 'Python 3.9+, standard library, pytest',
+                      'check_command': 'python3 -m pytest -q', 'milestones': crew_milestones(now, m)},
+             'ideas': [], 'current': 2, 'step': 'develop', 'wait': {'role': 'developer', 'step': 'develop', 'sent_at': (now - 5.8 * m) / 1000},
+             'feedback': None, 'plan_feedback': None, 'notes': [], 'board': crew_board(now, m), 'attention': None,
+             'resume_at': None, 'paused_from': None, 'stats': {'turns': 14, 'checks': 3}}
+    idea_board = [
+        {'id': 'i0', 'ts': int(now - 31 * m), 'speaker': 'you', 'to': None, 'kind': 'goal', 'milestone': None,
+         'text': 'Suggest projects: developer tools for small teams; command line; Python; no paid services.'},
+        {'id': 'i1', 'ts': int(now - 30.9 * m), 'speaker': 'kovan', 'to': None, 'kind': 'status', 'milestone': None,
+         'text': 'Crew created in ~/code/weekend-idea. The Ideator goes first.'},
+    ] + [{'id': 'i%d' % (i + 2), 'ts': int(now - (26 - i) * m), 'speaker': 'ideator', 'to': 'you', 'kind': 'idea',
+          'milestone': None, 'text': '**%s** (%d/100) — %s' % (x['title'], x['total'], x['summary'])}
+         for i, x in enumerate(IDEAS)] + [
+        {'id': 'i9', 'ts': int(now - 21.5 * m), 'speaker': 'kovan', 'to': None, 'kind': 'waiting', 'milestone': None,
+         'text': 'Pick an idea to build, or ask for more.'}]
+    weekend = {'id': 'c0dea1dea', 'name': 'Weekend idea', 'mode': 'ideas', 'dir': idea_dir,
+               'options': dict(opts, tester=False, check=''), 'goal': '',
+               'theme': 'developer tools for small teams; command line; Python; no paid services',
+               'created_at': int(now - 31 * m), 'updated_at': int(now - 21.5 * m), 'phase': 'choosing',
+               'reason': 'pick an idea', 'roles': {'ideator': ideator}, 'primed': {'ideator': True}, 'plan': None,
+               'ideas': IDEAS, 'current': 0, 'step': None, 'wait': None, 'feedback': None, 'plan_feedback': None,
+               'notes': [], 'board': idea_board, 'attention': None, 'resume_at': None, 'paused_from': None,
+               'stats': {'turns': 1, 'checks': 0}}
+    return {'dirs': [table_dir, idea_dir], 'items': [table, weekend], 'roles': roles, 'ideator': ideator}
+
+
+def build_swarm(now, m):
+    ledger, pager = str(uuid.uuid5(NS, 'swarm-ledgerline')), str(uuid.uuid5(NS, 'swarm-quietpager'))
+    projects = [
+        {'id': ledger, 'name': 'ledgerline', 'state': 'building', 'detail': 'M4 reconciliation engine — attempt 1',
+         'repo': 'example/ledgerline', 'done': 3, 'total': 6, 'cost': 4.82},
+        {'id': pager, 'name': 'quietpager', 'state': 'awaiting_approval', 'detail': 'plan ready — waiting for your approval',
+         'repo': '', 'done': 0, 'total': 5, 'cost': 0.61}]
+
+    def e(i, ago, role, text, kind='decision'):
+        return {'id': 'e%03d' % i, 'ts': int(now - ago * m), 'speaker': role, 'kind': kind, 'text': text}
+    ledger_board = [
+        e(1, 300, 'PM', 'Scoped v1: import bank CSV and OFX, categorise with rules, reconcile against invoices. '
+          'Multi-currency is out of scope.'),
+        e(2, 296, 'Architect', 'Stack: Python 3.12, SQLite, Typer. Reconciliation is a pure function over two sorted '
+          'streams, so it is property-testable.'),
+        e(3, 280, 'Operator', 'Please keep OFX parsing behind an interface — we may add CAMT.053 later.'),
+        e(4, 276, 'PM', 'Amended M2: an `Importer` protocol with CSV and OFX implementations; CAMT.053 noted for v2.'),
+        e(5, 230, 'developer', 'Implementing the CSV importer with a dialect sniffer and explicit date formats.', 'message'),
+        e(6, 214, 'Reviewer', 'M2 approved: importer protocol plus CSV/OFX, 31 tests, no network access.'),
+        e(7, 190, 'Finance', 'Spend so far $3.10 of the $20 project budget; daily cap at 22%.'),
+        e(8, 150, 'tester', 'OFX fixtures with CRLF line endings fail on the second run.', 'message'),
+        e(9, 140, 'Diagnostician', 'M3 failed twice on CRLF line endings in OFX: the parser assumed \\n. Normalise line '
+          'endings at the importer boundary.'),
+        e(10, 120, 'Reviewer', 'M3 approved after the fix; CRLF fixtures added to the suite.'),
+        e(11, 118, 'PM', 'Replan: continue with M4 (reconciliation engine); M5 and M6 unchanged.'),
+        e(12, 60, 'developer', 'Implementing `reconcile()` as a merge of two sorted streams…', 'message'),
+        e(13, 35, 'tester', 'Hypothesis found a counterexample: two payments of the same amount on the same day match '
+          'the same invoice twice.', 'message'),
+        e(14, 12, 'Finance', '$4.82 spent; projected total $9–11 for the project.'),
+    ]
+    pager_board = [
+        e(21, 50, 'PM', 'The Critic accepted the idea (86/100): an on-call pager that batches low-severity alerts into '
+          'digests and only wakes someone for what is actionable.'),
+        e(22, 44, 'Architect', 'Stack: Go, one binary, SQLite; alert sources via webhooks; no external services.'),
+        e(23, 40, 'PM', 'Plan ready: 5 milestones. Waiting for operator approval before building.'),
+    ]
+    return {'projects': projects, 'boards': {ledger: ledger_board, pager: pager_board}}
+
+
+def attach_crews(crews, info):
+    now = time.time()
+    data = info['crews']
+    for c in data['items']:
+        crews.items[c['id']] = c
+    crews.reindex()
+    crews.revision += 1
+    dev = DemoSession(data['roles']['developer'], 'tablefmt · Developer', True, data['dirs'][0], pid=0)
+    dev.status, dev.model, dev.permission_mode, dev.started_at = 'working', 'claude-opus-5-5', 'acceptEdits', now - 5000
+    dev.models, dev.commands, dev.turn_started = DEMO_MODELS, DEMO_COMMANDS, now - 340
+    dev.tool = {'text': 'Edit tablefmt/cli.py', 'name': 'Edit'}
+    server.MANAGER.sessions[dev.sid] = dev
+    for role in ('planner', 'tester', 'reviewer'):
+        s = DemoSession(data['roles'][role], 'tablefmt · ' + role.capitalize(), True, data['dirs'][0], pid=0)
+        s.status, s.model, s.permission_mode, s.started_at = 'ready', 'claude-opus-5-5', 'acceptEdits', now - 5000
+        s.models, s.commands = DEMO_MODELS, DEMO_COMMANDS
+        server.MANAGER.sessions[s.sid] = s
+    s = DemoSession(data['ideator'], 'Weekend idea · Ideator', True, data['dirs'][1], pid=0)
+    s.status, s.model, s.permission_mode, s.started_at = 'ready', 'claude-opus-5-5', 'acceptEdits', now - 1900
+    s.models, s.commands = DEMO_MODELS, DEMO_COMMANDS
+    server.MANAGER.sessions[s.sid] = s

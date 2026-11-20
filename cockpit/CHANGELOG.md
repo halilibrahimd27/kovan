@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0 — 2026-11-20
+
+kovan now lives in one repository with the swarm engine (formerly ai-dev-swarm) and gains crews and the
+boardroom.
+
+- **Crews**: a Planner, a Developer, an optional Tester and a Reviewer — real Claude Code sessions — build a
+  goal milestone by milestone. Ideas mode (an Ideator proposes and scores ideas), plan approval and revision,
+  your check command as the CI gate, review of the real staged diff, a commit per milestone, replanning
+  (continue / amend / split / escalate), a retry budget, steering notes, pause / resume / stop / retry / skip,
+  and a finance officer that pauses before the usage limit. Crews survive restarts.
+- A permission policy for crews (safe / ask / trusted) that auto-answers only workspace file access, test
+  runners and read-only git; secret-looking files are never staged; a Planner-proposed check command needs your
+  approval unless it is on the safe list.
+- **The boardroom**: one room per crew, one for the messages between your sessions, and one per swarm project;
+  a round table with live seats and arcs for who spoke to whom, the meeting as a chat, action cards and a Speak
+  box.
+- `--swarm URL` (loopback only, token from `KOVAN_SWARM_TOKEN`) shows the swarm engine's boardroom and sends it
+  notes, approvals, pauses and resumes.
+- Crew role sessions are tagged in the sidebar; toasts when a crew needs you or finishes.
+- Fix: the holder socket no longer fails to start when the state directory path is long (Unix sockets are
+  limited to ~104 bytes); kovan falls back to a private directory under `$TMPDIR`.
+- The demo includes two crews and a swarm project.
+
 ## 0.1.0 — 2026-11-20
 
 First public release.

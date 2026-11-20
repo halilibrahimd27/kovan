@@ -100,7 +100,18 @@ await shot('palette.png');
 await open('overview');
 await shot('overview.png');
 
-// 7. Light theme
+// 7. The boardroom: a crew mid-build, one choosing an idea, the crew page and a swarm project's room
+await open('board/crew:c7ab1e5f0', 2500);
+await shot('boardroom.png');
+await open('board/crew:c0dea1dea', 2500);
+await shot('ideas.png');
+await open('crews/c7ab1e5f0', 2000);
+await shot('crew.png');
+const swarmProject = (await (await fetch(`${BASE}/api/swarm`)).json()).projects[0].id;
+await open(`board/swarm:${swarmProject}`, 3000);
+await shot('swarm-room.png');
+
+// 8. Light theme
 await theme('light');
 await open(`chat/${sid('Infra')}`);
 await js(`document.querySelector('[data-tasks]') && document.querySelector('[data-tasks]').click()`);
