@@ -186,7 +186,7 @@ kovan --demo        # synthetic, read-only data
 | `--no-browser` | Just print the URL. |
 | `--claude-bin PATH` | The `claude` executable (default: `claude` on `PATH`). |
 | `--lang en\|tr` | UI language until you choose one in the page (default: follow the browser). |
-| `--notify-test` | Send a test message to the configured webhook / Telegram bot and exit. |
+| `--notify-test` | Send a test message to every configured channel (Claude, webhook, Telegram) and exit. |
 | `--swarm URL` | Show the boardroom of a running [swarm engine](../README.md#the-swarm-engine-ai-dev-swarm), e.g. `http://127.0.0.1:8080` (loopback only). If the swarm has an API token, put it in `KOVAN_SWARM_TOKEN`. |
 | `--foreground` | Run in the terminal instead of in the background (useful for debugging). |
 
@@ -208,13 +208,19 @@ that opens kovan in its own window.
 ### Notifications on your phone
 
 When a crew needs you — a plan to approve, an idea to pick, a blocked milestone, a command outside its policy —
-or finishes, kovan can tell you through a **Slack- or Mattermost-compatible incoming webhook** and/or a
-**Telegram bot**. Telegram messages carry buttons: **Approve / Revise / Stop** a plan, pick an idea, **Retry /
-Skip / Stop** a blocked crew, **Continue / Pause** after a milestone. *Revise* and *Retry* ask you to reply with
-the change or a hint. `/status` lists your crews.
+or finishes, kovan can tell you three ways:
+
+- **Through Claude** — a push from the Claude app on your phone, the same kind Claude Code sends itself. Nothing
+  to create: kovan keeps one small Claude Code session connected with Remote Control. It shows up as **kovan** in
+  the Claude app with every message and its details, and its only tool is PushNotification.
+- A **Slack- or Mattermost-compatible incoming webhook**.
+- A **Telegram bot** with buttons: **Approve / Revise / Stop** a plan, pick an idea, **Retry / Skip / Stop** a
+  blocked crew, **Continue / Pause** after a milestone. *Revise* and *Retry* ask you to reply with the change or a
+  hint. `/status` lists your crews.
 
 ```json
 "notify": {
+  "claude": true,
   "webhook": "https://chat.example.com/hooks/…",
   "telegram": {"token": "123456:ABC…", "allow": [123456789]},
   "permissions": false,
@@ -222,10 +228,23 @@ the change or a hint. `/status` lists your crews.
 }
 ```
 
-1. Create a bot with [@BotFather](https://t.me/BotFather) and put its token in `telegram.token` (or in the
-   `KOVAN_TELEGRAM_TOKEN` environment variable; the webhook URL can live in `KOVAN_WEBHOOK_URL`).
-2. Start kovan and send `/start` to your bot: while nobody is allowed yet, it answers with your user id.
-3. Put that id in `allow` and restart kovan. `kovan --notify-test` sends a test message to every channel.
+Use any of them, or all of them. `kovan --notify-test` sends a test message to every channel you set up.
+
+**Claude** needs three things:
+- Claude Code logged in with your claude.ai account, the account Remote Control works with.
+- The Claude app on your phone.
+- "Push when Claude decides" turned on in Claude Code's `/config`.
+
+Each notification is one short turn on a small model. That is about 2,000 tokens, mostly cached, and it counts
+toward your usage like any Claude Code turn. `{"model": "sonnet", "name": "kovan"}` picks another model or
+conversation name. The session starts with the first notification, rests after 20 quiet minutes and comes back to
+the same conversation. It is one way: you answer in kovan.
+
+**Telegram** setup:
+1. Create a bot with [@BotFather](https://t.me/BotFather) and put its token in `telegram.token`. It can also go
+   in the `KOVAN_TELEGRAM_TOKEN` environment variable, and the webhook URL in `KOVAN_WEBHOOK_URL`.
+2. Start kovan and send `/start` to your bot. While nobody is allowed yet, it answers with your user id.
+3. Put that id in `allow` and restart kovan.
 
 Buttons work only for the user ids in `allow`; anyone else is ignored. `"permissions": true` adds **Allow /
 Deny** buttons for a crew's permission prompts — off by default, because it approves commands from your phone.
@@ -298,7 +317,7 @@ node scripts/make-gif.mjs                           # regenerates docs/boardroom
 kovan/server.py         transcript reader, store, session driver, HTTP API, CLI
 kovan/crew.py           crews: role charters, extra roles and templates, the plan → build → check → review loop
 kovan/ci.py             pull / merge requests and the CI gate (gh, glab, git push options, a status command)
-kovan/notify.py         webhook and Telegram notifications, Telegram buttons
+kovan/notify.py         notifications: Claude push (Remote Control), webhook, Telegram buttons
 kovan/swarm.py          client for the swarm engine's API (the boardroom's swarm rooms)
 kovan/holder.py         the process that owns claude subprocesses
 kovan/demo.py           synthetic sessions for --demo and the tests

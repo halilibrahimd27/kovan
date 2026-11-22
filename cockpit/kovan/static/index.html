@@ -838,6 +838,9 @@ const TR={
   'pull requests need a repository with at least one commit to branch from':'pull request için dallanılacak en az bir commit’i olan depo gerekir',
   'install the GitHub CLI (gh) and run “gh auth login” for pull requests and the CI gate':'pull request ve CI kapısı için GitHub CLI’yi (gh) kurup “gh auth login” çalıştır',
   'for the CI gate on GitLab install glab (and run “glab auth login”), or give a status command':'GitLab’de CI kapısı için glab kur (ve “glab auth login” çalıştır) ya da bir durum komutu ver','permission prompts too':'izin istemleri de',
+  'Claude did not send it':'Claude göndermedi','Remote Control is not connected':'Remote Control bağlı değil','Claude skipped it (you looked active)':'Claude atladı (başındaymışsın gibi göründü)',
+  'turn on “Push when Claude decides” in Claude Code’s /config':'Claude Code’un /config ayarında “Push when Claude decides” seçeneğini aç','no answer from Claude Code':'Claude Code cevap vermedi',
+  'Claude Code exited':'Claude Code kapandı','could not find the claude executable':'claude programı bulunamadı',
   'Could not save the role':'Rol kaydedilemedi','Role forgotten':'Rol unutuldu','findings':'bulgu','finding':'bulgu',
   'at most 4 extra roles':'en fazla 4 ek rol','a role needs a name':'rolün bir adı olmalı','describe what the role does (a sentence or two)':'rolün ne yaptığını yaz (bir iki cümle)',
   'unknown template':'bilinmeyen şablon','unknown role':'bilinmeyen rol','an audit crew needs a folder with code in it':'denetim ekibi içinde kod olan bir klasör ister',
@@ -1656,7 +1659,8 @@ function needHTML(c,d,compact){
 
 /* ---- the crews page */
 function notifyLine(){const n=S.d&&S.d.notify;if(!n)return '';
-  return '<p class="muted notify-line">📱 <span>Notifications:</span> '+n.channels.map(ch=>{const st=n.status[ch];return esc(ch==='telegram'?'Telegram':'webhook')+' '+(st==='ok'?'✓':st?'⚠ '+esc(st):'·');}).join(' · ')+(n.permissions?' · <span>permission prompts too</span>':'')+'</p>';}
+  return '<p class="muted notify-line">📱 <span>Notifications:</span> '+n.channels.map(ch=>{const st=n.status[ch],label=ch==='claude'?'Claude':ch==='telegram'?'Telegram':'webhook';
+    return (ch==='claude'&&n.claude_url?'<a href="'+esc(n.claude_url)+'" target="_blank" rel="noopener">'+label+'</a>':esc(label))+' '+(st==='ok'?'✓':st?'⚠ <span>'+esc(st)+'</span>':'·');}).join(' · ')+(n.permissions?' · <span>permission prompts too</span>':'')+'</p>';}
 function crewCard(c){const p=c.progress||{},cls=(PHASE[c.phase]||[])[1]||'';const pct=p.total?Math.round(100*p.done/p.total):0;
   return '<article class="ocard crew-card '+(crewNeedsYou(c)?'ask':cls==='busy'?'busy':'')+'" data-crew="'+c.id+'"><header><span class="hex">⬢</span><h3 class="no-i18n" title="'+esc(c.name)+'">'+esc(c.name)+'</h3>'+phasePill(c.phase)+'</header>'+
     (c.goal||c.theme?'<p class="clamp c2 muted no-i18n" style="margin:0">'+esc(c.goal?plain(c.goal):tt('Ideas about:')+' '+c.theme)+'</p>':'')+

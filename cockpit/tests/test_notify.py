@@ -4,16 +4,19 @@
 """
 import json
 import os
+import stat
 import sys
 import threading
+import time
 import unittest
+from unittest import mock  # noqa: F401 - unittest.mock below
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from kovan import notify, server  # noqa: E402
-from test_crews import CrewTestCase, fenced  # noqa: E402
+from test_crews import CrewTestCase, fenced, PY  # noqa: E402
 
 TOKEN = '123456:TEST-token_abc'
 ME, STRANGER = 4242, 999
@@ -62,6 +65,59 @@ class FakeWebhook(BaseHTTPRequestHandler):
         self.wfile.write(b'ok')
 
 
+FAKE_CLAUDE = r"""#!%s
+# A stand-in for Claude Code in stream-json mode: Remote Control, PushNotification, and what kovan answers.
+import json, os, sys
+log = open(os.environ['FAKE_CLAUDE_LOG'], 'a')
+mode = os.environ.get('FAKE_PUSH_MODE', 'ok')
+def note(**kw):
+    log.write(json.dumps(kw) + '\n'); log.flush()
+def out(obj):
+    sys.stdout.write(json.dumps(obj) + '\n'); sys.stdout.flush()
+note(event='start', args=sys.argv[1:], env={k: v for k, v in os.environ.items() if k.startswith(('KOVAN', 'CLAUDE', 'ENABLE'))},
+     cwd=os.getcwd())
+for line in sys.stdin:
+    m = json.loads(line)
+    if m['type'] == 'control_request':
+        req, rid = m['request'], m['request_id']
+        if req['subtype'] == 'initialize':
+            out({'type': 'control_response', 'response': {'subtype': 'success', 'request_id': rid, 'response': {'commands': []}}})
+        elif req['subtype'] == 'remote_control':
+            note(event='remote_control', request=req)
+            if req.get('reattach_session_id') and os.environ.get('FAKE_RC_FAIL') == 'reattach':
+                out({'type': 'control_response', 'response': {'subtype': 'error', 'request_id': rid, 'error': 'session not found'}})
+                continue
+            out({'type': 'system', 'subtype': 'bridge_state', 'state': 'ready'})
+            out({'type': 'control_response', 'response': {'subtype': 'success', 'request_id': rid, 'response': {
+                'session_url': 'https://claude.ai/code/session_TEST', 'bridge_session_id': 'cse_TEST'}}})
+            out({'type': 'system', 'subtype': 'bridge_state', 'state': 'connected'})
+    elif m['type'] == 'control_response':
+        note(event='host_answer', response=m['response'])
+    elif m['type'] == 'user':
+        text = m['message']['content']
+        note(event='user', text=text)
+        push = text.split('\n', 1)[0][len('PUSH: '):]
+        if mode == 'other_tool':
+            out({'type': 'control_request', 'request_id': 'q1', 'request': {'subtype': 'can_use_tool', 'tool_name': 'Bash',
+                                                                           'input': {'command': 'ls'}}})
+            note(event='host_answer', response=json.loads(sys.stdin.readline())['response'])
+        if mode == 'error':
+            out({'type': 'result', 'subtype': 'error_during_execution', 'is_error': True, 'result': 'usage limit reached'})
+            continue
+        if mode == 'silent':
+            out({'type': 'assistant', 'message': {'content': [{'type': 'text', 'text': 'sent'}]}})
+            out({'type': 'result', 'subtype': 'success', 'is_error': False})
+            continue
+        answer = {'ok': 'Mobile push requested.', 'other_tool': 'Mobile push requested.',
+                  'config_off': 'Push not sent — mobile push is disabled in /config.'}[mode]
+        out({'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'id': 't1', 'name': 'PushNotification',
+                                                           'input': {'message': push, 'status': 'proactive'}}]}})
+        out({'type': 'user', 'message': {'content': [{'type': 'tool_result', 'tool_use_id': 't1', 'content': answer}]}})
+        out({'type': 'assistant', 'message': {'content': [{'type': 'text', 'text': 'sent'}]}})
+        out({'type': 'result', 'subtype': 'success', 'is_error': False})
+"""
+
+
 def serve(handler):
     httpd = ThreadingHTTPServer(('127.0.0.1', 0), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -101,8 +157,9 @@ class NotifierTests(CrewTestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.tg_httpd.shutdown()
-        cls.hook_httpd.shutdown()
+        for httpd in (cls.tg_httpd, cls.hook_httpd):
+            httpd.shutdown()
+            httpd.server_close()
 
     def setUp(self):
         super().setUp()
@@ -284,6 +341,161 @@ class NotifierTests(CrewTestCase):
         self.assertIn('no chat yet', notify.send_test(s)['telegram'])
         s = notify.Settings({'telegram': {'token': TOKEN, 'allow': [ME], 'api': self.tg_url}}, environ={})
         self.assertEqual(notify.send_test(s), {'telegram': 'ok'})
+
+
+class ClaudeChannelTests(CrewTestCase):
+    """notify.claude: pushes through a (fake) Claude Code session's PushNotification tool over Remote Control."""
+
+    def setUp(self):
+        super().setUp()
+        self.bin = os.path.join(self.tmp, 'claude')
+        with open(self.bin, 'w') as f:
+            f.write(FAKE_CLAUDE % PY)
+        os.chmod(self.bin, 0o755)
+        self.log_path = os.path.join(self.tmp, 'claude.log')
+        self.saved_env = {k: os.environ.get(k) for k in ('FAKE_CLAUDE_LOG', 'FAKE_PUSH_MODE', 'FAKE_RC_FAIL',
+                                                         'KOVAN_TELEGRAM_TOKEN')}
+        os.environ['FAKE_CLAUDE_LOG'] = self.log_path
+        os.environ['KOVAN_TELEGRAM_TOKEN'] = TOKEN          # must never reach the relay session
+        self.logged = []
+        self.saved_log, server.log = server.log, self.logged.append
+        self.notifiers = []
+
+    def tearDown(self):
+        for n in self.notifiers:
+            n.stopping.set()
+            n.relay.close()
+        server.log = self.saved_log
+        for k, v in self.saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        super().tearDown()
+
+    def notifier(self, claude=True, **extra):
+        n = notify.Notifier(notify.Settings(dict(extra, claude=claude), environ={}, lang=extra.get('lang', 'en')), self.crews)
+        n.relay = notify.ClaudeRelay(n.s, state_dir=self.state, binary=self.bin, timeout=10,
+                                     claude_home=os.path.join(self.tmp, 'home'))
+        self.notifiers.append(n)
+        n.look()
+        return n
+
+    def calls(self, event=None):
+        with open(self.log_path) as f:
+            items = [json.loads(x) for x in f]
+        return [x for x in items if event is None or x['event'] == event]
+
+    def to_plan_review(self):
+        c = self.new(plan_approval=True)
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(2)))
+        self.drive(c, lambda c: c['phase'] == 'plan_review')
+        return c
+
+    def test_a_crew_waiting_for_you_becomes_a_claude_push(self):
+        n = self.notifier()
+        self.to_plan_review()
+        self.assertEqual(len(n.look()), 1)
+        self.assertEqual(n.status['claude'], 'ok')
+        start = self.calls('start')[0]
+        args = start['args']
+        for flag in (['--tools', 'PushNotification'], ['--model', 'haiku'], ['--name', 'kovan']):
+            i = args.index(flag[0])
+            self.assertEqual(args[i:i + 2], flag)
+        self.assertIn('--strict-mcp-config', args)
+        self.assertIn('--setting-sources=user', args)
+        self.assertEqual(start['env'].get('CLAUDE_CODE_DISABLE_NOTIFICATION_PRESENCE_CHECK'), '1')
+        self.assertEqual(start['env'].get('ENABLE_CLAUDEAI_MCP_SERVERS'), 'false')
+        self.assertFalse([k for k in start['env'] if k.startswith('KOVAN')])          # no kovan secrets in there
+        self.assertEqual(os.path.realpath(start['cwd']), os.path.realpath(os.path.join(self.state, 'notify-claude')))
+        rc = self.calls('remote_control')[0]['request']
+        self.assertEqual((rc['enabled'], rc['name'], rc['keep_session_on_exit']), (True, 'kovan', True))
+        self.assertNotIn('reattach_session_id', rc)
+        text = self.calls('user')[0]['text']
+        self.assertTrue(text.startswith('PUSH: ⬢ Test crew · needs you — approve the plan: Two small steps.\n\n'), text)
+        self.assertIn('1. Step 1\n2. Step 2', text)                                   # the details stay in the chat
+        self.assertEqual(n.state()['claude_url'], 'https://claude.ai/code/session_TEST')
+        saved = os.path.join(self.state, 'notify-claude', 'remote.json')
+        self.assertEqual(stat.S_IMODE(os.stat(saved).st_mode), 0o600)
+        self.assertEqual(n.look(), [])                                                # nothing new: no repeat
+        self.assertEqual(len(self.calls('user')), 1)
+
+    def test_the_same_claude_conversation_after_a_restart(self):
+        n = self.notifier()
+        first = self.to_plan_review()
+        n.look()
+        n.relay.close()
+        self.crews.act(first['id'], 'delete')
+        n2 = self.notifier()
+        c = self.new(max_attempts=1)
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.drive(c, self.waiting_on(c, 'developer'))
+        self.role(c, 'developer').reply(fenced({'status': 'blocked', 'summary': 's', 'blocker': 'need DB_PASSWORD=hunter2'}))
+        self.drive(c, lambda c: c['phase'] == 'blocked')
+        n2.look()
+        self.assertEqual(n2.status['claude'], 'ok')
+        self.assertEqual(self.calls('remote_control')[-1]['request'].get('reattach_session_id'), 'cse_TEST')
+        line = self.calls('user')[-1]['text'].split('\n')[0]
+        self.assertTrue(line.startswith('PUSH: ⬢ Test crew · is blocked'), line)
+        self.assertNotIn('hunter2', json.dumps(self.calls('user')))                   # likely secrets are masked
+        os.environ['FAKE_RC_FAIL'] = 'reattach'                                       # that conversation was deleted
+        n2.relay.close()
+        self.crews.act(c['id'], 'stop')
+        self.assertEqual(n2.relay.push('⬢ x · is done'), 'ok')
+        last = [x['request'] for x in self.calls('remote_control')[-2:]]
+        self.assertEqual((last[0].get('reattach_session_id'), 'reattach_session_id' in last[1]), ('cse_TEST', False))
+
+    def test_why_a_push_did_not_go_out(self):
+        n = self.notifier()
+        for mode, status in (('config_off', 'turn on “Push when Claude decides” in Claude Code’s /config'),
+                             ('silent', 'Claude did not send it'), ('error', 'Claude: usage limit reached'),
+                             ('other_tool', 'ok')):
+            os.environ['FAKE_PUSH_MODE'] = mode
+            n.relay.close()
+            self.assertEqual(n.relay.push('⬢ Test crew · is done'), status, mode)
+        denied = self.calls('host_answer')[-1]['response']
+        self.assertEqual(denied['response']['behavior'], 'deny')                      # only PushNotification may run
+        missing = notify.ClaudeRelay(n.s, state_dir=self.state, binary=None)
+        with unittest.mock.patch('kovan.server.find_claude', return_value=None):
+            self.assertEqual(missing.push('x'), 'could not find the claude executable')
+
+    def test_pushes_go_out_from_their_own_thread_and_the_relay_rests_when_idle(self):
+        saved = (notify.CLAUDE_POLL, notify.CLAUDE_IDLE_SECONDS)
+        notify.CLAUDE_POLL, notify.CLAUDE_IDLE_SECONDS = 0.05, 0.3
+        try:
+            n = self.notifier()
+            n.start()
+            self.to_plan_review()
+            n.look()
+            end = time.time() + 10
+            while n.status.get('claude') != 'ok' and time.time() < end:
+                time.sleep(0.05)
+            self.assertEqual(n.status['claude'], 'ok')
+            while n.relay.alive() and time.time() < end:
+                time.sleep(0.05)
+            self.assertFalse(n.relay.alive())                                         # exited after the quiet spell
+        finally:
+            notify.CLAUDE_POLL, notify.CLAUDE_IDLE_SECONDS = saved
+
+    def test_settings_and_the_push_line(self):
+        s = notify.Settings({'claude': {'model': 'sonnet', 'name': 'kovan bildirimleri'}}, environ={})
+        self.assertEqual((s.claude, s.channels(), s.enabled), ({'model': 'sonnet', 'name': 'kovan bildirimleri'}, ['claude'], True))
+        self.assertIsNone(notify.Settings({'claude': {'enabled': False}}, environ={}).claude)
+        self.assertIsNone(notify.Settings({'claude': False}, environ={}).claude)
+        for bad, message in (('yes', 'true, false'), ({'model': 'haiku; rm -rf /'}, 'model'), ({'name': ''}, 'name'),
+                             ({'name': 'a\nb'}, 'name')):
+            with self.assertRaisesRegex(notify.NotifyError, message):
+                notify.Settings({'claude': bad}, environ={})
+        m = notify.Message('c1', '⬢ shop · is blocked', 'token=ghp_' + 'a' * 36 + ' was rejected\nsecond line')
+        line = m.line()
+        self.assertNotIn('\n', line)
+        self.assertNotIn('ghp_aaaa', line)
+        self.assertTrue(line.startswith('⬢ shop · is blocked: '))
+        self.assertLessEqual(len(notify.Message('c', 'x' * 300).line()), 180)
+        self.assertEqual(notify.Message('c', '⬢ shop · needs you — approve the plan', 'y' * 200 + '\n1. A').line(),
+                         '⬢ shop · needs you — approve the plan')                  # a long summary stays in the chat
 
 
 if __name__ == '__main__':

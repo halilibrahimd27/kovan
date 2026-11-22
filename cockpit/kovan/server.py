@@ -2208,7 +2208,7 @@ def build_parser(defaults):
     p.add_argument('--foreground', action='store_true', help='run in this terminal instead of in the background')
     p.add_argument('--stop', action='store_true', help='stop the web server (sessions keep running in the holder)')
     p.add_argument('--stop-all', action='store_true', help='release kovan sessions, stop the holder and the web server')
-    p.add_argument('--notify-test', action='store_true', help='send a test message to the configured webhook / Telegram and exit')
+    p.add_argument('--notify-test', action='store_true', help='send a test message to every configured notification channel (Claude, webhook, Telegram) and exit')
     p.add_argument('--version', action='version', version='kovan ' + __version__)
     return p
 

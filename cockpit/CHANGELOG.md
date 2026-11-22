@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0 — 2026-11-22
+
+kovan can now notify you through Claude itself.
+
+- **Notifications through Claude**: `"notify": {"claude": true}` sends a push from the Claude app on your phone,
+  the same kind Claude Code sends itself, when a crew needs you or is done. You don't need a bot, a token or a
+  webhook. kovan keeps one small Claude Code session connected with Remote Control. It shows up as **kovan** in
+  the Claude app with every message and its details, and its only tool is PushNotification.
+- The relay session starts with the first notification and rests after 20 quiet minutes. When it comes back it
+  rejoins the same Claude conversation, also after kovan restarts. It uses a small model by default (`haiku`;
+  `"model"` changes it), about 2,000 mostly cached tokens per notification.
+- The crews page shows each channel's state. When a push did not go out it says why, for example that "Push when
+  Claude decides" is off in `/config` or that Remote Control is not connected. `kovan --notify-test` covers the
+  new channel too.
+
 ## 0.3.0 — 2026-11-21
 
 Crews get extra roles, templates, a real CI gate and pull requests; kovan can reach you on your phone.

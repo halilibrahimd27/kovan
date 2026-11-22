@@ -109,8 +109,9 @@ Defaults live in `~/.config/kovan/config.json`:
 
 `dirs` are the folders whose sessions you see (new folders are added when you start a session in them),
 `notes` are Markdown files for the Notes tab, `lang` is `en` or `tr`, and `swarm` connects the swarm
-engine's boardroom. Add `notify` to hear on your phone when a crew needs you — a Slack/Mattermost webhook or a
-Telegram bot whose buttons approve plans and retry blocked work
+engine's boardroom. Add `notify` to hear on your phone when a crew needs you. The simplest option is
+`"notify": {"claude": true}`, a push from the Claude app with nothing else to set up. You can also use a
+Slack/Mattermost webhook, or a Telegram bot whose buttons approve plans and retry blocked work
 ([setup](cockpit/README.md#notifications-on-your-phone)). All options: [cockpit/README.md](cockpit/README.md#usage). The swarm engine is configured
 through `.env` — see [its configuration](docs/swarm.md#configuration).
 
@@ -128,8 +129,8 @@ http://127.0.0.1:8080 — see [operating the swarm](docs/swarm.md#operating).
 
 ## Getting your keys
 
-The cockpit needs no keys: it uses your Claude Code login (notifications optionally use a webhook URL or a
-Telegram bot token you create). The swarm engine needs an Anthropic API key, and
+The cockpit needs no keys: it uses your Claude Code login. Notifications can go through Claude as well;
+a webhook URL or a Telegram bot token you create is optional. The swarm engine needs an Anthropic API key, and
 optionally a GitHub token (to publish projects) and a Telegram bot (to steer it from your phone) — see
 [getting your keys](docs/swarm.md#getting-your-keys).
 

@@ -70,6 +70,23 @@ plain http only to `127.0.0.1`), and never writes them to its log — failures a
 | What leaves the machine | Crew names, plan and idea titles and summaries, blocked reasons, and the command a role wants to run — masked like everything kovan shows. Session content is not sent; `"sessions": true` sends only a session's name. |
 | A stolen bot token | Lets the thief read what kovan sends and impersonate the bot, not press buttons as you (Telegram signs who pressed them). Revoke it in @BotFather. |
 
+**Through Claude** (`"claude": true`) there is no secret to keep. Notifications travel with your own Claude Code
+login, over Remote Control, and only your claude.ai account can open the **kovan** conversation. The relay session
+has these limits:
+
+- **Tools.** PushNotification is its only tool (`--tools PushNotification`). It loads no MCP servers and none of
+  your claude.ai connectors. Its working folder is kovan's state folder, and kovan denies any other tool it asks
+  for.
+- **Environment.** It gets the same cleaned environment as kovan's sessions, without `KOVAN_*` variables such as
+  the bot token.
+- **Presence check.** It sets `CLAUDE_CODE_DISABLE_NOTIFICATION_PRESENCE_CHECK`, because nobody sits at its
+  terminal. Without it, Claude would skip pushes it thinks you already see.
+- **What it receives.** It gets the same masked text as the other channels. A plan summary is model output, so it
+  could carry instructions. The relay is told never to follow them, and with a single tool the worst such text can
+  do is word a push oddly.
+- **Usage and local files.** Each message is one short model turn on your usage. A local transcript per relay
+  start stays for two weeks, then kovan deletes it.
+
 ## The swarm engine
 
 `--swarm URL` makes the kovan **server** (not the page) call the swarm engine's API. Only plain
