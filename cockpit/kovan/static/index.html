@@ -740,6 +740,8 @@ const TR={
   'Denied commands':'Yasak komutlar','always ask you, even when allowed above':'yukarıda izinli olsa bile her zaman sana sorulur',
   'Branch':'Dal','optional, e.g. feature/m1-sso':'isteğe bağlı, örn. feature/m1-sso','Push command':'Push komutu','{branch} = the crew’s branch':'{branch} = ekibin dalı',
   'Commit trailer':'Commit imzası','added to every commit':'her commit’in sonuna eklenir','Idle command':'Boşta komutu','end of the day and at the end':'mesai bitince ve iş bitince',
+  'a fresh session that reads the project':'projeyi okuyan taze bir oturum','(forked)':'(çatal)','reviews the plan once, read-only, before you approve it':'planı sen onaylamadan önce bir kez, salt okunur inceler',
+  'Advisor brief':'Danışmanın görevi','what it should check; optional':'neye bakacağı; isteğe bağlı',
   'Advisor':'Danışman','advisor':'danışman','one of your sessions reviews the plan (forked, once)':'oturumlarından biri planı gözden geçirir (çatallanarak, bir kez)','Advisor model':'Danışman modeli','Advisor effort':'Danışman eforu','none':'yok',
   'reviews the plan before you approve it':'planı sen onaylamadan önce gözden geçirir','reading the plan…':'planı okuyor…',
   'Check command':'Denetim komutu','Permissions':'İzinler','Safe':'Güvenli','Ask':'Sor','Trusted (never ask)':'Güvenilir (hiç sorma)','Attempts':'Deneme','Check timeout (s)':'Denetim süresi (sn)',
@@ -1805,7 +1807,7 @@ function projectKV(c){const o=c.options||{},m=o.models||{},ef=o.efforts||{},rows
   if(o.push_command)rows.push(['Push command','<code>'+esc(o.push_command)+'</code>',1]);
   if(o.commit_trailer)rows.push(['Commit trailer','<code>'+esc(o.commit_trailer)+'</code>',1]);
   if(o.idle_command)rows.push(['Idle command','<code>'+esc(o.idle_command)+'</code>',1]);
-  if(o.advisor)rows.push(['Advisor',esc(o.advisor.name)+([o.advisor.model,o.advisor.effort].filter(Boolean).length?' ('+esc([o.advisor.model,o.advisor.effort].filter(Boolean).join(' · '))+')':'')+' — '+esc(tt('reviews the plan before you approve it')),1]);
+  if(o.advisor)rows.push(['Advisor',esc(o.advisor.name)+(o.advisor.sid?' '+esc(tt('(forked)')):' — '+esc(tt('a fresh session that reads the project')))+([o.advisor.model,o.advisor.effort].filter(Boolean).length?' ('+esc([o.advisor.model,o.advisor.effort].filter(Boolean).join(' · '))+')':'')+' — '+esc(tt('reviews the plan before you approve it')),1]);
   return rows.map(([k,v,raw])=>'<span>'+esc(k)+'</span><b'+(raw?' class="no-i18n"':'')+'>'+(raw?v:esc(v))+'</b>').join('');}
 const DAYS=[[0,'Mon'],[1,'Tue'],[2,'Wed'],[3,'Thu'],[4,'Fri'],[5,'Sat'],[6,'Sun']];
 const CREATE_ROLES=['planner','developer','tester','reviewer','security'];
@@ -1829,8 +1831,10 @@ function advHTML(o,roles,mode){o=o||{};const m=o.models||{},ef=o.efforts||{},h=o
   out+='<label>Denied commands <small>always ask you, even when allowed above</small><textarea name="deny" rows="2" spellcheck="false" placeholder="docker compose ** config **">'+esc((o.deny||[]).join('\n'))+'</textarea></label>';
   out+='<div class="row2">'+(create?'<label>Branch <small>optional, e.g. feature/m1-sso</small>'+inp('branch',o.branch,'')+'</label>':'')+'<label>Push command <small>{branch} = the crew’s branch</small>'+inp('push_command',o.push_command,'git push origin {branch}')+'</label></div>';
   out+='<div class="row2"><label>Commit trailer <small>added to every commit</small>'+inp('commit_trailer',o.commit_trailer,'Co-Authored-By: …')+'</label><label>Idle command <small>end of the day and at the end</small>'+inp('idle_command',o.idle_command,'make down')+'</label></div>';
-  out+='<div class="row3"><label>Advisor <small>one of your sessions reviews the plan (forked, once)</small><select name="a_sid"><option value="">none</option>'+sessions.map(x=>'<option value="'+x.sid+'"'+(a.sid===x.sid?' selected':'')+' class="no-i18n">'+esc(x.name)+'</option>').join('')+'</select></label>'+
-    '<label>Advisor model'+'<input name="a_model" list="model-list" value="'+esc(a.model||'')+'" placeholder="'+esc(tt('session default'))+'" autocomplete="off"></label><label>Advisor effort'+eff('a_effort',a.effort||'')+'</label></div>';
+  const fresh=o.advisor&&!a.sid;
+  out+='<div class="row3"><label>Advisor <small>reviews the plan once, read-only, before you approve it</small><select name="a_sid"><option value="">none</option><option value="fresh"'+(fresh?' selected':'')+'>'+esc(tt('a fresh session that reads the project'))+'</option>'+sessions.map(x=>'<option value="'+x.sid+'"'+(a.sid===x.sid?' selected':'')+' class="no-i18n">'+esc(x.name)+' '+esc(tt('(forked)'))+'</option>').join('')+'</select></label>'+
+    '<label>Advisor model'+'<input name="a_model" list="model-list" value="'+esc(a.model||'')+'" placeholder="'+esc(tt('session default'))+'" autocomplete="off"></label><label>Advisor effort'+eff('a_effort',a.effort||'')+'</label></div>'+
+    '<label>Advisor brief <small>what it should check; optional</small><textarea name="a_brief" rows="2">'+esc(a.brief||'')+'</textarea></label>';
   return out;}
 function c_scheduled(o){return o&&o.start_at&&o.start_at>Date.now();}
 function readAdv(f){const E=n=>f.elements.namedItem(n),out={},models={},efforts={};
@@ -1839,12 +1843,15 @@ function readAdv(f){const E=n=>f.elements.namedItem(n),out={},models={},efforts=
   Object.assign(out,{models,efforts,fresh:E('fresh').checked,web:E('web').checked,weekly_pause:+E('weekly_pause').value||95,
     hours:E('h_on').checked?{days:[...f.querySelectorAll('[name=h_day]:checked')].map(x=>+x.value),start:E('h_start').value,end:E('h_end').value}:null,
     allow:E('allow').value,deny:E('deny').value,push_command:E('push_command').value.trim(),commit_trailer:E('commit_trailer').value.trim(),idle_command:E('idle_command').value.trim()});
-  const sid=E('a_sid').value;out.advisor=sid?{sid,name:((S.d.sessions.find(x=>x.sid===sid)||{}).name||'Advisor').slice(0,40),model:E('a_model').value.trim(),effort:E('a_effort').value}:null;
+  const sid=E('a_sid').value;out.advisor=sid?{sid:sid==='fresh'?'':sid,name:(sid==='fresh'?tt('Advisor'):((S.d.sessions.find(x=>x.sid===sid)||{}).name||'Advisor')).slice(0,40),
+    model:E('a_model').value.trim(),effort:E('a_effort').value,brief:E('a_brief').value.trim()}:null;
+  if(out.advisor&&f.dataset.files)out.advisor.files=JSON.parse(f.dataset.files);
   if(E('branch'))out.branch=E('branch').value.trim();
   if(E('start_at')){const v=E('start_at').value;out.start_at=v?new Date(v).getTime():0;}
   if(f.id==='crew-settings-form'){out.quota_pause=+E('quota_pause').value||90;Object.assign(out,{check:E('check').value.trim(),policy:E('policy').value,max_attempts:+E('max_attempts').value||3,check_timeout:+E('check_timeout').value||900,milestone_approval:E('milestone_approval').checked});}
   return out;}
 function crewSettings(id){const c=crewOf(id);if(!c)return;const d=$('#crew-settings'),f=$('#crew-settings-form');f.dataset.id=id;
+  f.dataset.files=JSON.stringify(((c.options||{}).advisor||{}).files||[]);    // kept as they are (set through the API)
   f.querySelector('[data-adv]').innerHTML=advHTML(c.options,crewRoles(c).filter(k=>k!=='ideator').map(k=>[k,roleName(k)]),'edit');d.showModal();}
 
 /* ---- actions */

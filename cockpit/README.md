@@ -185,9 +185,11 @@ and most can be changed later under **Settings → Edit** on the crew page:
   `Co-Authored-By:` line. With a push command the crew pushes after every milestone. At the end it gives you a
   link that opens the merge or pull request with the branches filled in; opening it is up to you.
 - **Idle command.** Runs when the crew rests for the day or finishes, e.g. `make down`.
-- **Advisor.** One of your existing sessions, for example the one where you designed the project, reviews the
-  plan once before you approve it. kovan asks it in a fork (`--fork-session`, read-only tools), so its own
-  conversation is left untouched. Its answer appears in the boardroom before the approval.
+- **Advisor.** Before you approve the plan, an advisor reviews it once with read-only tools. It is either a fresh
+  session that reads the project, which is cheap, or one of your existing sessions, for example the one where you
+  designed the project. An existing session is asked in a fork (`--fork-session`), so its own conversation is left
+  untouched. Forking a long conversation costs a lot of usage. You can give the advisor a brief (what to check) and
+  files whose contents go into its task. Its answer appears in the boardroom before the approval.
 - **Usage.** The crew page shows each role's turns, output tokens, cache reads, context size and time, plus how
   the weekly window moved. Each milestone shows its own share.
 

@@ -342,6 +342,27 @@ class AdvisorTests(CrewTestCase):
         self.drive(c, lambda c: c['phase'] == 'plan_review' and c['reason'] == 'approve the plan')
         self.assertFalse(os.path.exists(self.log))
 
+    def test_a_fresh_advisor_reads_the_project_with_your_brief_and_files(self):
+        note = os.path.join(self.tmp, 'project-note.md')
+        with open(note, 'w') as f:
+            f.write('Decisions: the realm is code. password=hunter2\n')
+        c = self.new(plan_approval=True, advisor={'sid': '', 'name': 'Reviewer of plans', 'model': 'opus', 'effort': 'xhigh',
+                                                  'brief': 'Does the plan cover K0-K5?', 'files': [note]})
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.drive(c, lambda c: c['phase'] == 'plan_review' and c['reason'] == 'approve the plan')
+        with open(self.log) as f:
+            call = json.load(f)
+        self.assertNotIn('--fork-session', call['args'])
+        self.assertFalse(any(a.startswith('--resume') for a in call['args']))
+        self.assertEqual(os.path.realpath(call['cwd']), os.path.realpath(self.work))       # reads the project itself
+        self.assertIn('Does the plan cover K0-K5?', call['stdin'])
+        self.assertIn('Decisions: the realm is code.', call['stdin'])
+        self.assertNotIn('hunter2', call['stdin'])                                          # masked
+        self.assertIn('K1 should come before K2; otherwise fine.', [b['text'] for b in c['board']])
+        with self.assertRaisesRegex(server.KovanError, 'advisor file not found'):
+            crew.clean_options({'advisor': {'files': ['/nonexistent/x.md']}}, crew.DEFAULT_OPTIONS)
+
     def test_an_unreachable_advisor_does_not_hold_up_the_plan(self):
         server.STORE.transcripts = {}
         c = self.new(plan_approval=True, advisor={'sid': self.sid, 'name': 'ZT'})

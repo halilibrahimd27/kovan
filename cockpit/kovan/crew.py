@@ -609,12 +609,23 @@ def _hours(value):
 
 
 def _advisor(value):
+    """{'sid': one of your sessions (forked) or '' for a fresh session in the workspace, 'name', 'model', 'effort',
+    'brief': what to check, 'files': up to 5 files whose contents go into its task}."""
     if not value:
         return None
-    if not isinstance(value, dict) or not server.UUID_RE.match(str(value.get('sid') or '')):
-        raise server.KovanError('the advisor is one of your sessions (its id)')
+    if not isinstance(value, dict):
+        raise server.KovanError('invalid advisor')
+    sid = str(value.get('sid') or '').strip()
+    if sid and not server.UUID_RE.match(sid):
+        raise server.KovanError('the advisor is one of your sessions (its id) or a fresh session')
+    files = []
+    for f in value.get('files') or []:
+        f = os.path.abspath(os.path.expanduser(str(f)))
+        if not os.path.isfile(f):
+            raise server.KovanError('advisor file not found: %s' % server.tilde(f))
+        files.append(f)
     name = re.sub(r'\s+', ' ', str(value.get('name') or '')).strip()[:40] or 'Advisor'
-    return {'sid': str(value['sid']), 'name': name,
+    return {'sid': sid, 'name': name, 'brief': str(value.get('brief') or '').strip()[:3000], 'files': files[:5],
             'model': _model(str(value['model']).strip()) if str(value.get('model') or '').strip() else '',
             'effort': _effort(str(value['effort']).strip()) if str(value.get('effort') or '').strip() else ''}
 
@@ -695,22 +706,27 @@ def short_subject(text, limit=72):
 
 
 def advise(advisor, prompt, crew_dir):
-    """One turn of an existing session, forked: it answers with everything it knows, while its own transcript stays
-    untouched (``--fork-session``). Returns (text, forked session id, error)."""
+    """The advisor's one turn, read-only. With a session id: that session, forked — it answers with everything it
+    knows while its own transcript stays untouched (``--fork-session``). Without: a fresh session in the workspace,
+    which reads what it needs (much cheaper than forking a long conversation). Returns (text, session id, error)."""
     binary = server.find_claude()
     if not binary:
         return None, None, 'could not find the claude executable'
-    t = server.STORE.transcripts.get(advisor['sid']) if server.STORE else None
-    if not t:
-        return None, None, 'the advisor’s session is not in the watched folders'
-    args = [binary, '-p', '--resume=' + advisor['sid'], '--fork-session', '--output-format=json',
-            '--tools=Read,Grep,Glob', '--permission-mode=default', '--disallowedTools=' + ','.join(SECRET_RULES)]
+    args = [binary, '-p', '--output-format=json', '--tools=Read,Grep,Glob', '--permission-mode=default',
+            '--disallowedTools=' + ','.join(SECRET_RULES)]
+    cwd = crew_dir
+    if advisor.get('sid'):
+        t = server.STORE.transcripts.get(advisor['sid']) if server.STORE else None
+        if not t:
+            return None, None, 'the advisor’s session is not in the watched folders'
+        args += ['--resume=' + advisor['sid'], '--fork-session']
+        cwd = t.directory
     if advisor.get('model'):
         args.append('--model=' + advisor['model'])
     if advisor.get('effort'):
         args.append('--effort=' + advisor['effort'])
     try:
-        r = subprocess.run(args, input=prompt, cwd=t.directory, capture_output=True, text=True, timeout=ADVISOR_TIMEOUT,
+        r = subprocess.run(args, input=prompt, cwd=cwd, capture_output=True, text=True, timeout=ADVISOR_TIMEOUT,
                            env=server.session_env())
     except (OSError, subprocess.TimeoutExpired) as e:
         return None, None, 'no answer (%s)' % type(e).__name__
@@ -1563,8 +1579,9 @@ class Crews:
         return ('Milestone: %s\n%s\nAcceptance criteria:\n%s\n\nThe Developer says:\n%s\n\nCheck command result:\n%s\n\n'
                 'The staged diff for this milestone:\n```diff\n%s\n```\n\nReview it. JSON shape: {"verdict": "approve" | '
                 '"changes", "summary": str, "issues": [{"severity": "high" | "medium" | "low", "file": str, "note": str}], '
-                '"commit_message": "conventional commit subject of at most 72 characters, e.g. feat(parser): add table '
-                'support", "commit_body": "2-5 short lines in English: what changed and why"}' % (
+                '"commit_message": "conventional commit subject in English, imperative mood, at most 72 characters '
+                'including the type, e.g. feat(parser): add table support", "commit_body": "2-5 short lines in English: '
+                'what changed and why"}' % (
                     m['title'], m['goal'], '\n'.join('- ' + a for a in m['acceptance']), dev_summary, check, diff))
 
     def replan_task(self, crew, m, outcome):
@@ -1635,6 +1652,16 @@ class Crews:
                 'or say that it can be approved as it is.' % (
                     crew['name'], server.tilde(crew['dir']), crew['goal'], plan.get('summary', ''),
                     crew['options']['check'] or plan.get('check_command') or '(none)', milestones_text(plan['milestones'])))
+        advisor = crew['options'].get('advisor') or {}
+        if advisor.get('brief'):
+            text += '\n\nCheck in particular:\n' + advisor['brief']
+        for path in advisor.get('files') or []:
+            try:
+                with open(path, encoding='utf-8', errors='replace') as f:
+                    content = server.mask_secrets(f.read(40000))[0]
+            except OSError:
+                continue
+            text += '\n\nContents of %s:\n```\n%s\n```' % (server.tilde(path), content)
         return text + LANGUAGE_NOTE.get(crew['options'].get('lang'), '')
 
     def do_advise(self, crew, _):

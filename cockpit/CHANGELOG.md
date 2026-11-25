@@ -18,8 +18,9 @@ Crews can now work on a real project for days without growing their context.
   pattern. The Developer is told which commands run without asking. Optional web access for every role.
 - **Your own branch, push command and commit trailer.** At the end the crew gives you a link that opens the merge or
   pull request with the branches filled in. Commit subjects are kept to 72 characters.
-- **Advisor**: one of your sessions reviews the plan once before you approve it, in a fork, so its own transcript is
-  left untouched.
+- **Advisor**: before you approve the plan, an advisor reviews it once, read-only. The advisor is either a fresh session
+  that reads the project (with your brief and up to five files in its task) or one of your sessions in a fork, whose
+  own transcript is left untouched.
 - **Settings → Edit** on the crew page changes these while the crew runs.
 - Every role session starts with Claude Code deny rules for `.env`, keys and similar files. Commands that name such
   files are never auto-allowed.
