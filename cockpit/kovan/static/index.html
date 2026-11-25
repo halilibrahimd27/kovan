@@ -747,7 +747,7 @@ const TR={
   'Weekly usage window':'Haftalık kullanım penceresi','Tokens this milestone: output · weekly usage window':'Bu kilometre taşının tokenları: çıktı · haftalık kullanım penceresi',
   'Context is the size of a role’s last request; fresh sessions keep it small. Cache reads count far less toward the limits than new input.':'Bağlam, rolün son isteğinin büyüklüğüdür; taze oturumlar onu küçük tutar. Önbellekten okunan, sınırlara yeni girdiden çok daha az sayılır.',
   'Models':'Modeller','Fresh sessions':'Taze oturumlar','every milestone':'her kilometre taşında','Working hours':'Mesai saatleri','Weekly pause':'Haftalık duraklama','Web':'Web','every role':'her rol',
-  'Scheduled start':'Zamanlı başlangıç','begins':'başlıyor','▶ Start now':'▶ Şimdi başlat','Open the merge request ↗':'Merge request’i aç ↗','Open the pull request ↗':'Pull request’i aç ↗',
+  'The Planner starts at the start time.':'Planlayıcı başlama saatinde işe başlar.','Scheduled start':'Zamanlı başlangıç','begins':'başlangıç:','resumes by itself':'kendiliğinden devam:','▶ Start now':'▶ Şimdi başlat','Open the merge request ↗':'Merge request’i aç ↗','Open the pull request ↗':'Pull request’i aç ↗',
   'Security auditor':'Güvenlik denetçisi',
   // navigation and chrome
   'Chat':'Sohbet','Boardroom':'Toplantı odası','Crews':'Ekipler','Overview':'Genel bakış','Messages':'Mesajlar','Activity':'Etkinlik','Notes':'Notlar',
@@ -1626,7 +1626,8 @@ function crewRoom(c){
   const entries=h?h.board.map(e=>({id:e.id,ts:e.ts,speaker:e.speaker,to:e.to,kind:e.kind,text:e.text})):null;
   const paused=c.phase==='paused',fin=c.phase==='done'||c.phase==='stopped';
   const acts=tsizeBtn()+(fin?'':'<button class="btn small" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button>')+'<button class="btn small" data-crew="'+c.id+'">Milestones & settings</button>';
-  return{key:'crew:'+c.id,title:c.name,icon:'⬢',crew:c,detail:h,sub:c.goal||(c.theme?tt('Ideas about:')+' '+c.theme:''),pill:phasePill(c.phase),seats,entries,acts,
+  const note=c.phase==='paused'&&c.resume_at?(c.pause_kind==='scheduled'?(LANG==='tr'?'başlama: ':'starts '):(LANG==='tr'?'devam: ':'resumes '))+fmtAt(c.resume_at):'';
+  return{key:'crew:'+c.id,title:c.name,icon:'⬢',crew:c,detail:h,note,sub:c.goal||(c.theme?tt('Ideas about:')+' '+c.theme:''),pill:phasePill(c.phase),seats,entries,acts,
     need:h?needHTML(c,h,true):'',
     speak:{targets:[{v:'',l:'To everyone'}].concat(roles.map(r=>({v:r,l:'To the '+roleName(r)}))),placeholder:fin?'This crew has finished':'Speak to the crew — a steering note reaches a busy role right away, otherwise its next task',disabled:fin},
     empty:'The meeting is about to start…'};}
@@ -1667,7 +1668,7 @@ function tableSVG(R){
     const said=plain(lastE.text),cut=said.length>64?said.slice(0,64).replace(/\s+\S*$/,''):said,rest=said.slice(cut.length).trim();
     center='<text class="t-now no-i18n" x="'+cx+'" y="'+(cy-12)+'" text-anchor="middle">'+esc(who+(to?' → '+to:''))+'</text><text class="t-sub no-i18n" x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle">'+esc(cut)+'</text>'+
       (rest?'<text class="t-sub no-i18n" x="'+cx+'" y="'+(cy+25)+'" text-anchor="middle">'+esc(clip1(rest,64))+'</text>':'');}
-  else center='<text class="t-sub" x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle">'+esc(R.entries?'quiet so far':'joining…')+'</text>';
+  else center='<text class="t-sub'+(R.note?' no-i18n':'')+'" x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle">'+esc(R.note||(R.entries?'quiet so far':'joining…'))+'</text>';
   let st='';seats.forEach(s=>{const p=pos[s.key],below=Math.sin(p.a)>0.05,lines=s.meta?3:2,ly=below?p.y+41:p.y-30-14*lines;
     st+='<g class="seat'+(s.busy?' busy':'')+(s.ask?' ask':'')+(s.away?' away':'')+'"'+(s.sid?' data-open="'+s.sid+'"':'')+'><title>'+esc(s.name+(s.role?' — '+s.role:'')+(s.meta?' · '+s.meta:'')+(s.sid?' · click to open the session':''))+'</title>'+
       (s.busy?'<circle class="ring" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="28"/>':'')+(s.ask?'<circle class="ring ask" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="28"/>':'')+
@@ -1732,8 +1733,10 @@ function needHTML(c,d,compact){
       (d.plan?'<button class="btn" data-crew-act="skip" data-id="'+c.id+'">Skip this milestone</button>':'')+'<button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">Stop</button><button class="btn primary" data-crew-act="retry" data-id="'+c.id+'">Retry</button></div></div>';
   if(c.phase==='milestone_review')h+='<div class="card-ask need"><div class="ask-title">⬢ Milestone finished — continue?</div><p class="muted">You asked the crew to pause after every milestone. Look at the commit, steer it with a note, then continue.</p><div class="ask-actions"><button class="btn" data-crew-act="pause" data-id="'+c.id+'">Pause</button><button class="btn primary" data-crew-act="continue" data-id="'+c.id+'">Continue</button></div></div>';
   if(c.attention){const a=c.attention;h+='<div class="card-ask need"><div class="ask-title">'+esc(roleName(a.role))+' needs your OK</div><p><code>'+esc(a.summary||a.tool)+'</code></p><p class="muted">This is outside what the crew’s permission policy allows by itself. Answer it in the '+esc(roleName(a.role))+' session.</p><div class="ask-actions"><button class="btn primary" data-open="'+a.sid+'">Open the '+esc(roleName(a.role))+' session</button></div></div>';}
-  if(c.phase==='paused'&&!compact){const sched=c.pause_kind==='scheduled';
-    h+='<div class="banner">'+(sched?'Scheduled start':'Paused'+(c.reason?' — '+esc(c.reason):''))+(d.resume_at?' · '+(sched?'begins':'resumes by itself')+' '+esc(fmtAt(d.resume_at))+' ('+relSpan(d.resume_at)+')':'')+'<button class="btn small" data-crew-act="resume" data-id="'+c.id+'">'+(sched?'▶ Start now':'▶ Resume')+'</button></div>';}
+  if(c.phase==='paused'&&!compact){const sched=c.pause_kind==='scheduled',at=d.resume_at;
+    h+='<div class="banner"><span><span>'+(sched?'Scheduled start':'Paused')+'</span>'+(!sched&&c.reason?' — <span>'+esc(c.reason)+'</span>':'')+
+      (at?' · '+(sched?'':'<span>resumes by itself</span> ')+'<b class="no-i18n">'+esc(fmtAt(at))+'</b> <span class="muted no-i18n">('+esc(until(at))+')</span>':'')+
+      '</span><button class="btn small" data-crew-act="resume" data-id="'+c.id+'">'+(sched?'▶ Start now':'▶ Resume')+'</button></div>';}
   return h;}
 
 /* ---- the crews page */
@@ -1773,7 +1776,7 @@ function renderCrews(){
     '<div class="crew-top"><span class="hex">⬢</span><div class="ct-main"><h2 class="no-i18n">'+esc(c.name)+'</h2><div class="muted">'+esc(c.dir)+'</div></div>'+phasePill(c.phase)+
       '<div class="acts">'+(c.git&&c.git.pr_url?'<a class="btn" href="'+esc(c.git.pr_url)+'" target="_blank" rel="noopener">'+(c.git.forge==='gitlab'?'Merge request ↗':'Pull request ↗')+'</a>':'')+(c.git&&c.git.request_url&&!c.git.pr_url?'<a class="btn primary" href="'+esc(c.git.request_url)+'" target="_blank" rel="noopener">'+(c.git.forge==='gitlab'?'Open the merge request ↗':'Open the pull request ↗')+'</a>':'')+'<button class="btn" data-room="crew:'+c.id+'">Boardroom</button>'+(fin?'':'<button class="btn" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">■ Stop</button>')+'<button class="btn" data-crew-delete="'+c.id+'">Delete</button></div></div>'+
     (h.goal?'<div class="goal md">'+md(h.goal)+'</div>':'')+needHTML(c,h,false)+
-    '<div class="crew-cols"><div><h2 class="section">Milestones'+(plan.length?' · '+c.progress.done+'/'+plan.length:'')+'</h2>'+(plan.length?'<ol class="box ms">'+plan.map((m,i)=>msHTML(m,i,c,h)).join('')+'</ol>':'<div class="box empty">'+(c.phase==='ideating'||c.phase==='choosing'?'The plan comes after you pick an idea.':'The Planner is writing the plan…')+'</div>')+
+    '<div class="crew-cols"><div><h2 class="section">Milestones'+(plan.length?' · '+c.progress.done+'/'+plan.length:'')+'</h2>'+(plan.length?'<ol class="box ms">'+plan.map((m,i)=>msHTML(m,i,c,h)).join('')+'</ol>':'<div class="box empty">'+(c.phase==='ideating'||c.phase==='choosing'?'The plan comes after you pick an idea.':c.pause_kind==='scheduled'?'The Planner starts at the start time.':'The Planner is writing the plan…')+'</div>')+
       (h.plan&&h.plan.summary?'<h2 class="section">Plan</h2><div class="box pad md">'+md(h.plan.summary+(h.plan.stack?'\n\n**Stack:** '+h.plan.stack:''))+'</div>':'')+'</div>'+
     '<div><h2 class="section">Team</h2><div class="box">'+team+'</div>'+usageHTML(c)+
       '<h2 class="section">Settings'+(fin?'':'<button class="link" data-crew-settings="'+c.id+'">Edit</button>')+'</h2><div class="box kv">'+projectKV(c)+'<span>Template</span><b>'+esc(TEMPLATE_T[c.template]||c.template||'—')+'</b><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push||c.git?' + push':''):'no commits')+'</b>'+(c.git?'<span>Branch</span><b class="no-i18n"><code>'+esc(c.git.branch)+'</code>'+(c.git.branch!==c.git.base?' → <code>'+esc(c.git.base)+'</code>':'')+'</b>':'')+
@@ -1782,6 +1785,7 @@ function renderCrews(){
       (h.board&&h.board.length?'<h2 class="section">Latest in the boardroom</h2><div class="box mini-board">'+h.board.slice(-5).map(e=>'<div><b style="color:'+roleColor(e.speaker)+'">'+esc(roleName(e.speaker))+'</b>'+(e.to?' → '+esc(roleName(e.to)):'')+' <span class="muted no-i18n">'+esc(clip1(plain(e.text),140))+'</span></div>').join('')+'<button class="link" data-room="crew:'+c.id+'">Open the boardroom →</button></div>':'')+'</div></div>';}
 
 /* ---- usage and project settings (crew page) */
+function until(ms){const d=ms-Date.now();if(d<=0)return LANG==='tr'?'şimdi':'now';return LANG==='tr'?dur(d)+' sonra':'in '+dur(d);}
 function fmtAt(ms){try{return new Date(ms).toLocaleString(LANG==='tr'?'tr-TR':'en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return clock(ms);}}
 function usageHTML(c){const u=c.usage||{},roles=Object.entries(u.roles||{}),pl=u.planning||{};if(!roles.length)return'';
   const row=(label,r,ctx)=>'<tr title="'+esc(tt('Input')+' '+tok((r.in||0)+(r.cache_write||0))+' · '+tt('Cache read')+' '+tok(r.cache_read||0))+'"><td>'+label+'</td><td>'+(r.turns||0)+'</td><td>'+tok(r.out||0)+'</td><td>'+tok(r.cache_read||0)+'</td><td>'+(ctx?tok(ctx):'—')+'</td><td>'+dur(r.ms||0)+'</td></tr>';
@@ -2055,7 +2059,7 @@ const comp=$('#composer');
 comp.addEventListener('drop',e=>{e.preventDefault();addFiles([...e.dataTransfer.files]);});
 $('#c-scroll').addEventListener('scroll',()=>{stick=atBottom();$('#jump').classList.toggle('show',!stick);},{passive:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){markSeen();updateTitle();refresh(0);}});
-window.addEventListener('hashchange',()=>{const s=S.sel;readHash();if(S.view==='chat'&&S.sel&&S.sel!==s)openSession(S.sel);else render();});
+window.addEventListener('hashchange',()=>{const s=S.sel;readHash();if(S.view==='chat'&&S.sel&&S.sel!==s)openSession(S.sel);else{render();refresh(0);}});
 window.addEventListener('resize',grow);
 
 /* ---------------- start */
