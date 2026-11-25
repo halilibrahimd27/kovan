@@ -785,6 +785,17 @@ def climbs(token):
     return any(part == '..' for part in re.split(r'[/=:]', token))
 
 
+def outside(token, root):
+    """A token that points outside the workspace: an absolute or ~ path elsewhere, or any '..' climb. Absolute paths
+    inside the workspace (Claude likes `cd "/full/path/to/project" && …`) are fine."""
+    token = token.strip('\'"')
+    if climbs(token):
+        return True
+    if token.startswith(('/', '~')):
+        return not inside(root, os.path.expanduser(token))
+    return False
+
+
 def auto_allow(policy, role, tool, inp, check_command='', root=None, allow=(), deny=(), web=False):
     """Should a crew answer this permission request by itself? Anything not clearly safe goes to a human.
 
@@ -818,10 +829,10 @@ def auto_allow(policy, role, tool, inp, check_command='', root=None, allow=(), d
             return False
         tokens = part.split()
         if tokens[0] == 'cd':
-            if len(tokens) != 2 or climbs(tokens[1]) or tokens[1].startswith(('/', '~')):
+            if len(tokens) != 2 or outside(tokens[1], root):
                 return False
             continue
-        if any(t.startswith(('/', '~')) or climbs(t) for t in tokens[1:]):
+        if any(outside(t, root) for t in tokens[1:]):
             return False
         if any(SECRET_FILE.search(piece) for t in tokens for piece in re.split(r'[=:,]', t.strip('\'"')) if piece) or \
                 any(match_pattern(p, tokens, urls=False) for p in deny):

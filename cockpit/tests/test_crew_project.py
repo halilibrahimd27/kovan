@@ -6,6 +6,7 @@ command patterns, the crew's own branch and push command, an advisor who reviews
 import json
 import os
 import stat
+import tempfile
 import subprocess
 import sys
 import time
@@ -50,6 +51,16 @@ class PatternTests(unittest.TestCase):
             self.assertFalse(self.ok(command), command)
         self.assertTrue(self.ok('make test', allow=[]))                           # without patterns: the built-in list
         self.assertFalse(self.ok('make dev', allow=[]))
+
+    def test_absolute_paths_inside_the_workspace(self):
+        root = os.path.realpath(tempfile.mkdtemp(prefix='kovan-ws-'))
+        ok = lambda c: crew.auto_allow('safe', 'developer', 'Bash', {'command': c}, '', root, ['make **'])  # noqa: E731
+        self.assertTrue(ok('cd "%s" && make test' % root))
+        self.assertTrue(ok('cat %s/README.md' % root))
+        self.assertFalse(ok('cd /etc && ls'))
+        self.assertFalse(ok('cat /etc/passwd'))
+        self.assertFalse(ok('cat %s/../secret.txt' % root))
+        self.assertFalse(ok('cat ~/.ssh/config'))
 
     def test_secret_files_web_and_globs(self):
         read = lambda p, **kw: crew.auto_allow('safe', 'developer', 'Read', {'file_path': p}, '', '/tmp/w', **kw)  # noqa: E731
