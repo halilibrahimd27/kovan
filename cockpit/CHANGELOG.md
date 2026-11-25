@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.5.0 — 2026-11-25
+
+Crews can now work on a real project for days without growing their context.
+
+- **Models and effort per role**: for example Opus at high effort for the Planner and the Security auditor, Sonnet
+  for the Tester. They can be changed while a crew runs; a change applies to the role's next session.
+- **Fresh sessions every milestone** (on by default): the Developer, Tester, Reviewer and extra roles start each
+  milestone with an empty context, and their task says what is already done. Earlier sessions stay listed with
+  the crew.
+- **Usage per role and milestone**: turns, output tokens, cache reads, context size and time, and how the weekly
+  usage window moved. Crews also pause at the weekly window (95% by default), not only the 5-hour one.
+- **Working hours and a start time**: a crew starts no new turn outside the days and hours you set, and goes on at
+  the next start. A crew with a start time makes its branch when it starts. An **idle command** (e.g. `make down`)
+  runs when it rests for the day or finishes.
+- **Allowed and denied command patterns** per crew. `**` stands for any arguments, and URLs must be written in the
+  pattern. The Developer is told which commands run without asking. Optional web access for every role.
+- **Your own branch, push command and commit trailer.** At the end the crew gives you a link that opens the merge or
+  pull request with the branches filled in. Commit subjects are kept to 72 characters.
+- **Advisor**: one of your sessions reviews the plan once before you approve it, in a fork, so its own transcript is
+  left untouched.
+- **Settings → Edit** on the crew page changes these while the crew runs.
+- Every role session starts with Claude Code deny rules for `.env`, keys and similar files. Commands that name such
+  files are never auto-allowed.
+- The boardroom table is larger: it can be switched between large, full and small. Seats show each role's model,
+  effort and output tokens, and older exchanges fade.
+- The Messages graph was redrawn: the busiest session sits in the middle, arrows are small, two-way lines run side
+  by side and counts sit in labels.
+
 ## 0.4.0 — 2026-11-22
 
 kovan can now notify you through Claude itself.

@@ -282,9 +282,12 @@ li.call .caret{color:var(--faint);font-size:11px}
 .graph svg{width:100%;height:auto;display:block}
 .graph .note{font-size:12px;color:var(--faint);padding:0 6px 4px}
 svg .node{cursor:pointer}
-svg .node text{fill:var(--text);font-size:12.5px;font-weight:600}
-svg .node.dim{opacity:.25}svg .edge.dim{opacity:.12}
-svg .num{fill:var(--muted);font-size:11px;font-weight:600;paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+svg .node text{fill:var(--text);font-size:12.5px;font-weight:600;paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round}
+svg .node.quiet{opacity:.5}svg .node.quiet text{font-weight:500}
+svg .edge{fill:none;stroke-linecap:round;transition:opacity .15s}
+svg .cnt rect{fill:var(--panel);stroke-width:1}svg .cnt text{fill:var(--text);font-size:10.5px;font-weight:650}
+svg .node,svg .cnt{transition:opacity .15s}
+svg .node.dim{opacity:.22}svg .edge.dim{opacity:.08}svg .cnt.dim{opacity:0}
 .filter{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px}
 .filter .right{margin-left:auto;display:flex;align-items:center;gap:6px;cursor:pointer}
 .link{border:0;background:none;color:var(--accent);cursor:pointer;padding:0}
@@ -406,14 +409,16 @@ dialog.palette{padding:0;width:min(640px,94vw);top:12vh;margin-top:0;overflow:hi
 .room-head .acts,.crew-top .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .seg-chips{display:inline-flex;gap:4px;margin-right:4px}
 .table-wrap{padding:4px 24px 0;flex:none}
-.table-svg{width:100%;max-width:780px;max-height:min(290px,34vh);height:auto;display:block;margin:0 auto}
+.table-svg{width:100%;max-width:1060px;max-height:var(--tbl-h);height:auto;display:block;margin:0 auto}
+.room{--tbl-h:min(440px,48vh)}.room.t-s{--tbl-h:min(250px,30vh)}.room.t-f{--tbl-h:calc(100vh - 250px)}.room.t-f .stream{flex:0 0 110px}
+.seat .md2{font-size:10.5px;fill:var(--faint);font-family:var(--mono,ui-monospace,monospace)}
 .seat.away{opacity:.38}
 .tbl{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}
-.t-now{font-size:13px;font-weight:650;fill:var(--text)}
-.t-sub{font-size:11.5px;fill:var(--faint)}
-.seat .ini{font-size:12px;font-weight:700;fill:#fff;pointer-events:none}
-.seat .nm{font-size:12px;font-weight:650;fill:var(--text)}
-.seat .rl{font-size:10.5px;fill:var(--faint)}
+.t-now{font-size:14.5px;font-weight:650;fill:var(--text)}
+.t-sub{font-size:12.5px;fill:var(--muted)}
+.seat .ini{font-size:13px;font-weight:700;fill:#fff;pointer-events:none}
+.seat .nm{font-size:13.5px;font-weight:650;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:3px}
+.seat .rl{font-size:11.5px;fill:var(--muted)}
 .seat[data-open]{cursor:pointer}.seat[data-open]:hover .nm{text-decoration:underline}
 .seat .ring{fill:none;stroke:var(--busy);stroke-width:2.4;animation:seatpulse 1.6s ease-in-out infinite}
 .seat .ring.ask{stroke:var(--ask);animation:none}
@@ -511,6 +516,15 @@ dialog.palette{padding:0;width:min(640px,94vw);top:12vh;margin-top:0;overflow:hi
 .role-row small{display:block;font-size:11.5px;color:var(--faint)}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px;padding:10px 14px}
 .kv>span{color:var(--faint)}.kv>b{font-weight:550;min-width:0;overflow-wrap:anywhere}
+.adv>summary{cursor:pointer;font-weight:600;font-size:13px;margin:2px 0 10px;color:var(--muted)}
+.adv table{width:100%;border-collapse:collapse;font-size:12.5px;margin:2px 0 10px}.adv td{padding:2px 4px}.adv td:first-child{color:var(--muted);white-space:nowrap;width:1%}
+.adv th{font-size:11.5px;font-weight:500;color:var(--faint);text-align:left;padding:0 4px}.adv td input,.adv td select{width:100%;box-sizing:border-box}
+.days{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.days label{display:inline-flex!important;align-items:center;gap:3px;font-size:12px;margin:0!important}
+.usage table{width:100%;border-collapse:collapse;font-size:12.5px}.usage th{color:var(--faint);font-weight:500;text-align:right;padding:8px 10px 4px}
+.usage td{text-align:right;padding:5px 10px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}.usage th:first-child,.usage td:first-child{text-align:left}
+.usage tfoot td{font-weight:650}.usage .note{font-size:12px;color:var(--faint);padding:8px 12px;line-height:1.5}.usage{overflow-x:auto}.usage th,.usage td{padding-left:7px;padding-right:7px}
+.ms-u{font-size:11px;color:var(--faint);white-space:nowrap}
+.section .link{font-size:12px;font-weight:500;margin-left:8px}
 .box.pad{padding:4px 16px}
 .mini-board{padding:8px 12px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
 .mini-board>div{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -682,9 +696,13 @@ a.btn,a.btn:visited{color:var(--text);text-decoration:none;display:inline-flex;a
       <label>Attempts<input name="max_attempts" type="number" min="1" max="10" value="3"></label>
       <label>Usage pause %<input name="quota_pause" type="number" min="50" max="100" value="90"></label>
     </div>
+    <details class="adv" data-adv-wrap><summary>Advanced — models, working hours, start time, commands, branch, advisor</summary><div data-adv></div></details>
     <div class="ask-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Start crew</button></div>
   </form>
 </dialog>
+<dialog id="crew-settings" class="wide"><form id="crew-settings-form"><h3>Crew settings</h3><p class="muted" style="font-size:12.5px;margin:-4px 0 12px">Models and effort apply to the next session a role starts (with fresh sessions: the next milestone).</p><div data-adv></div>
+  <div class="ask-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></form></dialog>
+<datalist id="model-list"><option value="opus"><option value="sonnet"><option value="haiku"><option value="claude-opus-5-5[1m]"><option value="claude-sonnet-5-5"><option value="claude-fable-5-2"></datalist>
 <dialog id="confirm-dialog"><h3 id="confirm-title"></h3><div id="confirm-body"></div><div class="ask-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" id="confirm-ok">OK</button></div></dialog>
 <dialog id="output-dialog" class="wide"><h3 id="output-title">Output</h3><div class="source" id="output-sub"></div><pre class="out" id="output-body"></pre><div class="ask-actions"><button class="btn" data-close>Close</button></div></dialog>
 <dialog id="quick-dialog"><form id="quick-form"><h3>Quick prompts</h3><label>One prompt per line. They appear above the message box; clicking one puts it in the box.<textarea name="items" rows="8"></textarea></label><div class="ask-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></form></dialog>
@@ -707,6 +725,30 @@ const FALLBACK_MODELS=[{value:'default',name:'Default'},{value:'opus',name:'Opus
 const LANG=(()=>{const s=store('kovan.lang');if(s==='tr'||s==='en')return s;const d='__LANG__';if(d==='tr'||d==='en')return d;return /^tr\b/i.test(navigator.language||'')?'tr':'en';})();
 document.documentElement.lang=LANG;
 const TR={
+  // running a crew on a real project (0.5.0)
+  'Large table':'Büyük masa','Full table':'Tam ekran masa','Small table':'Küçük masa','Table size — click to switch':'Masa boyutu — değiştirmek için tıkla',
+  'Advanced — models, working hours, start time, commands, branch, advisor':'Gelişmiş — modeller, mesai saatleri, başlama zamanı, komutlar, dal, danışman',
+  'Crew settings':'Ekip ayarları','Models and effort apply to the next session a role starts (with fresh sessions: the next milestone).':'Model ve efor, rolün açacağı bir sonraki oturumda geçerli olur (taze oturumlarla: sonraki kilometre taşında).',
+  'Save':'Kaydet','Settings saved':'Ayarlar kaydedildi','Could not save the settings':'Ayarlar kaydedilemedi','Edit':'Düzenle',
+  'Role':'Rol','Model':'Model','Effort':'Efor','default':'varsayılan','session default':'oturum varsayılanı','Low':'Düşük','Medium':'Orta','High':'Yüksek','Extra high':'Çok yüksek','Max':'En yüksek',
+  'Fresh sessions every milestone (smaller context, fewer tokens)':'Her kilometre taşında taze oturum (küçük bağlam, daha az token)',
+  'Every role may search and read the web':'Her rol web’de arayıp okuyabilir','Work only during working hours':'Yalnız mesai saatlerinde çalış',
+  'Mon':'Pzt','Tue':'Sal','Wed':'Çar','Thu':'Per','Fri':'Cum','Sat':'Cmt','Sun':'Paz',
+  'After the end of the day no new turn starts (a running one finishes); the crew goes on at the next start.':'Mesai bitince yeni tur başlamaz (süren tur biter); ekip bir sonraki mesai başında devam eder.',
+  'Start at':'Başlama zamanı','empty = now':'boş = hemen','Weekly pause %':'Haftalık duraklama %','Usage pause % (5 hours)':'Kullanım duraklama % (5 saat)',
+  'Allowed commands':'İzinli komutlar','one pattern per line; ** = any arguments; URLs must be written in the pattern':'her satıra bir desen; ** = herhangi argümanlar; adresler desende açıkça yazılmalı',
+  'Denied commands':'Yasak komutlar','always ask you, even when allowed above':'yukarıda izinli olsa bile her zaman sana sorulur',
+  'Branch':'Dal','optional, e.g. feature/m1-sso':'isteğe bağlı, örn. feature/m1-sso','Push command':'Push komutu','{branch} = the crew’s branch':'{branch} = ekibin dalı',
+  'Commit trailer':'Commit imzası','added to every commit':'her commit’in sonuna eklenir','Idle command':'Boşta komutu','end of the day and at the end':'mesai bitince ve iş bitince',
+  'Advisor':'Danışman','advisor':'danışman','one of your sessions reviews the plan (forked, once)':'oturumlarından biri planı gözden geçirir (çatallanarak, bir kez)','Advisor model':'Danışman modeli','Advisor effort':'Danışman eforu','none':'yok',
+  'reviews the plan before you approve it':'planı sen onaylamadan önce gözden geçirir','reading the plan…':'planı okuyor…',
+  'Check command':'Denetim komutu','Permissions':'İzinler','Safe':'Güvenli','Ask':'Sor','Trusted (never ask)':'Güvenilir (hiç sorma)','Attempts':'Deneme','Check timeout (s)':'Denetim süresi (sn)',
+  'Usage':'Kullanım','Turns':'Tur','Output':'Çıktı','Input':'Girdi','Cache read':'Önbellekten','Context':'Bağlam','Time':'Süre','Total':'Toplam','Planning':'Planlama','output':'çıktı','sessions':'oturum',
+  'Weekly usage window':'Haftalık kullanım penceresi','Tokens this milestone: output · weekly usage window':'Bu kilometre taşının tokenları: çıktı · haftalık kullanım penceresi',
+  'Context is the size of a role’s last request; fresh sessions keep it small. Cache reads count far less toward the limits than new input.':'Bağlam, rolün son isteğinin büyüklüğüdür; taze oturumlar onu küçük tutar. Önbellekten okunan, sınırlara yeni girdiden çok daha az sayılır.',
+  'Models':'Modeller','Fresh sessions':'Taze oturumlar','every milestone':'her kilometre taşında','Working hours':'Mesai saatleri','Weekly pause':'Haftalık duraklama','Web':'Web','every role':'her rol',
+  'Scheduled start':'Zamanlı başlangıç','begins':'başlıyor','▶ Start now':'▶ Şimdi başlat','Open the merge request ↗':'Merge request’i aç ↗','Open the pull request ↗':'Pull request’i aç ↗',
+  'Security auditor':'Güvenlik denetçisi',
   // navigation and chrome
   'Chat':'Sohbet','Boardroom':'Toplantı odası','Crews':'Ekipler','Overview':'Genel bakış','Messages':'Mesajlar','Activity':'Etkinlik','Notes':'Notlar',
   '＋ New session':'＋ Yeni oturum','New session':'Yeni oturum','Desktop notifications':'Masaüstü bildirimleri','Theme':'Tema','Toggle theme':'Temayı değiştir','Language':'Dil',
@@ -890,7 +932,7 @@ const TR={
 const TR_RX=[
   [/^two roles share the name “(.+)”$/,'iki rol aynı adı taşıyor: “$1”'],
   [/^Watching: (.*)$/,'İzlenen: $1'],[/^no such directory: (.*)$/,'böyle bir klasör yok: $1'],
-  [/^(\d+) messages? between sessions$/,'oturumlar arası $1 mesaj'],
+  [/^(\d+) messages? between sessions$/,'oturumlar arası $1 mesaj'],[/^(\d+) messages?$/,'$1 mesaj'],
   [/^(.+) · (\d+)\/(\d+) milestones$/,(m,a,b,c)=>tt(a)+' · '+b+'/'+c+' kilometre taşı'],
   [/^(\d+)\/(\d+) milestones$/,'$1/$2 kilometre taşı'],
   [/^Milestones · (\d+)\/(\d+)$/,'Kilometre taşları · $1/$2'],
@@ -902,7 +944,7 @@ const TR_RX=[
   [/^(.+) needs your answer$/,'$1 cevabını bekliyor'],[/^(.+) \((.+)\) replied$/,'$1 ($2) cevap verdi'],[/^(.+) replied$/,'$1 cevap verdi'],[/^(.+) hit an error$/,'$1 hata aldı'],[/^(.+) closed$/,'$1 kapandı'],
   [/^Permission to use (.+)$/,'$1 kullanma izni'],[/^Effort set to (.+)$/,'Efor: $1'],
   [/^(.+) needs your OK$/,'$1 onayını bekliyor'],[/^Open the (.+) session$/,'$1 oturumunu aç'],[/^To the (.+)$/,'→ $1'],[/^To (.+)$/,'→ $1'],
-  [/^running the (\w+)…$/,(m,s)=>({check:'denetim',diff:'fark',commit:'commit'}[s]||s)+' çalışıyor…'],
+  [/^running the (\w+)…$/,(m,s)=>({check:'denetim',diff:'fark',commit:'commit',advisor:'danışman',ci:'CI',pr:'istek'}[s]||s)+' çalışıyor…'],[/^at (\d+)% of the 7-day window$/,'7 günlük pencerenin %$1’inde'],
   [/^Delete the crew “(.+)”\?$/,'“$1” ekibi silinsin mi?'],
   [/^⬢ The Ideator has (\d+) ideas? — pick one to build$/,'⬢ Fikir üreticinin $1 fikri var — inşa edilecek birini seç'],
   [/^Swarm engine · (.*)$/,(m,r)=>'Swarm motoru · '+r.replace(/ milestones/,' kilometre taşı')],
@@ -1444,34 +1486,58 @@ function renderOverview(){const os=S.d.sessions,live=os.filter(o=>o.live),closed
   $('#ov-live').innerHTML=live.map(ocard).join('')||'<div class="empty">No live sessions right now.</div>';
   $('#ov-closed').innerHTML=closed.length?'<h2 class="section" style="margin-top:30px">Closed sessions · '+closed.length+'</h2><div class="cards-grid">'+closed.slice(0,12).map(ocard).join('')+'</div>':'';}
 function graphSVG(ms){
-  const edges=new Map(),nodes=new Set();
-  ms.forEach(m=>{if(!m.from||!m.to||!sess(m.from)||!sess(m.to))return;const k=m.from+'>'+m.to;edges.set(k,(edges.get(k)||0)+1);nodes.add(m.from);nodes.add(m.to);});
-  S.d.sessions.filter(o=>o.live).forEach(o=>nodes.add(o.sid));
-  const ns=[...nodes].sort((a,b)=>sess(a).color-sess(b).color);if(!ns.length)return'<div class="empty">No messages yet.</div>';
-  const W=520,H=440,cx=W/2,cy=H/2+4,R=Math.min(W,H)/2-78,pos={};
-  ns.forEach((s,i)=>{const a=-Math.PI/2+2*Math.PI*i/ns.length;pos[s]={x:cx+R*Math.cos(a),y:cy+R*Math.sin(a),a};});
-  const sel=S.msgSession;let defs='',paths='',nums='';
-  ns.forEach(s=>{defs+='<marker id="ar-'+s.slice(0,8)+'" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="'+colorOf(s)+'"/></marker>';});
+  const edges=new Map(),nodes=new Set(),deg={};
+  ms.forEach(m=>{if(!m.from||!m.to||m.from===m.to||!sess(m.from)||!sess(m.to))return;const k=m.from+'>'+m.to;edges.set(k,(edges.get(k)||0)+1);
+    nodes.add(m.from);nodes.add(m.to);deg[m.from]=(deg[m.from]||0)+1;deg[m.to]=(deg[m.to]||0)+1;});
+  S.d.sessions.filter(o=>o.live&&!o.crew).forEach(o=>nodes.add(o.sid));
+  const ns=[...nodes].sort((a,b)=>(deg[b]||0)-(deg[a]||0)||sess(a).color-sess(b).color);if(!ns.length)return'<div class="empty">No messages yet.</div>';
+  const W=560,H=460,cx=W/2,cy=H/2,R=Math.min(W,H)/2-70,pos={},wt=(a,b)=>(edges.get(a+'>'+b)||0)+(edges.get(b+'>'+a)||0);
+  const total=[...edges.values()].reduce((x,y)=>x+y,0);
+  // The busiest session sits in the middle when it takes part in most of the traffic: its lines become short spokes.
+  const hub=ns.length>=4&&(deg[ns[0]]||0)>=total*.5?ns[0]:null;
+  // Around the ring, sessions that talk to each other a lot sit side by side, so fewer lines cross.
+  const left=ns.filter(s=>s!==hub),ring=[];
+  const talky=left.filter(s=>left.some(t=>t!==s&&wt(s,t)));
+  if(talky.length){const first=talky.reduce((x,y)=>left.reduce((n,t)=>n+wt(y,t),0)>left.reduce((n,t)=>n+wt(x,t),0)?y:x);ring.push(first);left.splice(left.indexOf(first),1);}
+  while(left.length){const last=ring[ring.length-1],head=ring[0];let best=left[0],score=-1;
+    left.forEach(s=>{const v=last?wt(last,s)*2+wt(head,s):0;if(v>score||(v===score&&(deg[s]||0)>(deg[best]||0))){best=s;score=v;}});ring.push(best);left.splice(left.indexOf(best),1);}
+  ring.forEach((s,i)=>{const a=-Math.PI/2+2*Math.PI*i/ring.length;pos[s]={x:cx+R*Math.cos(a),y:cy+R*Math.sin(a),a};});
+  if(hub)pos[hub]={x:cx,y:cy,a:null};
+  const NR=s=>s===hub?15:deg[s]?11:8,sel=S.msgSession,colors=new Set();let paths='',nums='';
   for(const[k,c]of edges){const[a,b]=k.split('>'),p=pos[a],q=pos[b];if(!p||!q)continue;
-    const dx=q.x-p.x,dy=q.y-p.y,L=Math.hypot(dx,dy)||1,nx=-dy/L,ny=dx/L,mx=(p.x+q.x)/2+nx*30,my=(p.y+q.y)/2+ny*30;
+    const dx=q.x-p.x,dy=q.y-p.y,L=Math.hypot(dx,dy)||1,nx=-dy/L,ny=dx/L;let mx=(p.x+q.x)/2,my=(p.y+q.y)/2;
+    if(hub&&a!==hub&&b!==hub){const d=Math.hypot(mx-cx,my-cy),want=R*.6;   // a chord between two ring sessions bows around the middle
+      if(d<want){const ux=d>1?(mx-cx)/d:nx,uy=d>1?(my-cy)/d:ny;mx=cx+ux*want;my=cy+uy*want;}}
+    if(edges.has(b+'>'+a)){mx+=nx*13;my+=ny*13;}                            // both directions: two lines side by side
     const u=Math.hypot(mx-p.x,my-p.y)||1,v=Math.hypot(q.x-mx,q.y-my)||1;
-    const sx=p.x+(mx-p.x)/u*17,sy=p.y+(my-p.y)/u*17,ex=q.x-(q.x-mx)/v*19,ey=q.y-(q.y-my)/v*19;
-    const dim=sel&&a!==sel&&b!==sel?' dim':'';
-    paths+='<path class="edge'+dim+'" d="M'+sx.toFixed(1)+' '+sy.toFixed(1)+'Q'+mx.toFixed(1)+' '+my.toFixed(1)+' '+ex.toFixed(1)+' '+ey.toFixed(1)+'" fill="none" stroke="'+colorOf(a)+'" stroke-width="'+(1.3+Math.log2(c+1)*1.1).toFixed(1)+'" stroke-opacity=".8" marker-end="url(#ar-'+a.slice(0,8)+')"/>';
-    nums+='<text class="num'+dim+'" x="'+(.25*sx+.5*mx+.25*ex).toFixed(1)+'" y="'+(.25*sy+.5*my+.25*ey+4).toFixed(1)+'" text-anchor="middle">'+c+'</text>';}
-  let nd='';ns.forEach(s=>{const p=pos[s],o=sess(s),cs=Math.cos(p.a),sn=Math.sin(p.a);const anchor=Math.abs(cs)<.3?'middle':cs>0?'start':'end';
-    const tx=p.x+cs*22,ty=p.y+sn*22+(Math.abs(cs)<.3?(sn>0?12:-4):4);const name=o.name.length>20?o.name.slice(0,19)+'…':o.name;
+    const sx=p.x+(mx-p.x)/u*(NR(a)+3),sy=p.y+(my-p.y)/u*(NR(a)+3),ex=q.x-(q.x-mx)/v*(NR(b)+4),ey=q.y-(q.y-my)/v*(NR(b)+4);
+    const col=colorOf(a),id='ar-'+a.slice(0,8);colors.add(a);
+    const dim=sel&&a!==sel&&b!==sel?' dim':'',ends=' data-a="'+a+'" data-b="'+b+'"';
+    paths+='<path class="edge'+dim+'"'+ends+' d="M'+f1(sx)+' '+f1(sy)+'Q'+f1(mx)+' '+f1(my)+' '+f1(ex)+' '+f1(ey)+'" stroke="'+col+'" stroke-width="'+(1.3+Math.min(2.2,Math.log2(c)*.7)).toFixed(2)+'" stroke-opacity=".85" marker-end="url(#'+id+')"><title>'+esc(sess(a).name+' → '+sess(b).name+': '+c)+'</title></path>';
+    const t=.62,lx=(1-t)*(1-t)*sx+2*(1-t)*t*mx+t*t*ex,ly=(1-t)*(1-t)*sy+2*(1-t)*t*my+t*t*ey,tw=String(c).length*6.4+10;
+    nums+='<g class="cnt'+dim+'"'+ends+'><rect x="'+f1(lx-tw/2)+'" y="'+f1(ly-8)+'" width="'+f1(tw)+'" height="16" rx="8" stroke="'+col+'" stroke-opacity=".6"/><text x="'+f1(lx)+'" y="'+f1(ly+3.7)+'" text-anchor="middle">'+c+'</text></g>';}
+  let defs='';colors.forEach(s=>{defs+='<marker id="ar-'+s.slice(0,8)+'" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto"><path d="M0 1L10 5L0 9z" fill="'+colorOf(s)+'"/></marker>';});
+  let nd='';ns.forEach(s=>{const p=pos[s],o=sess(s),r=NR(s);let tx,ty,anchor;
+    if(s===hub){tx=p.x;ty=p.y-r-9;anchor='middle';}
+    else{const cs=Math.cos(p.a),sn=Math.sin(p.a),mid=Math.abs(cs)<.35;anchor=mid?'middle':cs>0?'start':'end';tx=p.x+cs*(r+9);ty=p.y+sn*(r+9)+(mid?(sn>0?11:-3):4);}
+    const name=o.name.length>22?o.name.slice(0,21)+'…':o.name;
     const dim=sel&&s!==sel&&!edges.has(s+'>'+sel)&&!edges.has(sel+'>'+s)?' dim':'';
-    nd+='<g class="node'+dim+'" data-node="'+s+'"><circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(s===sel?14:12)+'" fill="'+colorOf(s)+'" stroke="var(--panel)" stroke-width="3"/>'+(o.status==='working'?'<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="17" fill="none" stroke="var(--busy)" stroke-width="2"/>':'')+'<text x="'+tx.toFixed(1)+'" y="'+ty.toFixed(1)+'" text-anchor="'+anchor+'">'+esc(name)+'</text><title>'+esc(o.name)+'</title></g>';});
+    nd+='<g class="node'+dim+(deg[s]?'':' quiet')+'" data-node="'+s+'">'+(o.status==='working'?'<circle cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="'+(r+5)+'" fill="none" stroke="var(--busy)" stroke-width="2"/>':'')+
+      '<circle cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="'+(s===sel?r+2:r)+'" fill="'+colorOf(s)+'" stroke="var(--panel)" stroke-width="3"/><text class="no-i18n" x="'+f1(tx)+'" y="'+f1(ty)+'" text-anchor="'+anchor+'">'+esc(name)+'</text><title>'+esc(o.name+(deg[s]?' · '+deg[s]:''))+'</title></g>';});
   return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Messages between sessions"><defs>'+defs+'</defs>'+paths+nums+nd+'</svg>';
 }
+function graphHover(svg){if(!svg||svg.dataset.hover)return;svg.dataset.hover='1';
+  const set=s=>{if(S.msgSession)return;svg.querySelectorAll('.edge,.cnt').forEach(e=>e.classList.toggle('dim',!!s&&e.dataset.a!==s&&e.dataset.b!==s));
+    svg.querySelectorAll('.node').forEach(n=>{const x=n.dataset.node;n.classList.toggle('dim',!!s&&x!==s&&!svg.querySelector('.edge[data-a="'+s+'"][data-b="'+x+'"],.edge[data-a="'+x+'"][data-b="'+s+'"]'));});};
+  svg.addEventListener('mouseover',e=>{const n=e.target.closest('[data-node]');set(n?n.dataset.node:'');});
+  svg.addEventListener('mouseleave',()=>set(''));}
 function msgHTML(m){const k='m-'+m.id;
   return '<details class="msg" data-k="'+k+'"'+(S.open.has(k)?' open':'')+'><summary><time>'+clock(m.ts)+'</time>'+tag(m.from,m.from_name)+'<span class="arrow">→</span>'+tag(m.to,m.to_name)+
     (m.delivered?'<span class="delivered" title="Seen in the receiving session\'s transcript">✓ delivered</span>':'')+'<span class="sum">'+esc(m.summary||plain(m.text).slice(0,160))+'</span></summary><div class="md">'+md(m.text)+'</div></details>';}
 function renderMessages(){
-  $('#graph').innerHTML=graphSVG(S.d.messages.filter(m=>!m.subagent));
+  $('#graph').innerHTML=graphSVG(S.d.messages.filter(m=>!m.subagent));graphHover($('#graph svg'));
   const ms=S.d.messages.filter(m=>S.showSub||!m.subagent).filter(m=>!S.msgSession||m.from===S.msgSession||m.to===S.msgSession);
-  $('#msg-top').innerHTML='<div class="filter">'+(S.msgSession?'Filter: '+tag(S.msgSession)+' <button class="link" data-clear>clear</button>':ms.length+' message'+(ms.length!==1?'s':''))+'<label class="right"><input type="checkbox" id="show-sub"'+(S.showSub?' checked':'')+'> include messages to subagents</label></div>';
+  $('#msg-top').innerHTML='<div class="filter">'+(S.msgSession?'Filter: '+tag(S.msgSession)+' <button class="link" data-clear>clear</button>':'<span>'+ms.length+' message'+(ms.length!==1?'s':'')+'</span>')+'<label class="right"><input type="checkbox" id="show-sub"'+(S.showSub?' checked':'')+'> include messages to subagents</label></div>';
   $('#msg-list').innerHTML=ms.length?ms.map(msgHTML).join(''):'<div class="empty">No messages.</div>';
 }
 function whatLabel(e){return{prompt:'You',reply:'Claude',tool:e.tool||'Tool',sent:'→ '+(e.to||''),received:'← '+(e.sender||''),notice:'Notice'}[e.kind]||e.kind;}
@@ -1491,11 +1557,11 @@ function renderNotes(){if(!S.notes){$('#notes').innerHTML='<div class="empty">Lo
 
 /* ---------------- crews & boardroom */
 const PHASE={ideating:['Ideating','busy'],choosing:['Pick an idea','ask'],planning:['Planning','busy'],plan_review:['Approve the plan','ask'],building:['Building','busy'],milestone_review:['Waiting for you','ask'],blocked:['Needs you','ask'],paused:['Paused','wait'],done:['Done','idle'],stopped:['Stopped','off']};
-const ROLE_T={you:'You',human:'You',operator:'Operator',kovan:'Kovan',planner:'Planner',developer:'Developer',tester:'Tester',reviewer:'Reviewer',finance:'Finance',ideator:'Ideator',pm:'PM'};
+const ROLE_T={you:'You',human:'You',operator:'Operator',kovan:'Kovan',planner:'Planner',developer:'Developer',tester:'Tester',reviewer:'Reviewer',finance:'Finance',ideator:'Ideator',pm:'PM',advisor:'Advisor'};
 if(LANG==='tr')Object.assign(ROLE_T,{you:'Sen',human:'Sen',operator:'Operatör',planner:'Planlayıcı',developer:'Geliştirici',tester:'Testçi',reviewer:'İnceleyici',finance:'Finans',ideator:'Fikir üretici',architect:'Mimar',diagnostician:'Teşhisçi'});
 const TEMPLATE_T={feature:'Feature crew',secure:'Secure feature crew',bugfix:'Bug-fix crew',audit:'Security audit crew'};
-const ROLE_C={security:'#d0503c',docs:'#3f9fb5',performance:'#b5823f',you:'#c4623f',human:'#c4623f',operator:'#c4623f',kovan:'#8193ad',planner:'#4f8fdc',pm:'#4f8fdc',architect:'#5c7ae0',developer:'#2fa872',tester:'#cf9a2e',reviewer:'#a979d6',finance:'#2fabb3',ideator:'#d9668f',diagnostician:'#c0703a'};
-const ROLE_DO={planner:'plans the milestones and replans between them',developer:'builds one milestone at a time',tester:'strengthens the tests',reviewer:'approves or sends work back',ideator:'proposes and scores ideas',finance:'watches usage limits',kovan:'runs the checks, commits, keeps order',you:'decides'};
+const ROLE_C={advisor:'#7f9a2f',security:'#d0503c',docs:'#3f9fb5',performance:'#b5823f',you:'#c4623f',human:'#c4623f',operator:'#c4623f',kovan:'#8193ad',planner:'#4f8fdc',pm:'#4f8fdc',architect:'#5c7ae0',developer:'#2fa872',tester:'#cf9a2e',reviewer:'#a979d6',finance:'#2fabb3',ideator:'#d9668f',diagnostician:'#c0703a'};
+const ROLE_DO={advisor:'reviews the plan before you approve it',planner:'plans the milestones and replans between them',developer:'builds one milestone at a time',tester:'strengthens the tests',reviewer:'approves or sends work back',ideator:'proposes and scores ideas',finance:'watches usage limits',kovan:'runs the checks, commits, keeps order',you:'decides'};
 const KIND_T={goal:'goal',plan:'plan',idea:'idea',handoff:'hand-off',verdict:'verdict',check:'check',milestone:'milestone',replan:'replan',decision:'decision',finance:'finance',blocked:'needs you',attention:'needs your OK',waiting:'your turn',note:'note',done:'done'};
 const YOU_KEYS=['you','human','operator'];
 function roleKey(r){return String(r||'').toLowerCase().replace(/[^a-z0-9]+/g,'_');}
@@ -1531,11 +1597,11 @@ function seatMap(seats){const m={};seats.forEach(s=>{m[s.key]=s;});return m;}
 function sessionsRoom(){
   const ms=S.d.messages.filter(m=>!m.subagent).slice().reverse();const ids=[];const add=x=>{if(x&&sess(x)&&!ids.includes(x))ids.push(x);};
   ms.forEach(m=>{add(m.from);add(m.to);});S.d.sessions.filter(o=>o.live&&!o.crew).forEach(o=>add(o.sid));
-  const seats=ids.slice(0,12).map(sid=>{const o=sess(sid);return{key:sid,name:o.name,role:(PLACE[o.place]||'').toLowerCase(),color:colorI(o.color),busy:o.status==='working',ask:o.status==='awaiting',sid};});
+  const seats=ids.slice(0,12).map(sid=>{const o=sess(sid);return{key:sid,name:o.name,role:PLACE[o.place]||'',color:colorI(o.color),busy:o.status==='working',ask:o.status==='awaiting',sid};});
   const entries=ms.map(m=>({id:m.id,ts:m.ts,speaker:m.from||'?',speakerName:m.from&&sess(m.from)?sess(m.from).name:(m.from_name||'?'),to:m.to,toName:m.to&&sess(m.to)?sess(m.to).name:m.to_name,kind:m.delivered?'delivered':'',text:m.text}));
   const targets=S.d.sessions.filter(o=>o.place==='kovan'&&o.live);
   return{key:'sessions',title:tt('Sessions'),icon:'💬',sub:'Your Claude Code sessions talking to each other: every message one session sent another, with delivery confirmed from the receiving transcript.',
-    seats,entries,acts:'<button class="btn small" data-view="messages">Graph view</button>',
+    seats,entries,acts:tsizeBtn()+'<button class="btn small" data-view="messages">Graph view</button>',
     speak:{targets:targets.map(o=>({v:o.sid,l:'To '+o.name})),placeholder:targets.length?'Write to a session kovan drives…':'Continue a session in kovan to speak to it from here',disabled:!targets.length},
     empty:'No messages between sessions yet. When one session uses SendMessage to reach another, the exchange appears here.'};}
 function crewRoles(c){const t=c.team||[],r=['planner','developer'];if(c.options&&c.options.tester)r.push('tester');
@@ -1550,11 +1616,16 @@ function crewRoom(c){
   const seat=k=>{const sid=(c.roles||{})[k],o=sid&&sess(sid);
     let role=ROLE_DO[k]||'';if(o){role=o.status==='working'?'working…':o.status==='awaiting'?'needs your OK':o.status==='starting'?'joining…':wait&&wait.role===k?'has the floor':'in session';}else if(roles.includes(k))role=sid?'session closed':'not started yet';
     if(k==='kovan'&&c.busy)role='running the '+c.busy+'…';
-    return{key:k,name:roleName(k),role,color:roleColor(k),busy:!!(o&&o.status==='working')||(k==='kovan'&&!!c.busy),ask:!!(o&&o.status==='awaiting')||(k==='you'&&crewNeedsYou(c)),away:roles.includes(k)&&!o,sid:o?sid:null};};
-  const seats=['you'].concat(roles,['finance','kovan']).map(seat);
+    const op=c.options||{},use=((c.usage||{}).roles||{})[k],meta=[(op.models||{})[k],(op.efforts||{})[k],use&&use.out?tok(use.out)+(LANG==='tr'?' çıktı':' out'):''].filter(Boolean).join(' · ');
+    if(k==='advisor'&&op.advisor)return{key:k,name:op.advisor.name,role:k==='advisor'&&c.busy==='advisor'?'reading the plan…':'advisor',color:roleColor(k),busy:c.busy==='advisor',ask:false,away:false,sid:null,
+      meta:[op.advisor.model,op.advisor.effort].filter(Boolean).join(' · ')};
+    if(k==='finance'){const u=c.usage||{};return{key:k,name:roleName(k),role,color:roleColor(k),busy:false,ask:false,away:false,sid:null,
+      meta:u.week_now!=null?(LANG==='tr'?'hafta %':'week ')+u.week_now+(LANG==='tr'?'':'%')+(u.five_now!=null?(LANG==='tr'?' · 5sa %':' · 5h ')+u.five_now+(LANG==='tr'?'':'%'):''):''};}
+    return{key:k,name:roleName(k),role,color:roleColor(k),busy:!!(o&&o.status==='working')||(k==='kovan'&&!!c.busy),ask:!!(o&&o.status==='awaiting')||(k==='you'&&crewNeedsYou(c)),away:roles.includes(k)&&!o,sid:o?sid:null,meta};};
+  const seats=['you'].concat(c.options&&c.options.advisor?['advisor']:[],roles,['finance','kovan']).map(seat);
   const entries=h?h.board.map(e=>({id:e.id,ts:e.ts,speaker:e.speaker,to:e.to,kind:e.kind,text:e.text})):null;
   const paused=c.phase==='paused',fin=c.phase==='done'||c.phase==='stopped';
-  const acts=(fin?'':'<button class="btn small" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button>')+'<button class="btn small" data-crew="'+c.id+'">Milestones & settings</button>';
+  const acts=tsizeBtn()+(fin?'':'<button class="btn small" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button>')+'<button class="btn small" data-crew="'+c.id+'">Milestones & settings</button>';
   return{key:'crew:'+c.id,title:c.name,icon:'⬢',crew:c,detail:h,sub:c.goal||(c.theme?tt('Ideas about:')+' '+c.theme:''),pill:phasePill(c.phase),seats,entries,acts,
     need:h?needHTML(c,h,true):'',
     speak:{targets:[{v:'',l:'To everyone'}].concat(roles.map(r=>({v:r,l:'To the '+roleName(r)}))),placeholder:fin?'This crew has finished':'Speak to the crew — a steering note reaches a busy role right away, otherwise its next task',disabled:fin},
@@ -1579,30 +1650,37 @@ function currentRoom(){const r=S.room||'';
 /* ---- the table */
 function tableSVG(R){
   const seats=R.seats,n=seats.length;if(!n)return'';
-  const W=780,H=318,cx=W/2,cy=H/2,rx=210,ry=52,sx=rx+92,sy=ry+52,pos={};
+  const W=880,H=444,cx=W/2,cy=H/2+10,rx=236,ry=62,sx=rx+106,sy=ry+66,pos={};
   seats.forEach((s,i)=>{const a=Math.PI/2+2*Math.PI*i/n;pos[s.key]={x:cx+sx*Math.cos(a),y:cy+sy*Math.sin(a),a};});
-  const talks=(R.entries||[]).filter(e=>pos[e.speaker]&&!(roleKey(e.speaker)==='kovan'&&e.kind==='status')).slice(-9);
-  let arcs='',lastCol='var(--faint)';talks.forEach((e,i)=>{const p=pos[e.speaker];
+  const talks=(R.entries||[]).filter(e=>pos[e.speaker]&&!(roleKey(e.speaker)==='kovan'&&e.kind==='status')).slice(-10);
+  let arcs='',lastCol='var(--faint)';talks.forEach((e,i)=>{const p=pos[e.speaker],fade=' style="opacity:'+(.08+.3*(i+1)/talks.length).toFixed(2)+'"';
     if(!e.to||!pos[e.to]||e.to===e.speaker){   // spoken to the whole table: a line to the table's edge
       const col=(R.map[e.speaker]||{}).color||roleColor(e.speaker),last=i===talks.length-1;if(last)lastCol=col;
-      const tx=cx+rx*.78*Math.cos(p.a),ty=cy+ry*.78*Math.sin(p.a),L=Math.hypot(tx-p.x,ty-p.y)||1,a1=p.x+(tx-p.x)/L*23,b1=p.y+(ty-p.y)/L*23;
-      arcs+='<path class="talk'+(last?' last':'')+'" d="M'+f1(a1)+' '+f1(b1)+'L'+f1(tx)+' '+f1(ty)+'" stroke="'+col+'"/>';return;}
+      const tx=cx+rx*.78*Math.cos(p.a),ty=cy+ry*.78*Math.sin(p.a),L=Math.hypot(tx-p.x,ty-p.y)||1,a1=p.x+(tx-p.x)/L*27,b1=p.y+(ty-p.y)/L*27;
+      arcs+='<path class="talk'+(last?' last':'')+'"'+(last?'':fade)+' d="M'+f1(a1)+' '+f1(b1)+'L'+f1(tx)+' '+f1(ty)+'" stroke="'+col+'"/>';return;}
     const q=pos[e.to],mx=(p.x+q.x)/2,my=(p.y+q.y)/2,kx=mx+(cx-mx)*.6,ky=my+(cy-my)*.6;
-    const u=Math.hypot(kx-p.x,ky-p.y)||1,v=Math.hypot(q.x-kx,q.y-ky)||1,a1=p.x+(kx-p.x)/u*23,b1=p.y+(ky-p.y)/u*23,a2=q.x-(q.x-kx)/v*26,b2=q.y-(q.y-ky)/v*26;
+    const u=Math.hypot(kx-p.x,ky-p.y)||1,v=Math.hypot(q.x-kx,q.y-ky)||1,a1=p.x+(kx-p.x)/u*27,b1=p.y+(ky-p.y)/u*27,a2=q.x-(q.x-kx)/v*30,b2=q.y-(q.y-ky)/v*30;
     const col=(R.map[e.speaker]||{}).color||roleColor(e.speaker),last=i===talks.length-1;if(last)lastCol=col;
-    arcs+='<path class="talk'+(last?' last':'')+'" d="M'+f1(a1)+' '+f1(b1)+'Q'+f1(kx)+' '+f1(ky)+' '+f1(a2)+' '+f1(b2)+'" stroke="'+col+'"'+(last?' marker-end="url(#tk-end)"':'')+'/>';});
+    arcs+='<path class="talk'+(last?' last':'')+'"'+(last?'':fade)+' d="M'+f1(a1)+' '+f1(b1)+'Q'+f1(kx)+' '+f1(ky)+' '+f1(a2)+' '+f1(b2)+'" stroke="'+col+'"'+(last?' marker-end="url(#tk-end)"':'')+'/>';});
   const lastE=(R.entries||[])[R.entries&&R.entries.length-1];
   let center='';if(lastE){const who=(R.map[lastE.speaker]||{}).name||lastE.speakerName||roleName(lastE.speaker);const to=lastE.to?((R.map[lastE.to]||{}).name||lastE.toName||roleName(lastE.to)):'';
-    center='<text class="t-now no-i18n" x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle">'+esc(who+(to?' → '+to:''))+'</text><text class="t-sub no-i18n" x="'+cx+'" y="'+(cy+14)+'" text-anchor="middle">'+esc(clip1(plain(lastE.text),62))+'</text>';}
+    const said=plain(lastE.text),cut=said.length>64?said.slice(0,64).replace(/\s+\S*$/,''):said,rest=said.slice(cut.length).trim();
+    center='<text class="t-now no-i18n" x="'+cx+'" y="'+(cy-12)+'" text-anchor="middle">'+esc(who+(to?' → '+to:''))+'</text><text class="t-sub no-i18n" x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle">'+esc(cut)+'</text>'+
+      (rest?'<text class="t-sub no-i18n" x="'+cx+'" y="'+(cy+25)+'" text-anchor="middle">'+esc(clip1(rest,64))+'</text>':'');}
   else center='<text class="t-sub" x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle">'+esc(R.entries?'quiet so far':'joining…')+'</text>';
-  let st='';seats.forEach(s=>{const p=pos[s.key],below=Math.sin(p.a)>0.05,ly=below?p.y+34:p.y-37;
-    st+='<g class="seat'+(s.busy?' busy':'')+(s.ask?' ask':'')+(s.away?' away':'')+'"'+(s.sid?' data-open="'+s.sid+'"':'')+'><title>'+esc(s.name+(s.role?' — '+s.role:'')+(s.sid?' · click to open the session':''))+'</title>'+
-      (s.busy?'<circle class="ring" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="24"/>':'')+(s.ask?'<circle class="ring ask" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="24"/>':'')+
-      '<circle cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="19" fill="'+s.color+'" stroke="var(--bg)" stroke-width="3"/><text class="ini" x="'+f1(p.x)+'" y="'+f1(p.y+4.5)+'" text-anchor="middle">'+esc(initials(s.name))+'</text>'+
-      '<text class="nm no-i18n" x="'+f1(p.x)+'" y="'+f1(ly)+'" text-anchor="middle">'+esc(clip1(s.name,22))+'</text>'+(s.role?'<text class="rl" x="'+f1(p.x)+'" y="'+f1(ly+13)+'" text-anchor="middle">'+esc(clip1(tt(s.role),30))+'</text>':'')+'</g>';});
+  let st='';seats.forEach(s=>{const p=pos[s.key],below=Math.sin(p.a)>0.05,lines=s.meta?3:2,ly=below?p.y+41:p.y-30-14*lines;
+    st+='<g class="seat'+(s.busy?' busy':'')+(s.ask?' ask':'')+(s.away?' away':'')+'"'+(s.sid?' data-open="'+s.sid+'"':'')+'><title>'+esc(s.name+(s.role?' — '+s.role:'')+(s.meta?' · '+s.meta:'')+(s.sid?' · click to open the session':''))+'</title>'+
+      (s.busy?'<circle class="ring" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="28"/>':'')+(s.ask?'<circle class="ring ask" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="28"/>':'')+
+      '<circle cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="22" fill="'+s.color+'" stroke="var(--bg)" stroke-width="3"/><text class="ini" x="'+f1(p.x)+'" y="'+f1(p.y+4.6)+'" text-anchor="middle">'+esc(initials(s.name))+'</text>'+
+      '<text class="nm no-i18n" x="'+f1(p.x)+'" y="'+f1(ly)+'" text-anchor="middle">'+esc(clip1(s.name,24))+'</text>'+(s.role?'<text class="rl" x="'+f1(p.x)+'" y="'+f1(ly+14)+'" text-anchor="middle">'+esc(clip1(tt(s.role),32))+'</text>':'')+
+      (s.meta?'<text class="md2 no-i18n" x="'+f1(p.x)+'" y="'+f1(ly+27)+'" text-anchor="middle">'+esc(clip1(s.meta,34))+'</text>':'')+'</g>';});
   return '<svg class="table-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Who is at the table and who spoke to whom"><defs><marker id="tk-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="'+lastCol+'"/></marker></defs>'+
     '<ellipse class="tbl" cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'"/>'+arcs+center+st+'</svg>';}
 function clip1(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s;}
+/* the table's size: large (default), full (watch the meeting) or small (read the conversation) */
+const TSIZES=['l','f','s'],TSIZE_T={l:'Large table',f:'Full table',s:'Small table'};
+function tsize(){const v=store('kovan.tsize');return TSIZES.includes(v)?v:'l';}
+function tsizeBtn(){const v=tsize();return '<button class="btn small" data-tsize title="'+esc(tt('Table size — click to switch'))+'">'+({l:'▣',f:'⤢',s:'▭'})[v]+' <span>'+esc(TSIZE_T[v])+'</span></button>';}
 
 /* ---- the stream */
 function sayHTML(e,R){
@@ -1618,7 +1696,7 @@ function renderBoard(){
   $('#rooms').innerHTML='<div class="group"><span>Rooms</span><button class="link" data-new-crew>＋ New crew</button></div>'+rs.map(r=>'<button class="room-btn'+(r.id===S.room?' on':'')+(r.hot?' hot':'')+'" data-room="'+esc(r.id)+'"><span class="ic ic-'+r.kind+(r.busy?' busy':'')+'">'+({crew:'⬢',sessions:'💬',swarm:'▦'})[r.kind]+'</span><b class="no-i18n">'+esc(r.name)+'</b>'+(r.hot?'<span class="hot-dot" title="Needs you"></span>':'')+'<small>'+esc(r.sub)+'</small></button>').join('')+
     (!((S.d&&S.d.crews)||[]).length?'<div class="rooms-hint">No crews yet. A crew is a Planner, a Developer and a Reviewer — real Claude Code sessions — building something in milestones while you watch the meeting. <button class="link" data-new-crew>Start one</button></div>':'')+
     (S.d&&S.d.swarm?(S.swarm&&S.swarm.error?'<div class="rooms-hint err">'+esc(S.swarm.error)+'</div>':''):'<div class="rooms-hint">Running the swarm engine too? Start kovan with <code>--swarm http://127.0.0.1:8080</code> to sit in on its boardroom here.</div>');
-  const R=currentRoom();
+  const R=currentRoom();const roomEl=$('#room-table').closest('.room');if(roomEl)roomEl.className='room t-'+tsize();
   if(!R){$('#room-head').innerHTML='';$('#room-table').innerHTML='';$('#room-list').innerHTML='<div class="empty">Loading…</div>';$('#room-need').innerHTML='';return;}
   R.map=seatMap(R.seats);
   const head='<div class="rh-title"><span class="ic ic-'+(R.key.split(':')[0])+'">'+R.icon+'</span><h2 class="no-i18n">'+esc(R.title)+'</h2>'+(R.pill||'')+'</div><div class="acts">'+R.acts+'</div>'+(R.sub?'<p class="clamp c2'+(R.crew?' no-i18n':'')+'" title="'+esc(R.sub)+'">'+esc(R.sub)+'</p>':'');
@@ -1654,7 +1732,8 @@ function needHTML(c,d,compact){
       (d.plan?'<button class="btn" data-crew-act="skip" data-id="'+c.id+'">Skip this milestone</button>':'')+'<button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">Stop</button><button class="btn primary" data-crew-act="retry" data-id="'+c.id+'">Retry</button></div></div>';
   if(c.phase==='milestone_review')h+='<div class="card-ask need"><div class="ask-title">⬢ Milestone finished — continue?</div><p class="muted">You asked the crew to pause after every milestone. Look at the commit, steer it with a note, then continue.</p><div class="ask-actions"><button class="btn" data-crew-act="pause" data-id="'+c.id+'">Pause</button><button class="btn primary" data-crew-act="continue" data-id="'+c.id+'">Continue</button></div></div>';
   if(c.attention){const a=c.attention;h+='<div class="card-ask need"><div class="ask-title">'+esc(roleName(a.role))+' needs your OK</div><p><code>'+esc(a.summary||a.tool)+'</code></p><p class="muted">This is outside what the crew’s permission policy allows by itself. Answer it in the '+esc(roleName(a.role))+' session.</p><div class="ask-actions"><button class="btn primary" data-open="'+a.sid+'">Open the '+esc(roleName(a.role))+' session</button></div></div>';}
-  if(c.phase==='paused'&&!compact)h+='<div class="banner">Paused'+(c.reason?' — '+esc(c.reason):'')+(d.resume_at?' · resumes by itself '+relSpan(d.resume_at):'')+'<button class="btn small" data-crew-act="resume" data-id="'+c.id+'">▶ Resume</button></div>';
+  if(c.phase==='paused'&&!compact){const sched=c.pause_kind==='scheduled';
+    h+='<div class="banner">'+(sched?'Scheduled start':'Paused'+(c.reason?' — '+esc(c.reason):''))+(d.resume_at?' · '+(sched?'begins':'resumes by itself')+' '+esc(fmtAt(d.resume_at))+' ('+relSpan(d.resume_at)+')':'')+'<button class="btn small" data-crew-act="resume" data-id="'+c.id+'">'+(sched?'▶ Start now':'▶ Resume')+'</button></div>';}
   return h;}
 
 /* ---- the crews page */
@@ -1675,7 +1754,7 @@ function msHTML(m,i,c,d){const cur=i===d.current&&c.phase!=='done';const st=m.st
   const lg=(m.log||[]).slice(-4).map(x=>'<li><b>'+esc(roleName(x.who))+'</b> '+esc(x.result)+(x.text?' — '+esc(clip1(plain(x.text),180)):'')+'</li>').join('');
   return '<li class="'+esc(m.status)+(cur?' cur':'')+'"><span class="st">'+st+'</span><div><b class="no-i18n">'+esc(m.title)+'</b>'+(m.goal?'<div class="muted g no-i18n">'+inl(m.goal)+'</div>':'')+pipe+
     (m.acceptance&&m.acceptance.length?'<details data-k="acc-'+m.id+'"'+(S.open.has('acc-'+m.id)?' open':'')+'><summary>'+m.acceptance.length+' acceptance criteria'+(lg?' · history':'')+'</summary><ul class="no-i18n">'+m.acceptance.map(a=>'<li>'+inl(a)+'</li>').join('')+'</ul>'+(lg?'<ul class="lg no-i18n">'+lg+'</ul>':'')+'</details>':'')+
-    '</div><span class="ms-r">'+Object.keys(m.findings||{}).map(k=>{const f=m.findings[k]||[];return '<span class="ck '+(f.length?'warn':'ok')+'" title="'+esc(f.map(x=>'['+x.severity+'] '+(x.file?x.file+': ':'')+x.note).join('\n'))+'">'+esc(roleName(k))+(f.length?' · '+f.length+' '+tt(f.length===1?'finding':'findings'):' ✓')+'</span>';}).join('')+(m.commit?'<code title="Commit">'+esc(m.commit)+'</code>':'')+(m.check?'<span class="ck '+(m.check.code===0?'ok':'bad')+'" title="Check command">'+(m.check.code===0?'check ✓':'check ✗')+'</span>':'')+(m.ci?'<span class="ck '+({green:'ok',red:'bad'}[m.ci.state]||'warn')+'" title="'+esc(m.ci.summary||'')+'">'+({green:'CI ✓',red:'CI ✗'}[m.ci.state]||'CI ?')+'</span>':'')+'</span></li>';}
+    '</div><span class="ms-r">'+(m.usage&&m.usage.turns?'<span class="ms-u" title="'+esc(tt('Tokens this milestone: output · weekly usage window'))+'">'+tok(m.usage.out)+(LANG==='tr'?' çıktı':' out')+(m.usage.week_to!=null&&m.usage.week_from!=null?' · '+(LANG==='tr'?'hafta +%':'week +')+(m.usage.week_to-m.usage.week_from)+(LANG==='tr'?'':'%'):'')+'</span>':'')+Object.keys(m.findings||{}).map(k=>{const f=m.findings[k]||[];return '<span class="ck '+(f.length?'warn':'ok')+'" title="'+esc(f.map(x=>'['+x.severity+'] '+(x.file?x.file+': ':'')+x.note).join('\n'))+'">'+esc(roleName(k))+(f.length?' · '+f.length+' '+tt(f.length===1?'finding':'findings'):' ✓')+'</span>';}).join('')+(m.commit?'<code title="Commit">'+esc(m.commit)+'</code>':'')+(m.check?'<span class="ck '+(m.check.code===0?'ok':'bad')+'" title="Check command">'+(m.check.code===0?'check ✓':'check ✗')+'</span>':'')+(m.ci?'<span class="ck '+({green:'ok',red:'bad'}[m.ci.state]||'warn')+'" title="'+esc(m.ci.summary||'')+'">'+({green:'CI ✓',red:'CI ✗'}[m.ci.state]||'CI ?')+'</span>':'')+'</span></li>';}
 function renderCrews(){
   const el=$('#crews');const crews=(S.d&&S.d.crews)||[];
   const c=S.crew&&crewOf(S.crew);
@@ -1692,22 +1771,86 @@ function renderCrews(){
   const o=c.options,yes=b=>b?'yes':'no';
   el.innerHTML='<button class="link back" data-crew-back>← All crews</button>'+
     '<div class="crew-top"><span class="hex">⬢</span><div class="ct-main"><h2 class="no-i18n">'+esc(c.name)+'</h2><div class="muted">'+esc(c.dir)+'</div></div>'+phasePill(c.phase)+
-      '<div class="acts">'+(c.git&&c.git.pr_url?'<a class="btn" href="'+esc(c.git.pr_url)+'" target="_blank" rel="noopener">'+(c.git.forge==='gitlab'?'Merge request ↗':'Pull request ↗')+'</a>':'')+'<button class="btn" data-room="crew:'+c.id+'">Boardroom</button>'+(fin?'':'<button class="btn" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">■ Stop</button>')+'<button class="btn" data-crew-delete="'+c.id+'">Delete</button></div></div>'+
+      '<div class="acts">'+(c.git&&c.git.pr_url?'<a class="btn" href="'+esc(c.git.pr_url)+'" target="_blank" rel="noopener">'+(c.git.forge==='gitlab'?'Merge request ↗':'Pull request ↗')+'</a>':'')+(c.git&&c.git.request_url&&!c.git.pr_url?'<a class="btn primary" href="'+esc(c.git.request_url)+'" target="_blank" rel="noopener">'+(c.git.forge==='gitlab'?'Open the merge request ↗':'Open the pull request ↗')+'</a>':'')+'<button class="btn" data-room="crew:'+c.id+'">Boardroom</button>'+(fin?'':'<button class="btn" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button><button class="btn danger" data-crew-act="stop" data-id="'+c.id+'">■ Stop</button>')+'<button class="btn" data-crew-delete="'+c.id+'">Delete</button></div></div>'+
     (h.goal?'<div class="goal md">'+md(h.goal)+'</div>':'')+needHTML(c,h,false)+
     '<div class="crew-cols"><div><h2 class="section">Milestones'+(plan.length?' · '+c.progress.done+'/'+plan.length:'')+'</h2>'+(plan.length?'<ol class="box ms">'+plan.map((m,i)=>msHTML(m,i,c,h)).join('')+'</ol>':'<div class="box empty">'+(c.phase==='ideating'||c.phase==='choosing'?'The plan comes after you pick an idea.':'The Planner is writing the plan…')+'</div>')+
       (h.plan&&h.plan.summary?'<h2 class="section">Plan</h2><div class="box pad md">'+md(h.plan.summary+(h.plan.stack?'\n\n**Stack:** '+h.plan.stack:''))+'</div>':'')+'</div>'+
-    '<div><h2 class="section">Team</h2><div class="box">'+team+'</div>'+
-      '<h2 class="section">Settings</h2><div class="box kv"><span>Template</span><b>'+esc(TEMPLATE_T[c.template]||c.template||'—')+'</b><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push||c.git?' + push':''):'no commits')+'</b>'+(c.git?'<span>Branch</span><b class="no-i18n"><code>'+esc(c.git.branch)+'</code>'+(c.git.branch!==c.git.base?' → <code>'+esc(c.git.base)+'</code>':'')+'</b>':'')+
+    '<div><h2 class="section">Team</h2><div class="box">'+team+'</div>'+usageHTML(c)+
+      '<h2 class="section">Settings'+(fin?'':'<button class="link" data-crew-settings="'+c.id+'">Edit</button>')+'</h2><div class="box kv">'+projectKV(c)+'<span>Template</span><b>'+esc(TEMPLATE_T[c.template]||c.template||'—')+'</b><span>Check</span><b>'+(o.check?'<code>'+esc(o.check)+'</code>':'—')+'</b><span>Permissions</span><b>'+esc({safe:'Safe (workspace edits, tests)',ask:'Ask for everything',trusted:'Trusted (never ask)'}[o.policy]||o.policy)+'</b><span>Plan approval</span><b>'+yes(o.plan_approval)+'</b><span>Pause per milestone</span><b>'+yes(o.milestone_approval)+'</b><span>Tester</span><b>'+yes(o.tester)+'</b><span>Attempts</span><b>'+o.max_attempts+' per milestone</b><span>Usage pause</span><b>at '+o.quota_pause+'% of the 5-hour window</b><span>Git</span><b>'+(o.commit?'commit'+(o.push||c.git?' + push':''):'no commits')+'</b>'+(c.git?'<span>Branch</span><b class="no-i18n"><code>'+esc(c.git.branch)+'</code>'+(c.git.branch!==c.git.base?' → <code>'+esc(c.git.base)+'</code>':'')+'</b>':'')+
       (o.pr?'<span>Pull request</span><b>'+(c.git&&c.git.pr_url?'<a href="'+esc(c.git.pr_url)+'" target="_blank" rel="noopener">'+esc(c.git.pr_url.replace(/^https?:\/\//,''))+'</a>':'at the end')+'</b>':'')+
       (o.ci?'<span>CI gate</span><b>'+(o.ci_command?'<code>'+esc(o.ci_command)+'</code>':(c.git&&c.git.forge==='gitlab'?'GitLab (glab)':'GitHub (gh)'))+'</b>':'')+'</div>'+
       (h.board&&h.board.length?'<h2 class="section">Latest in the boardroom</h2><div class="box mini-board">'+h.board.slice(-5).map(e=>'<div><b style="color:'+roleColor(e.speaker)+'">'+esc(roleName(e.speaker))+'</b>'+(e.to?' → '+esc(roleName(e.to)):'')+' <span class="muted no-i18n">'+esc(clip1(plain(e.text),140))+'</span></div>').join('')+'<button class="link" data-room="crew:'+c.id+'">Open the boardroom →</button></div>':'')+'</div></div>';}
+
+/* ---- usage and project settings (crew page) */
+function fmtAt(ms){try{return new Date(ms).toLocaleString(LANG==='tr'?'tr-TR':'en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return clock(ms);}}
+function usageHTML(c){const u=c.usage||{},roles=Object.entries(u.roles||{}),pl=u.planning||{};if(!roles.length)return'';
+  const row=(label,r,ctx)=>'<tr title="'+esc(tt('Input')+' '+tok((r.in||0)+(r.cache_write||0))+' · '+tt('Cache read')+' '+tok(r.cache_read||0))+'"><td>'+label+'</td><td>'+(r.turns||0)+'</td><td>'+tok(r.out||0)+'</td><td>'+tok(r.cache_read||0)+'</td><td>'+(ctx?tok(ctx):'—')+'</td><td>'+dur(r.ms||0)+'</td></tr>';
+  const sum={turns:0,out:0,in:0,cache_write:0,cache_read:0,ms:0};roles.forEach(([,r])=>Object.keys(sum).forEach(k=>{sum[k]+=r[k]||0;}));
+  const week=u.week_start!=null&&u.week_now!=null?tt('Weekly usage window')+': %'+u.week_start+' → %'+u.week_now:'';
+  return '<h2 class="section">Usage</h2><div class="box usage"><table><thead><tr><th>Role</th><th>Turns</th><th>Output</th><th>Cache read</th><th>Context</th><th>Time</th></tr></thead><tbody>'+
+    roles.map(([k,r])=>row(esc(roleName(k)),r,(u.context||{})[k])).join('')+'</tbody><tfoot>'+row(tt('Total'),sum,null)+'</tfoot></table>'+
+    '<div class="note">'+(pl.turns?esc(tt('Planning'))+': '+tok(pl.out||0)+' '+esc(tt('output'))+' · ':'')+esc(String(u.sessions||0))+' '+esc(tt('sessions'))+(week?' · '+esc(week):'')+'<br>'+esc(tt('Context is the size of a role’s last request; fresh sessions keep it small. Cache reads count far less toward the limits than new input.'))+'</div></div>';}
+function projectKV(c){const o=c.options||{},m=o.models||{},ef=o.efforts||{},rows=[];
+  const roles=Object.keys(Object.assign({},m,ef));if(roles.length)rows.push(['Models',roles.map(k=>esc(roleName(k))+': <code>'+esc([m[k]||tt('default'),ef[k]].filter(Boolean).join(' · '))+'</code>').join('<br>'),1]);
+  rows.push(['Fresh sessions',o.fresh?'every milestone':'no']);
+  if(o.hours)rows.push(['Working hours',o.hours.days.map(d=>tt(DAYS[d][1])).join(' ')+' '+o.hours.start+'–'+o.hours.end]);
+  rows.push(['Weekly pause','at '+(o.weekly_pause||95)+'% of the 7-day window']);
+  if((o.allow||[]).length)rows.push(['Allowed commands','<code>'+o.allow.map(esc).join('</code><br><code>')+'</code>',1]);
+  if((o.deny||[]).length)rows.push(['Denied commands','<code>'+o.deny.map(esc).join('</code><br><code>')+'</code>',1]);
+  if(o.web)rows.push(['Web','every role']);
+  if(o.push_command)rows.push(['Push command','<code>'+esc(o.push_command)+'</code>',1]);
+  if(o.commit_trailer)rows.push(['Commit trailer','<code>'+esc(o.commit_trailer)+'</code>',1]);
+  if(o.idle_command)rows.push(['Idle command','<code>'+esc(o.idle_command)+'</code>',1]);
+  if(o.advisor)rows.push(['Advisor',esc(o.advisor.name)+([o.advisor.model,o.advisor.effort].filter(Boolean).length?' ('+esc([o.advisor.model,o.advisor.effort].filter(Boolean).join(' · '))+')':'')+' — '+esc(tt('reviews the plan before you approve it')),1]);
+  return rows.map(([k,v,raw])=>'<span>'+esc(k)+'</span><b'+(raw?' class="no-i18n"':'')+'>'+(raw?v:esc(v))+'</b>').join('');}
+const DAYS=[[0,'Mon'],[1,'Tue'],[2,'Wed'],[3,'Thu'],[4,'Fri'],[5,'Sat'],[6,'Sun']];
+const CREATE_ROLES=['planner','developer','tester','reviewer','security'];
+function localDT(ms){const d=new Date(ms),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
+function advHTML(o,roles,mode){o=o||{};const m=o.models||{},ef=o.efforts||{},h=o.hours,a=o.advisor||{},create=mode==='create';
+  const eff=(name,v)=>'<select name="'+name+'"><option value="">default</option>'+EFFORTS.map(([k,l])=>'<option value="'+k+'"'+(v===k?' selected':'')+'>'+l+'</option>').join('')+'</select>';
+  const inp=(name,v,ph)=>'<input name="'+name+'" value="'+esc(v||'')+'" placeholder="'+esc(ph||'')+'" autocomplete="off" spellcheck="false">';
+  const sessions=((S.d&&S.d.sessions)||[]).filter(x=>!x.crew&&!x.archived).sort((x,y)=>(y.live?1:0)-(x.live?1:0)||(y.updated||0)-(x.updated||0)).slice(0,40);
+  let out='';
+  if(!create)out+='<label>Check command<input name="check" value="'+esc(o.check||'')+'" autocomplete="off" spellcheck="false"></label>'+
+    '<div class="row3"><label>Permissions<select name="policy">'+[['safe','Safe'],['ask','Ask'],['trusted','Trusted (never ask)']].map(([k,l])=>'<option value="'+k+'"'+(o.policy===k?' selected':'')+'>'+l+'</option>').join('')+'</select></label>'+
+    '<label>Attempts<input name="max_attempts" type="number" min="1" max="10" value="'+(o.max_attempts||3)+'"></label><label>Check timeout (s)<input name="check_timeout" type="number" min="30" max="7200" value="'+(o.check_timeout||900)+'"></label></div>'+
+    '<div class="toggles"><label class="opt"><input type="checkbox" name="milestone_approval"'+(o.milestone_approval?' checked':'')+'> Pause after every milestone</label></div>';
+  out+='<table><thead><tr><th>Role</th><th>Model</th><th>Effort</th></tr></thead><tbody>'+roles.map(([k,l])=>'<tr><td>'+esc(l)+'</td><td><input name="m_'+esc(k)+'" list="model-list" value="'+esc(m[k]||'')+'" placeholder="'+esc(tt('session default'))+'" autocomplete="off" spellcheck="false"></td><td>'+eff('e_'+k,ef[k]||'')+'</td></tr>').join('')+'</tbody></table>';
+  out+='<div class="toggles"><label class="opt"><input type="checkbox" name="fresh"'+(o.fresh!==false?' checked':'')+'> Fresh sessions every milestone (smaller context, fewer tokens)</label><label class="opt"><input type="checkbox" name="web"'+(o.web?' checked':'')+'> Every role may search and read the web</label></div>';
+  out+='<label class="opt"><input type="checkbox" name="h_on"'+(h?' checked':'')+'> Work only during working hours</label><div class="days">'+DAYS.map(([d,l])=>'<label><input type="checkbox" name="h_day" value="'+d+'"'+((h?h.days:[0,1,2,3,4]).includes(d)?' checked':'')+'>'+esc(tt(l))+'</label>').join('')+
+    '<input name="h_start" type="time" value="'+esc(h?h.start:'09:00')+'" style="width:auto"><span>–</span><input name="h_end" type="time" value="'+esc(h?h.end:'17:00')+'" style="width:auto"></div><small class="muted">After the end of the day no new turn starts (a running one finishes); the crew goes on at the next start.</small>';
+  out+='<div class="row2">'+(create||c_scheduled(o)?'<label>Start at <small>empty = now</small><input name="start_at" type="datetime-local" value="'+(o.start_at?localDT(o.start_at):'')+'"></label>':'')+
+    '<label>Weekly pause %<input name="weekly_pause" type="number" min="50" max="100" value="'+(o.weekly_pause||95)+'"></label>'+(create?'':'<label>Usage pause % (5 hours)<input name="quota_pause" type="number" min="50" max="100" value="'+(o.quota_pause||90)+'"></label>')+'</div>';
+  out+='<label>Allowed commands <small>one pattern per line; ** = any arguments; URLs must be written in the pattern</small><textarea name="allow" rows="4" spellcheck="false" placeholder="make **\ncurl ** http://127.0.0.1:18080* **">'+esc((o.allow||[]).join('\n'))+'</textarea></label>';
+  out+='<label>Denied commands <small>always ask you, even when allowed above</small><textarea name="deny" rows="2" spellcheck="false" placeholder="docker compose ** config **">'+esc((o.deny||[]).join('\n'))+'</textarea></label>';
+  out+='<div class="row2">'+(create?'<label>Branch <small>optional, e.g. feature/m1-sso</small>'+inp('branch',o.branch,'')+'</label>':'')+'<label>Push command <small>{branch} = the crew’s branch</small>'+inp('push_command',o.push_command,'git push origin {branch}')+'</label></div>';
+  out+='<div class="row2"><label>Commit trailer <small>added to every commit</small>'+inp('commit_trailer',o.commit_trailer,'Co-Authored-By: …')+'</label><label>Idle command <small>end of the day and at the end</small>'+inp('idle_command',o.idle_command,'make down')+'</label></div>';
+  out+='<div class="row3"><label>Advisor <small>one of your sessions reviews the plan (forked, once)</small><select name="a_sid"><option value="">none</option>'+sessions.map(x=>'<option value="'+x.sid+'"'+(a.sid===x.sid?' selected':'')+' class="no-i18n">'+esc(x.name)+'</option>').join('')+'</select></label>'+
+    '<label>Advisor model'+'<input name="a_model" list="model-list" value="'+esc(a.model||'')+'" placeholder="'+esc(tt('session default'))+'" autocomplete="off"></label><label>Advisor effort'+eff('a_effort',a.effort||'')+'</label></div>';
+  return out;}
+function c_scheduled(o){return o&&o.start_at&&o.start_at>Date.now();}
+function readAdv(f){const E=n=>f.elements.namedItem(n),out={},models={},efforts={};
+  f.querySelectorAll('[name^="m_"]').forEach(i=>{if(i.value.trim())models[i.name.slice(2)]=i.value.trim();});
+  f.querySelectorAll('[name^="e_"]').forEach(i=>{if(i.value)efforts[i.name.slice(2)]=i.value;});
+  Object.assign(out,{models,efforts,fresh:E('fresh').checked,web:E('web').checked,weekly_pause:+E('weekly_pause').value||95,
+    hours:E('h_on').checked?{days:[...f.querySelectorAll('[name=h_day]:checked')].map(x=>+x.value),start:E('h_start').value,end:E('h_end').value}:null,
+    allow:E('allow').value,deny:E('deny').value,push_command:E('push_command').value.trim(),commit_trailer:E('commit_trailer').value.trim(),idle_command:E('idle_command').value.trim()});
+  const sid=E('a_sid').value;out.advisor=sid?{sid,name:((S.d.sessions.find(x=>x.sid===sid)||{}).name||'Advisor').slice(0,40),model:E('a_model').value.trim(),effort:E('a_effort').value}:null;
+  if(E('branch'))out.branch=E('branch').value.trim();
+  if(E('start_at')){const v=E('start_at').value;out.start_at=v?new Date(v).getTime():0;}
+  if(f.id==='crew-settings-form'){out.quota_pause=+E('quota_pause').value||90;Object.assign(out,{check:E('check').value.trim(),policy:E('policy').value,max_attempts:+E('max_attempts').value||3,check_timeout:+E('check_timeout').value||900,milestone_approval:E('milestone_approval').checked});}
+  return out;}
+function crewSettings(id){const c=crewOf(id);if(!c)return;const d=$('#crew-settings'),f=$('#crew-settings-form');f.dataset.id=id;
+  f.querySelector('[data-adv]').innerHTML=advHTML(c.options,crewRoles(c).filter(k=>k!=='ideator').map(k=>[k,roleName(k)]),'edit');d.showModal();}
 
 /* ---- actions */
 function feedbackNear(btn){const card=btn.closest('.need,.card-ask');const t=card&&card.querySelector('[data-feedback]');return t?t.value.trim():'';}
 async function crewAct(id,action,extra){try{const d=await post('/api/crew/action',Object.assign({id,action},extra||{}));if(d&&d.id){S.crewDetail={id,d};}S.rev='';refresh(0);return d;}
   catch(e){toast('Could not do that',e.message,null,'err');}}
 function crewDialog(){const d=$('#crew-dialog'),f=$('#crew-form');f.reset();f.dataset.dirTouched='';setCrewMode(f,'goal');
-  CD.draft=[];CD.checked=new Set();f.querySelector('[data-role-form]').hidden=true;f.querySelector('[data-ci-row]').hidden=true;renderTeam(f);d.showModal();f.elements.name.focus();
+  CD.draft=[];CD.checked=new Set();f.querySelector('[data-role-form]').hidden=true;f.querySelector('[data-ci-row]').hidden=true;renderTeam(f);
+  f.querySelector('[data-adv]').innerHTML=advHTML({fresh:true,weekly_pause:95},CREATE_ROLES.map(k=>[k,k==='security'?tt('Security auditor'):roleName(k)]),'create');f.querySelector('[data-adv-wrap]').open=false;
+  d.showModal();f.elements.name.focus();
   loadCatalog().then(()=>{fillTemplates(f);applyTemplate(f,'feature');});}
 /* ---- crew templates and extra roles (the New crew dialog) */
 const CD={catalog:null,draft:[],checked:new Set(),uid:0};
@@ -1779,6 +1922,8 @@ document.addEventListener('click',e=>{
   const rb=t.closest('[data-room]');if(rb){S.room=rb.dataset.room;store('kovan.room',S.room);if(S.view!=='board')showView('board');else{writeHash();renderBoard();refresh(0);}return;}
   const cb=t.closest('[data-crew]');if(cb&&!t.closest('[data-room],[data-open],button.link')){S.crew=cb.dataset.crew;S.crewDetail=null;showView('crews');return;}
   if(t.closest('[data-crew-back]')){S.crew=null;showView('crews');return;}
+  if(t.closest('[data-tsize]')){const v=tsize();store('kovan.tsize',TSIZES[(TSIZES.indexOf(v)+1)%TSIZES.length]);$('#room-head').dataset.sig='';renderBoard();return;}
+  const cs=t.closest('[data-crew-settings]');if(cs){crewSettings(cs.dataset.crewSettings);return;}
   const ca=t.closest('[data-crew-act]');if(ca){const a=ca.dataset.crewAct,id=ca.dataset.id,fb=feedbackNear(ca);
     if(a==='revise'&&!fb){toast('Say what to change','Type the changes you want in the box, then press Revise.',null,'ask');return;}
     if(a==='stop'){confirmBox('Stop this crew?','<p>The working role is interrupted and the crew stops. Its sessions, commits and boardroom stay; you can delete it later.</p>','Stop',()=>crewAct(id,'stop'));return;}
@@ -1828,11 +1973,15 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('submit',e=>{
   if(e.target.id==='speak'){e.preventDefault();speak();return;}
+  if(e.target.id==='crew-settings-form'){e.preventDefault();const f=e.target,c=crewOf(f.dataset.id);if(!c)return;const options=readAdv(f);
+    if(!c_scheduled(c.options)||c.pause_kind!=='scheduled')delete options.start_at;
+    const b=f.querySelector('[type=submit]');b.disabled=true;
+    post('/api/crew/options',{id:c.id,options}).then(()=>{$('#crew-settings').close();toast('Settings saved','');refresh(0);}).catch(x=>toast('Could not save the settings',x.message,null,'err')).finally(()=>{b.disabled=false;});return;}
   if(e.target.id==='crew-form'){e.preventDefault();const f=e.target,E=n=>f.elements.namedItem(n);const mode=f.querySelector('[name=mode]:checked').value;
     const body={name:E('name').value.trim(),mode,goal:E('goal').value.trim(),theme:E('theme').value.trim(),directory:E('directory').value.trim(),
       options:{check:E('check').value.trim(),plan_approval:E('plan_approval').checked,tester:E('tester').checked,milestone_approval:E('milestone_approval').checked,commit:E('commit').checked,push:E('push').checked,policy:E('policy').value,max_attempts:+E('max_attempts').value||3,quota_pause:+E('quota_pause').value||90,lang:LANG},
       template:E('template').value||'feature',team:chosenTeam()};
-    Object.assign(body.options,{pr:E('pr').checked,ci:E('ci').checked,ci_command:E('ci_command').value.trim()});
+    Object.assign(body.options,{pr:E('pr').checked,ci:E('ci').checked,ci_command:E('ci_command').value.trim()},readAdv(f));
     if(mode==='goal'&&!body.goal){toast('Describe the goal','Or choose “Suggest ideas”.',null,'ask');return;}
     if(body.team.length>4){toast('Up to 4 extra roles','',null,'ask');return;}
     const b=f.querySelector('[type=submit]');b.disabled=true;

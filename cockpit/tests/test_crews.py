@@ -60,7 +60,7 @@ class FakeSession:
 
 class FakeManager:
     def __init__(self):
-        self.sessions, self.dirs, self.limit, self.started = {}, [], None, []
+        self.sessions, self.dirs, self.limit, self.started, self.launches = {}, [], None, [], []
 
     def owned(self, sid):
         s = self.sessions.get(sid)
@@ -69,8 +69,9 @@ class FakeManager:
     def add_dir(self, d):
         self.dirs.append(d)
 
-    def start(self, sid=None, name=None, directory=None, permission_mode=None):
+    def start(self, sid=None, name=None, directory=None, permission_mode=None, **launch):
         self.started.append((sid, name, permission_mode))
+        self.launches.append(launch)
         if sid:
             s = self.sessions[sid]
             s.status = 'ready'

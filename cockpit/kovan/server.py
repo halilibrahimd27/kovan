@@ -1262,10 +1262,13 @@ class HolderClient:
 class ManagedSession:
     """A session whose claude process kovan drives (through the holder)."""
 
-    def __init__(self, sid, name, resume, directory, pid=None, permission_mode=None):
+    def __init__(self, sid, name, resume, directory, pid=None, permission_mode=None, model=None, effort=None,
+                 extra_args=None):
         self.sid, self.name, self.resume, self.directory, self.pid = sid, name, resume, directory, pid
         self.launch_mode = permission_mode      # None = CFG.permission_mode
+        self.launch_model, self.launch_effort, self.extra_args = model, effort, list(extra_args or [])
         self.last_result, self.last_result_at = '', None   # final text of the last finished turn (crews read it)
+        self.last_usage = None                  # tokens of the last finished turn (crews add them up)
         self.status = 'starting'
         self.permissions = collections.OrderedDict()
         self.streaming = ''
@@ -1322,6 +1325,11 @@ class ManagedSession:
                 # Like the IDE integrations: makes "Never ask" *selectable* later from the UI. It does not turn it on;
                 # the session starts in CFG.permission_mode ("default" = ask) unless you choose otherwise.
                 '--allow-dangerously-skip-permissions']
+        if self.launch_model:
+            args.append('--model=' + self.launch_model)
+        if self.launch_effort:
+            args.append('--effort=' + self.launch_effort)
+        args += self.extra_args
         if self.resume:
             args.append('--resume=' + self.sid)
         else:
@@ -1493,6 +1501,13 @@ class ManagedSession:
             return
         if kind == 'result':
             self.last_result, self.last_result_at = str(d.get('result') or ''), (t or time.time())
+            u = d.get('usage') or {}
+            last = (u.get('iterations') or [{}])[-1] or {}
+            self.last_usage = {'in': u.get('input_tokens') or 0, 'out': u.get('output_tokens') or 0,
+                               'cache_read': u.get('cache_read_input_tokens') or 0,
+                               'cache_write': u.get('cache_creation_input_tokens') or 0, 'ms': d.get('duration_ms') or 0,
+                               'context': sum(last.get(k) or 0 for k in ('input_tokens', 'cache_read_input_tokens',
+                                                                       'cache_creation_input_tokens')) or None}
             self.streaming, self.tool, self.thinking = '', None, False
             if self.permissions:
                 self.permissions.clear()
@@ -1645,7 +1660,8 @@ class Manager:
         if directory not in self.dirs:
             self.dirs.append(directory)
 
-    def start(self, sid=None, name=None, directory=None, permission_mode=None):
+    def start(self, sid=None, name=None, directory=None, permission_mode=None, model=None, effort=None, extra_args=None):
+        launch = {'permission_mode': permission_mode, 'model': model, 'effort': effort, 'extra_args': extra_args}
         with self.lock:
             if sid:
                 if not UUID_RE.match(sid):
@@ -1663,11 +1679,10 @@ class Manager:
                     where = 'in VS Code' if 'vscode' in (c.get('entrypoint') or '') else 'somewhere else'
                     raise KovanError('This session is open %s (pid %s). Close it there first, then continue in kovan.'
                                     % (where, c.get('pid')), 409)
-                s = ManagedSession(sid, None, True, t.directory, permission_mode=permission_mode)
+                s = ManagedSession(sid, None, True, t.directory, **launch)
             else:
                 directory = session_directory(directory) if directory else self.dirs[0]
-                s = ManagedSession(str(uuid.uuid4()), (name or '').strip()[:80] or None, False, directory,
-                                   permission_mode=permission_mode)
+                s = ManagedSession(str(uuid.uuid4()), (name or '').strip()[:80] or None, False, directory, **launch)
             self.sessions[s.sid] = s      # register first so the holder's 'session' event is not adopted twice
             try:
                 s.start()
@@ -1987,6 +2002,8 @@ class Handler(BaseHTTPRequestHandler):
                 raise KovanError('invalid index')
             return CREWS.act(str(b.get('id') or '')[:40], str(b.get('action') or ''), str(b.get('feedback') or '')[:4000],
                              index, bool(b.get('release')))
+        if path == '/api/crew/options':
+            return CREWS.update_options(str(b.get('id') or '')[:40], b.get('options'))
         if path == '/api/crew/note':
             role = b.get('role') or None
             return CREWS.note(str(b.get('id') or '')[:40], b.get('text'), str(role) if role else None)

@@ -162,6 +162,35 @@ command** (`{sha}` and `{branch}` are filled in; exit 0 = green, 75 = still runn
 need a git repository with an `origin` remote; if no CI result appears for a commit within five minutes, the
 crew stops and asks you.
 
+### Crews on a real project
+
+A crew can work on an existing project for days. These settings are under **Advanced** in the New crew dialog,
+and most can be changed later under **Settings → Edit** on the crew page:
+
+- **Models and effort per role.** For example a large model with high effort for the Planner and the Security
+  auditor, and a faster one for the Tester. A change applies to the next session the role starts.
+- **Fresh sessions** (on by default). The Developer, Tester, Reviewer and extra roles start every milestone in a
+  new session, so the context stays small instead of growing with every milestone. The task carries what is
+  already done (titles, commits, summaries), and the code and git history carry the rest. The Planner keeps its
+  session.
+- **Working hours.** Choose days and a start and end time. After the end no new turn starts (a running one
+  finishes) and the crew goes on at the next start. A **start time** makes a crew wait until then; its branch is
+  made when it starts, from what the base branch is at that moment.
+- **Usage pauses.** A crew pauses when the 5-hour window reaches 90% or the weekly window reaches 95% (both can
+  be changed), and goes on when the window resets.
+- **Allowed and denied commands.** Patterns that roles may run without asking you, one per line. `*` is a glob
+  within a word, `**` stands for any arguments, and a URL must be written in the pattern itself:
+  `curl ** http://127.0.0.1:18080* **` reaches that port and nothing else. Denied patterns always ask you.
+- **Branch, push command and commit trailer**, e.g. `feature/m1-sso`, your own push script with `{branch}`, and a
+  `Co-Authored-By:` line. With a push command the crew pushes after every milestone. At the end it gives you a
+  link that opens the merge or pull request with the branches filled in; opening it is up to you.
+- **Idle command.** Runs when the crew rests for the day or finishes, e.g. `make down`.
+- **Advisor.** One of your existing sessions, for example the one where you designed the project, reviews the
+  plan once before you approve it. kovan asks it in a fork (`--fork-session`, read-only tools), so its own
+  conversation is left untouched. Its answer appears in the boardroom before the approval.
+- **Usage.** The crew page shows each role's turns, output tokens, cache reads, context size and time, plus how
+  the weekly window moved. Each milestone shows its own share.
+
 ### Moving a session from VS Code to kovan
 
 kovan never takes over a session that is still open somewhere else — two writers would tangle its history.

@@ -13,10 +13,11 @@ The status command gets the commit as {sha} (and the branch as {branch}) and ans
 """
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import time
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from . import server
 
@@ -157,14 +158,15 @@ def status(directory, options, git_info, sha):
 
 
 # ============================================================================ setup and pull requests
-def prepare(directory, options, name):
-    """Checks for "pr"/"ci" when a crew is created; returns the crew's git info. Raises KovanError."""
-    if not (options.get('pr') or options.get('ci')):
+def prepare(directory, options, name, dry=False):
+    """Checks for "pr"/"ci"/"branch" when a crew is created; returns the crew's git info. Raises KovanError.
+    With ``dry`` (a crew that starts later) it only checks: the branch is made when the crew starts."""
+    if not (options.get('pr') or options.get('ci') or options.get('branch')):
         return None
     if not options.get('commit'):
-        raise server.KovanError('pull requests and the CI gate need “Commit each milestone”')
+        raise server.KovanError('pull requests, a branch and the CI gate need “Commit each milestone”')
     url = remote_url(directory)
-    if not url:
+    if not url and (options.get('pr') or options.get('ci')):
         raise server.KovanError('pull requests and the CI gate need a git repository with an “origin” remote')
     if run(directory, ['git', 'rev-parse', '--verify', '-q', 'HEAD'])[0] != 0:
         raise server.KovanError('pull requests need a repository with at least one commit to branch from')
@@ -175,11 +177,22 @@ def prepare(directory, options, name):
             not shutil.which('glab', path=tool_env().get('PATH')):
         raise server.KovanError('for the CI gate on GitLab install glab (and run “glab auth login”), or give a status command')
     base = run(directory, ['git', 'branch', '--show-current'])[1].strip() or 'main'
+    if options.get('branch'):
+        branch = options['branch']
+        if branch == base:
+            raise server.KovanError('the crew’s branch must differ from the current one (%s)' % base)
+        if run(directory, ['git', 'rev-parse', '--verify', '-q', 'refs/heads/' + branch])[0] == 0:
+            raise server.KovanError('the branch %s already exists — choose another name' % branch)
+        if not dry:
+            code, _, err = run(directory, ['git', 'checkout', '-q', '-b', branch])
+            if code != 0:
+                raise server.KovanError('could not create the branch %s: %s' % (branch, server.clip(err, 200)))
+        return {'forge': forge_of(url), 'base': base, 'branch': branch, 'pr_url': None}
     slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')[:40] or 'crew'
     branch, n = 'kovan/' + slug, 2
     while run(directory, ['git', 'rev-parse', '--verify', '-q', 'refs/heads/' + branch])[0] == 0:
         branch, n = 'kovan/%s-%d' % (slug, n), n + 1
-    if options.get('pr'):
+    if options.get('pr') and not dry:
         code, _, err = run(directory, ['git', 'checkout', '-q', '-b', branch])
         if code != 0:
             raise server.KovanError('could not create the branch %s: %s' % (branch, server.clip(err, 200)))
@@ -188,10 +201,40 @@ def prepare(directory, options, name):
     return {'forge': forge, 'base': base, 'branch': branch, 'pr_url': None}
 
 
-def push(directory, git_info):
+def push(directory, git_info, command=''):
+    """Push the crew's branch: git push, or your own push command ({branch} is replaced, quoted)."""
+    if command:
+        try:
+            r = subprocess.run(command.replace('{branch}', shlex.quote(git_info['branch'])), shell=True,  # noqa: S602
+                               cwd=directory, capture_output=True, text=True, timeout=900, env=tool_env())
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return False, 'the push command did not finish (%s)' % type(e).__name__
+        out = ((r.stderr or '') + '\n' + (r.stdout or '')).strip()
+        return r.returncode == 0, server.clip(server.mask_secrets(out)[0], 300) if r.returncode else ''
     code, _, err = run(directory, ['git', 'push', '-q', '-u', 'origin', 'HEAD:refs/heads/' + git_info['branch']],
                        timeout=180, env=tool_env())
     return code == 0, server.clip(err.strip(), 300)
+
+
+def request_link(directory, git_info):
+    """A link that opens a new pull/merge request for the crew's branch, filled in (None if the remote is unknown)."""
+    url = remote_url(directory)
+    if not url:
+        return None
+    if '://' in url:
+        u = urlsplit(url)
+        host, path = u.hostname, u.path
+    else:                                                   # git@host:group/project.git
+        host, _, path = url.split('@', 1)[-1].partition(':')
+    path = path.strip('/')
+    path = path[:-4] if path.endswith('.git') else path
+    if not host or not path:
+        return None
+    b, base = quote(git_info['branch'], safe=''), quote(git_info.get('base') or 'main', safe='')
+    if forge_of(url) == 'github':
+        return 'https://%s/%s/compare/%s...%s?expand=1' % (host, path, base, b)
+    return ('https://%s/%s/-/merge_requests/new?merge_request%%5Bsource_branch%%5D=%s&merge_request%%5Btarget_branch%%5D=%s'
+            % (host, path, b, base))
 
 
 def pr_body(crew):

@@ -568,15 +568,30 @@ def build_crews(claude_home, now, m):
     w.tool('WebSearch', {'query': 'config drift detection application level open source'}, '...', {})
     w.say('Here are four ideas, scored honestly — the last one is not novel.', after=240)
     w.save(folder)
-    opts = dict(tester=True, plan_approval=True, milestone_approval=False, policy='safe', max_attempts=3,
+    opts = dict(crew.DEFAULT_OPTIONS, tester=True, plan_approval=True, milestone_approval=False, policy='safe', max_attempts=3,
                 quota_pause=90, check='python3 -m pytest -q', check_timeout=900, commit=True, push=False, pr=True, ci=True,
-                ci_command='', ci_timeout=1800)
+                ci_command='', ci_timeout=1800, fresh=True,
+                models={'planner': 'opus', 'developer': 'sonnet', 'tester': 'sonnet', 'reviewer': 'opus', 'security': 'opus'},
+                efforts={'planner': 'high', 'developer': 'medium', 'reviewer': 'high'},
+                hours={'days': [0, 1, 2, 3, 4], 'start': '09:00', 'end': '18:00'}, allow=['pre-commit run **', 'python3 -m build'])
+    milestones = crew_milestones(now, m)
+    for i, ms in enumerate(milestones[:2]):
+        ms['usage'] = {'turns': 6 + i, 'in': 60, 'out': 9800 + 2300 * i, 'cache_read': 410000 + 90000 * i,
+                       'cache_write': 52000, 'ms': (14 + 5 * i) * 60000, 'week_from': 58 + i, 'week_to': 59 + i}
+    usage = {'roles': {'planner': {'turns': 4, 'in': 30, 'out': 5200, 'cache_read': 180000, 'cache_write': 42000, 'ms': 260000},
+                       'developer': {'turns': 6, 'in': 70, 'out': 17600, 'cache_read': 690000, 'cache_write': 88000, 'ms': 1900000},
+                       'tester': {'turns': 2, 'in': 20, 'out': 3900, 'cache_read': 120000, 'cache_write': 21000, 'ms': 410000},
+                       'reviewer': {'turns': 3, 'in': 20, 'out': 2600, 'cache_read': 140000, 'cache_write': 30000, 'ms': 300000},
+                       'security': {'turns': 2, 'in': 10, 'out': 1900, 'cache_read': 70000, 'cache_write': 18000, 'ms': 190000}},
+             'planning': {'turns': 1, 'out': 2400}, 'context': {'planner': 38000, 'developer': 61000, 'tester': 29000,
+                                                                 'reviewer': 33000, 'security': 27000},
+             'week_start': 58, 'five_start': 21}
     table = {'id': 'c7ab1e5f0', 'name': 'tablefmt', 'mode': 'goal', 'dir': table_dir, 'options': opts,
              'goal': crew_board(now, m)[0]['text'], 'theme': '', 'created_at': int(now - 95 * m), 'updated_at': int(now - 5.9 * m),
              'phase': 'building', 'reason': None, 'roles': roles, 'primed': {r: True for r in roles},
              'plan': {'summary': 'A small pure-Python package with a thin CLI: parsing and formatting are pure functions so '
                                  'they are easy to test, and the CLI only does I/O.', 'stack': 'Python 3.9+, standard library, pytest',
-                      'check_command': 'python3 -m pytest -q', 'milestones': crew_milestones(now, m)},
+                      'check_command': 'python3 -m pytest -q', 'milestones': milestones}, 'usage': usage,
              'ideas': [], 'current': 2, 'step': 'develop', 'wait': {'role': 'developer', 'step': 'develop', 'sent_at': (now - 5.8 * m) / 1000},
              'feedback': None, 'plan_feedback': None, 'notes': [], 'board': crew_board(now, m), 'attention': None,
              'resume_at': None, 'paused_from': None, 'stats': {'turns': 16, 'checks': 3}, 'template': 'secure', 'team': team,
