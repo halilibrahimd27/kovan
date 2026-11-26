@@ -923,7 +923,7 @@ const TR={
   'choose a workspace directory':'bir çalışma klasörü seç','another crew is already working in that folder':'o klasörde zaten başka bir ekip çalışıyor','invalid crew options':'geçersiz ekip seçenekleri',
   'that folder has files but is not a git repository — choose an empty folder or a git repository, so every milestone is a reviewable commit':'o klasörde dosyalar var ama git deposu değil — her kilometre taşı incelenebilir bir commit olsun diye boş bir klasör ya da bir git deposu seç',
   'that repository has uncommitted changes — commit or stash them first, so the crew’s commits contain only its own work':'o depoda commit’lenmemiş değişiklikler var — ekibin commit’leri yalnız kendi işini içersin diye önce commit’le ya da stash’le',
-  'crew not found':'ekip bulunamadı','empty note':'boş not','forbidden':'yasak',
+  'crew not found':'ekip bulunamadı','empty note':'boş not','forbidden':'yasak','this page is out of date (kovan restarted) — reload it':'bu sayfa eskidi (kovan yeniden başlatıldı) — sayfayı yenile',
   'Prompts':'Komutlar','Files edited':'Düzenlenen dosyalar','Subagents':'Alt ajanlar','Closed sessions':'Kapalı oturumlar','None.':'Yok.',
   'running':'çalışıyor','failed':'başarısız','stopped':'durduruldu','unknown':'bilinmiyor','Tool calls ':'Araç çağrıları ',
   // words passed to plural()
@@ -1052,7 +1052,7 @@ function md(src){const L=String(src||'').split('\n'),o=[];let code=null,list=nul
 
 /* ---------------- server */
 async function get(path){const r=await fetch(path);let j={};try{j=await r.json();}catch(e){}if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
-async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Kovan-Token':TOKEN},body:JSON.stringify(body)});let j={};try{j=await r.json();}catch(e){}if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
+async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Kovan-Token':TOKEN},body:JSON.stringify(body)});let j={};try{j=await r.json();}catch(e){}if(r.status===403&&j.error==='forbidden')throw new Error('this page is out of date (kovan restarted) — reload it');if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
 
 /* ---------------- toasts, notifications, confirm */
 function toast(title,text,sid,kind){
