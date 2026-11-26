@@ -2000,8 +2000,10 @@ class Handler(BaseHTTPRequestHandler):
             index = b.get('index')
             if index is not None and not isinstance(index, int):
                 raise KovanError('invalid index')
-            return CREWS.act(str(b.get('id') or '')[:40], str(b.get('action') or ''), str(b.get('feedback') or '')[:4000],
-                             index, bool(b.get('release')))
+            action = str(b.get('action') or '')
+            return CREWS.act(str(b.get('id') or '')[:40], action, str(b.get('feedback') or '')[:6000 if action == 'next' else 4000],
+                             index, bool(b.get('release')), branch=str(b['branch'])[:200] if b.get('branch') else None,
+                             name=str(b['name'])[:200] if b.get('name') else None)
         if path == '/api/crew/options':
             return CREWS.update_options(str(b.get('id') or '')[:40], b.get('options'))
         if path == '/api/crew/note':

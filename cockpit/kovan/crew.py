@@ -51,6 +51,7 @@ EDITABLE_OPTIONS = {'models', 'efforts', 'fresh', 'weekly_pause', 'quota_pause',
                     'idle_command', 'check', 'check_timeout', 'max_attempts', 'milestone_approval', 'policy',
                     'push_command', 'commit_trailer', 'advisor', 'start_at'}
 EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
+EARLIER_LIMIT = 40              # finished goals a crew remembers
 MODEL_RE = re.compile(r'^[A-Za-z0-9._\[\]-]{1,80}$')
 BRANCH_RE = re.compile(r'^(?![-/.])(?!.*\.\.)(?!.*//)(?!.*@\{)[A-Za-z0-9._/-]{1,100}(?<![./])$')
 # Claude Code permission rules every role session starts with: roles never read or write secret files, whatever
@@ -1023,6 +1024,8 @@ class Crews:
                 'team': [{k: r.get(k) for k in ('key', 'title', 'stage', 'block_on', 'about', 'preset')} for r in crew.get('team') or []],
                 'created_at': crew['created_at'], 'updated_at': crew.get('updated_at'), 'busy': self.busy.get(crew['id']),
                 'last': last, 'pause_kind': crew.get('pause_kind'), 'resume_at': crew.get('resume_at'),
+                'earlier': [{'goal': server.clip(x.get('goal') or '', 200), 'ended_at': x.get('ended_at'),
+                             'branch': (x.get('git') or {}).get('branch')} for x in crew.get('earlier') or []],
                 'usage': self.usage_view(crew)}
 
     def usage_view(self, crew):
@@ -1105,7 +1108,7 @@ class Crews:
         server.log('action: crew created %s (%s)' % (crew['id'], mode))
         return crew
 
-    def act(self, crew_id, action, feedback='', index=None, release=False):
+    def act(self, crew_id, action, feedback='', index=None, release=False, branch=None, name=None):
         with self.lock:
             crew = self.get(crew_id)
             phase = crew['phase']
@@ -1172,6 +1175,10 @@ class Crews:
                 crew.update(phase=crew.get('paused_from') or 'planning', reason=None, resume_at=None, paused_from=None,
                             pause_kind=None)
                 self.say(crew, 'you', 'Resume.', kind='decision')
+            elif action == 'rename':
+                self.rename(crew, name if name is not None else feedback)
+            elif action == 'next' and phase == 'done':
+                self.next_goal(crew, feedback, branch, name)
             elif action == 'stop' and phase not in FINISHED:
                 self.interrupt_active(crew)
                 crew.update(phase='stopped', reason='stopped by you', wait=None)
@@ -1437,6 +1444,40 @@ class Crews:
         elif phase == 'building':
             self.build_step(crew)
 
+    def rename(self, crew, name):
+        name = re.sub(r'\s+', ' ', str(name or '')).strip()[:60]
+        if not name:
+            raise server.KovanError('a crew needs a name')
+        if name != crew['name']:
+            crew['name'] = name
+            self.say(crew, 'you', 'The crew is now called “%s”.' % name, kind='decision', save=False)
+
+    def next_goal(self, crew, goal, branch=None, name=None):
+        """A finished crew takes its next goal: same crew, roles and boardroom; a new plan and, with git, a new branch.
+        What it finished is kept in ``earlier``. The branch is made when the crew starts planning, from the branch the
+        repository is on then — merge and update the base first."""
+        goal = str(goal or '').strip()[:6000]
+        if not goal:
+            raise server.KovanError('describe the next goal')
+        opts = crew['options']
+        git_info = None
+        if crew.get('git'):
+            opts = clean_options({'branch': str(branch or '').strip()}, crew['options'])
+            if not opts['branch']:
+                raise server.KovanError('the next goal needs a new branch name (the last one was %s)' % crew['git']['branch'])
+            git_info = ci.prepare(crew['dir'], opts, name or crew['name'], dry=True)
+        if name:
+            self.rename(crew, name)
+        plan = (crew.get('plan') or {}).get('milestones') or []
+        crew.setdefault('earlier', []).append({
+            'goal': crew.get('goal') or '', 'ended_at': now_ms(), 'git': crew.get('git'),
+            'milestones': [{'title': m.get('title'), 'status': m.get('status')} for m in plan]})
+        del crew['earlier'][:-EARLIER_LIMIT]
+        crew.update(goal=goal, options=opts, git=git_info, git_at_start=bool(git_info), plan=None, current=0, step=None,
+                    wait=None, feedback=None, plan_feedback=None, attention=None, reason=None, phase='planning')
+        self.say(crew, 'you', goal, kind='goal', save=False)
+        self.say(crew, 'kovan', 'Next goal — the Planner goes first.', save=False)
+
     def prepare_git(self, crew):
         """A crew that started later makes its branch now — from what the base branch is at the start."""
         if is_git_repo(crew['dir']) and git(crew['dir'], 'status', '--porcelain')[1].strip():
@@ -1516,6 +1557,10 @@ class Crews:
         brief = TEMPLATES.get(crew.get('template') or 'feature', {}).get('brief')
         if brief:
             task += brief + '\n\n'
+        if crew.get('earlier'):
+            task += 'This crew already finished %d earlier goal(s) in this workspace; their work is in the repository. ' \
+                    'Plan only the goal above. The last one was:\n%s\n\n' % (
+                        len(crew['earlier']), server.clip(crew['earlier'][-1]['goal'], 600))
         if crew.get('team'):
             task += 'Besides you, the Developer and the Reviewer, the crew has: %s.\n\n' % '; '.join(
                 '%s (%s)' % (r['title'], 'works after the Developer' if r['stage'] == 'build' else

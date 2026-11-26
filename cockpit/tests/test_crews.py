@@ -295,6 +295,29 @@ class CrewFlowTests(CrewTestCase):
         self.assertIn('Tabs, not spaces.', self.role(c, 'developer').sent[-1])
         self.assertNotIn('Use only the standard library.', self.role(c, 'developer').sent[-1])   # already delivered
 
+    def test_rename_and_next_goal_without_git_options(self):
+        c = self.new()
+        self.crews.act(c['id'], 'rename', name='  Whole   project ')
+        self.assertEqual(c['name'], 'Whole project')
+        with self.assertRaisesRegex(server.KovanError, 'needs a name'):
+            self.crews.act(c['id'], 'rename', name=' ')
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.drive(c, self.waiting_on(c, 'developer'))
+        with open(os.path.join(self.work, 'one.txt'), 'w') as f:
+            f.write('1\n')
+        self.role(c, 'developer').reply(fenced({'status': 'done', 'summary': 'one', 'files': ['one.txt']}))
+        self.drive(c, self.waiting_on(c, 'reviewer'))
+        self.role(c, 'reviewer').reply(fenced({'verdict': 'approve', 'summary': 'ok', 'issues': [], 'commit_message': 'feat: one'}))
+        self.drive(c, lambda c: c['phase'] == 'done')
+        d = self.crews.act(c['id'], 'next', 'Then the second thing.')
+        self.assertEqual((d['phase'], d['goal'], d['progress']), ('planning', 'Then the second thing.', {'done': 0, 'total': 0}))
+        self.assertEqual(len(d['earlier']), 1)
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.assertIn('Then the second thing.', self.role(c, 'planner').sent[-1])
+        reloaded = crew.Crews(self.state)                                           # survives a restart
+        self.assertEqual(reloaded.items[c['id']]['earlier'][0]['goal'], 'Build a tiny thing.')
+
     def test_pause_resume_stop(self):
         c = self.new()
         self.drive(c, self.waiting_on(c, 'planner'))

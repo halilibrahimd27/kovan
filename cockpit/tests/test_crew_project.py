@@ -265,6 +265,49 @@ class BranchAndPushTests(CrewTestCase):
         self.assertEqual(sh(self.work, 'git', 'branch', '--show-current').strip(), 'feature/m1-sso')
         self.assertIn('Working on the branch feature/m1-sso (from main).', [b['text'] for b in c['board']])
 
+    def build_one(self, c, name, message):
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.drive(c, self.waiting_on(c, 'developer'))
+        with open(os.path.join(self.work, name), 'w') as f:
+            f.write('X = 1\n')
+        self.role(c, 'developer').reply(fenced({'status': 'done', 'summary': name}))
+        self.drive(c, self.waiting_on(c, 'reviewer'))
+        self.role(c, 'reviewer').reply(fenced({'verdict': 'approve', 'summary': 'ok', 'commit_message': message}))
+        self.drive(c, lambda c: c['phase'] == 'done')
+
+    def test_a_finished_crew_takes_the_next_goal_on_a_new_branch(self):
+        c = self.new(pr=True, branch='feature/m1', push_command=self.push)
+        with self.assertRaisesRegex(server.KovanError, 'not possible'):
+            self.crews.act(c['id'], 'next', 'Too early.', branch='feature/m2')        # only a finished crew
+        self.build_one(c, 'a.py', 'feat: add a')
+        with self.assertRaisesRegex(server.KovanError, 'describe the next goal'):
+            self.crews.act(c['id'], 'next', '  ', branch='feature/m2')
+        with self.assertRaisesRegex(server.KovanError, 'new branch name'):
+            self.crews.act(c['id'], 'next', 'Build the second thing.')
+        with self.assertRaisesRegex(server.KovanError, 'must differ'):
+            self.crews.act(c['id'], 'next', 'Build the second thing.', branch='feature/m1')     # still on it
+        self.assertEqual((c['phase'], c['goal'], c.get('earlier')), ('done', 'Build a tiny thing.', None))   # nothing changed
+        sh(self.work, 'git', 'checkout', '-q', 'main')                              # you merged it and updated the base
+        sh(self.work, 'git', 'merge', '-q', '--ff-only', 'feature/m1')
+        planner = self.role(c, 'planner')
+        d = self.crews.act(c['id'], 'next', 'Build the second thing.', branch='feature/m2', name='Whole project')
+        self.assertEqual((d['name'], d['phase'], d['goal']), ('Whole project', 'planning', 'Build the second thing.'))
+        self.assertEqual([(x['goal'], x['branch']) for x in d['earlier']], [('Build a tiny thing.', 'feature/m1')])
+        self.assertEqual(c['earlier'][0]['milestones'], [{'title': 'Step 1', 'status': 'done'}])
+        self.assertEqual(sh(self.work, 'git', 'branch', '--show-current').strip(), 'main')     # the branch comes at the start
+        self.build_one(c, 'b.py', 'feat: add b')
+        self.assertIs(self.role(c, 'planner'), planner)                             # same crew, same roles
+        self.assertIn('Build the second thing.', planner.sent[-1])
+        self.assertIn('already finished 1 earlier goal(s)', planner.sent[-1])
+        self.assertEqual(c['git']['branch'], 'feature/m2')
+        self.assertEqual(c['git']['base'], 'main')
+        self.assertEqual(sh(self.work, 'git', 'branch', '--show-current').strip(), 'feature/m2')
+        self.assertEqual(sh(self.work, 'git', 'log', '--format=%s', '-2').split('\n')[:2], ['feat: add b', 'feat: add a'])
+        with open(self.log) as f:
+            self.assertEqual(f.read().split()[-1], 'feature/m2')
+        self.assertIn('Working on the branch feature/m2 (from main).', [b['text'] for b in c['board']])
+
     def test_branch_rules_and_links(self):
         sh(self.work, 'git', 'branch', 'feature/taken')
         with self.assertRaisesRegex(server.KovanError, 'already exists'):
