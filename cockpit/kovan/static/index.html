@@ -1710,7 +1710,7 @@ function tableSVG(R){
   const seats=R.seats,n=seats.length;if(!n)return'';
   if(tsize()==='s')return seatRow(R);
   // Seats sit on an ellipse; every label hangs below its seat, so the bottom edge keeps room for three lines.
-  const[W,H]=stageSize(),small=tsize()==='s',top=small?30:38,bottom=small?52:82,cx=W/2,cy=(top+H-bottom)/2,rx=W*.42,ry=(H-bottom-top)/2,pos={};
+  const[W,H]=stageSize(),small=tsize()==='s',top=small?30:38,bottom=small?52:82,cx=W/2,cy=(top+H-bottom)/2,rx=Math.min(W*.42,W/2-96),ry=(H-bottom-top)/2,pos={};
   seats.forEach((s,i)=>{const a=Math.PI/2+2*Math.PI*i/n;pos[s.key]={x:cx+rx*Math.cos(a),y:cy+ry*Math.sin(a),a};});
   const ow=W*.46,oh=Math.max(70,ry*2-(small?64:118));
   const talks=(R.entries||[]).filter(e=>pos[e.speaker]&&!(roleKey(e.speaker)==='kovan'&&e.kind==='status')).slice(-10);
