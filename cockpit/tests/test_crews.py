@@ -104,7 +104,7 @@ class CrewTestCase(unittest.TestCase):
 
     # ---- helpers
     def new(self, **opts):
-        options = {'check': '%s -c "import sys; sys.exit(0)"' % PY, 'plan_approval': False}
+        options = {'check': '%s -c "import sys; sys.exit(0)"' % PY, 'plan_approval': False, 'replan': 'always'}
         options.update(opts)
         return self.crews.create('Test crew', 'Build a tiny thing.', '', 'goal', self.work, options)
 
@@ -463,7 +463,7 @@ class CrewTeamTests(CrewTestCase):
     """Extra roles (ready-made and your own), crew templates and the reviewed-tree guarantee."""
 
     def team_crew(self, team=None, template=None, **opts):
-        options = {'check': '%s -c "import sys; sys.exit(0)"' % PY, 'plan_approval': False}
+        options = {'check': '%s -c "import sys; sys.exit(0)"' % PY, 'plan_approval': False, 'replan': 'always'}
         options.update(opts)
         return self.crews.create('Team crew', 'Build a tiny thing.', '', 'goal', self.work, options,
                                  template=template, team=team)

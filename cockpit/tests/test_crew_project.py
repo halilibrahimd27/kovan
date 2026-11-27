@@ -157,6 +157,24 @@ class ProjectCrewTests(CrewTestCase):
         self.assertTrue(all(len(s) <= 72 and s.startswith('feat: step') for s in subjects), subjects)
         self.assertIn('New milestone, fresh sessions: Developer, Reviewer.', [b['text'] for b in c['board']])
 
+    def test_a_clean_milestone_needs_no_replan(self):
+        c = self.new(replan='auto')
+        self.drive(c, self.waiting_on(c, 'planner'))
+        planner = self.role(c, 'planner')
+        planner.reply(fenced(self.plan(3)))
+        self.build(c, 1)                                                           # first attempt, approved
+        self.drive(c, self.waiting_on(c, 'developer'))                            # straight to milestone 2
+        self.assertEqual(len(planner.sent), 1)
+        self.assertIn('Clean milestone — on to the next one without a replan.', [b['text'] for b in c['board']])
+        self.drive(c, self.waiting_on(c, 'developer'))
+        self.role(c, 'developer').reply(fenced({'status': 'done', 'summary': 'two'}))
+        self.drive(c, self.waiting_on(c, 'reviewer'))
+        self.role(c, 'reviewer').reply(fenced({'verdict': 'changes', 'summary': 'missing test', 'issues': []}))
+        self.build(c, 2)                                                           # second attempt passes …
+        self.drive(c, self.waiting_on(c, 'planner'))                              # … so the Planner takes a look
+        self.assertIn('Milestone “Step 2” just finished', planner.sent[-1])
+        self.assertIn('Work economically', planner.sent[0])                       # every charter carries the rule
+
     def test_without_fresh_sessions_the_developer_stays(self):
         c = self.new(fresh=False)
         self.drive(c, self.waiting_on(c, 'planner'))

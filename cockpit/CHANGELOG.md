@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.2 — 2026-11-27
+
+Crews use much less of your limits.
+
+- **No replan after a clean milestone.** When a milestone passes at the first attempt, the crew goes straight on to
+  the next one. The Planner's turn re-reads its whole, ever-growing session and was often the most expensive turn
+  of a milestone; it now comes only after a milestone that needed another attempt. *The Planner reviews every
+  milestone* brings the old behaviour back.
+- **Every role works economically.** Each charter tells the role that what it reads stays in its context and is paid
+  for again on every step. Roles search with Grep or Glob, read only the relevant part of large files, never re-read a
+  file and open only the documents the task needs.
+- **Share column** in the crew's usage table: the approximate share of your limits each role used. Output weighs
+  most, cache reads least.
+
 ## 0.5.1 — 2026-11-27
 
 - **Fix: a crew paused and resumed every second** when the last usage reading came from a window that had already

@@ -745,6 +745,8 @@ const TR={
   'Advisor':'Danışman','advisor':'danışman','one of your sessions reviews the plan (forked, once)':'oturumlarından biri planı gözden geçirir (çatallanarak, bir kez)','Advisor model':'Danışman modeli','Advisor effort':'Danışman eforu','none':'yok',
   'reviews the plan before you approve it':'planı sen onaylamadan önce gözden geçirir','reading the plan…':'planı okuyor…',
   'Check command':'Denetim komutu','Permissions':'İzinler','Safe':'Güvenli','Ask':'Sor','Trusted (never ask)':'Güvenilir (hiç sorma)','Attempts':'Deneme','Check timeout (s)':'Denetim süresi (sn)',
+  'Share':'Pay','Approximate share of what this crew used of your limits: output weighs most, cache reads least.':'Bu ekibin sınırlarından kullandığının yaklaşık payı: çıktı en ağır, önbellekten okunan en hafif sayılır.',
+  'The Planner reviews every milestone (otherwise only one that needed another attempt)':'Planlayıcı her kilometre taşını değerlendirsin (kapalıysa yalnız yeniden deneme gerekenleri)',
   'Usage':'Kullanım','Turns':'Tur','Output':'Çıktı','Input':'Girdi','Cache read':'Önbellekten','Context':'Bağlam','Time':'Süre','Total':'Toplam','Planning':'Planlama','output':'çıktı','sessions':'oturum',
   'Weekly usage window':'Haftalık kullanım penceresi','Tokens this milestone: output · weekly usage window':'Bu kilometre taşının tokenları: çıktı · haftalık kullanım penceresi',
   'Context is the size of a role’s last request; fresh sessions keep it small. Cache reads count far less toward the limits than new input.':'Bağlam, rolün son isteğinin büyüklüğüdür; taze oturumlar onu küçük tutar. Önbellekten okunan, sınırlara yeni girdiden çok daha az sayılır.',
@@ -1792,10 +1794,13 @@ function renderCrews(){
 function until(ms){const d=ms-Date.now();if(d<=0)return LANG==='tr'?'şimdi':'now';return LANG==='tr'?dur(d)+' sonra':'in '+dur(d);}
 function fmtAt(ms){try{return new Date(ms).toLocaleString(LANG==='tr'?'tr-TR':'en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return clock(ms);}}
 function usageHTML(c){const u=c.usage||{},roles=Object.entries(u.roles||{}),pl=u.planning||{};if(!roles.length)return'';
-  const row=(label,r,ctx)=>'<tr title="'+esc(tt('Input')+' '+tok((r.in||0)+(r.cache_write||0))+' · '+tt('Cache read')+' '+tok(r.cache_read||0))+'"><td>'+label+'</td><td>'+(r.turns||0)+'</td><td>'+tok(r.out||0)+'</td><td>'+tok(r.cache_read||0)+'</td><td>'+(ctx?tok(ctx):'—')+'</td><td>'+dur(r.ms||0)+'</td></tr>';
+  // Usage limits follow roughly the price of tokens: output weighs most, new or cache-written input next, cache reads least.
+  const load=r=>(r.in||0)+1.25*(r.cache_write||0)+0.1*(r.cache_read||0)+5*(r.out||0);
   const sum={turns:0,out:0,in:0,cache_write:0,cache_read:0,ms:0};roles.forEach(([,r])=>Object.keys(sum).forEach(k=>{sum[k]+=r[k]||0;}));
+  const all=load(sum)||1;
+  const row=(label,r,ctx)=>'<tr title="'+esc(tt('Input')+' '+tok((r.in||0)+(r.cache_write||0))+' · '+tt('Cache read')+' '+tok(r.cache_read||0))+'"><td>'+label+'</td><td>'+(r.turns||0)+'</td><td>'+tok(r.out||0)+'</td><td>'+tok(r.cache_read||0)+'</td><td>'+(ctx?tok(ctx):'—')+'</td><td>'+dur(r.ms||0)+'</td><td><b>%'+Math.round(100*load(r)/all)+'</b></td></tr>';
   const week=u.week_start!=null&&u.week_now!=null?tt('Weekly usage window')+': %'+u.week_start+' → %'+u.week_now:'';
-  return '<h2 class="section">Usage</h2><div class="box usage"><table><thead><tr><th>Role</th><th>Turns</th><th>Output</th><th>Cache read</th><th>Context</th><th>Time</th></tr></thead><tbody>'+
+  return '<h2 class="section">Usage</h2><div class="box usage"><table><thead><tr><th>Role</th><th>Turns</th><th>Output</th><th>Cache read</th><th>Context</th><th>Time</th><th title="'+esc(tt('Approximate share of what this crew used of your limits: output weighs most, cache reads least.'))+'">Share</th></tr></thead><tbody>'+
     roles.map(([k,r])=>row(esc(roleName(k)),r,(u.context||{})[k])).join('')+'</tbody><tfoot>'+row(tt('Total'),sum,null)+'</tfoot></table>'+
     '<div class="note">'+(pl.turns?esc(tt('Planning'))+': '+tok(pl.out||0)+' '+esc(tt('output'))+' · ':'')+esc(String(u.sessions||0))+' '+esc(tt('sessions'))+(week?' · '+esc(week):'')+'<br>'+esc(tt('Context is the size of a role’s last request; fresh sessions keep it small. Cache reads count far less toward the limits than new input.'))+'</div></div>';}
 function projectKV(c){const o=c.options||{},m=o.models||{},ef=o.efforts||{},rows=[];
@@ -1824,7 +1829,8 @@ function advHTML(o,roles,mode){o=o||{};const m=o.models||{},ef=o.efforts||{},h=o
     '<label>Attempts<input name="max_attempts" type="number" min="1" max="10" value="'+(o.max_attempts||3)+'"></label><label>Check timeout (s)<input name="check_timeout" type="number" min="30" max="7200" value="'+(o.check_timeout||900)+'"></label></div>'+
     '<div class="toggles"><label class="opt"><input type="checkbox" name="milestone_approval"'+(o.milestone_approval?' checked':'')+'> Pause after every milestone</label></div>';
   out+='<table><thead><tr><th>Role</th><th>Model</th><th>Effort</th></tr></thead><tbody>'+roles.map(([k,l])=>'<tr><td>'+esc(l)+'</td><td><input name="m_'+esc(k)+'" list="model-list" value="'+esc(m[k]||'')+'" placeholder="'+esc(tt('session default'))+'" autocomplete="off" spellcheck="false"></td><td>'+eff('e_'+k,ef[k]||'')+'</td></tr>').join('')+'</tbody></table>';
-  out+='<div class="toggles"><label class="opt"><input type="checkbox" name="fresh"'+(o.fresh!==false?' checked':'')+'> Fresh sessions every milestone (smaller context, fewer tokens)</label><label class="opt"><input type="checkbox" name="web"'+(o.web?' checked':'')+'> Every role may search and read the web</label></div>';
+  out+='<div class="toggles"><label class="opt"><input type="checkbox" name="fresh"'+(o.fresh!==false?' checked':'')+'> Fresh sessions every milestone (smaller context, fewer tokens)</label><label class="opt"><input type="checkbox" name="web"'+(o.web?' checked':'')+'> Every role may search and read the web</label>'+
+    '<label class="opt"><input type="checkbox" name="replan_always"'+(o.replan==='always'?' checked':'')+'> The Planner reviews every milestone (otherwise only one that needed another attempt)</label></div>';
   out+='<label class="opt"><input type="checkbox" name="h_on"'+(h?' checked':'')+'> Work only during working hours</label><div class="days">'+DAYS.map(([d,l])=>'<label><input type="checkbox" name="h_day" value="'+d+'"'+((h?h.days:[0,1,2,3,4]).includes(d)?' checked':'')+'>'+esc(tt(l))+'</label>').join('')+
     '<input name="h_start" type="time" value="'+esc(h?h.start:'09:00')+'" style="width:auto"><span>–</span><input name="h_end" type="time" value="'+esc(h?h.end:'17:00')+'" style="width:auto"></div><small class="muted">After the end of the day no new turn starts (a running one finishes); the crew goes on at the next start.</small>';
   out+='<div class="row2">'+(create||c_scheduled(o)?'<label>Start at <small>empty = now</small><input name="start_at" type="datetime-local" value="'+(o.start_at?localDT(o.start_at):'')+'"></label>':'')+
@@ -1842,7 +1848,7 @@ function c_scheduled(o){return o&&o.start_at&&o.start_at>Date.now();}
 function readAdv(f){const E=n=>f.elements.namedItem(n),out={},models={},efforts={};
   f.querySelectorAll('[name^="m_"]').forEach(i=>{if(i.value.trim())models[i.name.slice(2)]=i.value.trim();});
   f.querySelectorAll('[name^="e_"]').forEach(i=>{if(i.value)efforts[i.name.slice(2)]=i.value;});
-  Object.assign(out,{models,efforts,fresh:E('fresh').checked,web:E('web').checked,weekly_pause:+E('weekly_pause').value||95,
+  Object.assign(out,{models,efforts,fresh:E('fresh').checked,web:E('web').checked,replan:E('replan_always').checked?'always':'auto',weekly_pause:+E('weekly_pause').value||95,
     hours:E('h_on').checked?{days:[...f.querySelectorAll('[name=h_day]:checked')].map(x=>+x.value),start:E('h_start').value,end:E('h_end').value}:null,
     allow:E('allow').value,deny:E('deny').value,push_command:E('push_command').value.trim(),commit_trailer:E('commit_trailer').value.trim(),idle_command:E('idle_command').value.trim()});
   const sid=E('a_sid').value;out.advisor=sid?{sid:sid==='fresh'?'':sid,name:(sid==='fresh'?tt('Advisor'):((S.d.sessions.find(x=>x.sid===sid)||{}).name||'Advisor')).slice(0,40),

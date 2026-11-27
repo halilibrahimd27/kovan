@@ -44,12 +44,17 @@ DEFAULT_OPTIONS = {'tester': False, 'plan_approval': True, 'milestone_approval':
                    'allow': [], 'deny': [],  # command patterns roles may / may not run without asking (match_pattern)
                    'web': False,            # every role may search and read the web (otherwise Ideator and Planner)
                    'idle_command': '',      # runs when the crew rests for the day or finishes, e.g. "make down"
+                   'replan': 'auto',        # auto: the Planner reviews a milestone only when it did not pass cleanly
                    'advisor': None}         # {'sid', 'name', 'model', 'effort'}: an existing session reviews the plan
 COMPLEX_OPTIONS = ('models', 'efforts', 'hours', 'allow', 'deny', 'advisor')
 # What can change while a crew runs (the rest shapes its branch, pipeline or language).
 EDITABLE_OPTIONS = {'models', 'efforts', 'fresh', 'weekly_pause', 'quota_pause', 'hours', 'allow', 'deny', 'web',
                     'idle_command', 'check', 'check_timeout', 'max_attempts', 'milestone_approval', 'policy',
-                    'push_command', 'commit_trailer', 'advisor', 'start_at'}
+                    'push_command', 'commit_trailer', 'advisor', 'start_at', 'replan'}
+# Added to every role's charter: whatever a role reads stays in its context and is paid for on every later step.
+ECONOMY = ("\nWork economically: everything you read stays in your context and is paid for again on every later step. "
+           "Find what you need with Grep or Glob and read only the relevant part of a large file (offset and limit); "
+           "never re-read a file you already have; open only the documents your task needs; keep explanations short.")
 EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
 EARLIER_LIMIT = 40              # finished goals a crew remembers
 MODEL_RE = re.compile(r'^[A-Za-z0-9._\[\]-]{1,80}$')
@@ -75,7 +80,8 @@ OPTION_TR = {'models': 'modeller', 'efforts': 'efor', 'fresh': 'taze oturumlar',
              'quota_pause': '5 saatlik sınır', 'hours': 'mesai saatleri', 'allow': 'izinli komutlar', 'deny': 'yasak komutlar',
              'web': 'web erişimi', 'idle_command': 'boşta komutu', 'check': 'denetim komutu', 'check_timeout': 'denetim süresi',
              'max_attempts': 'deneme sayısı', 'milestone_approval': 'kilometre taşı onayı', 'policy': 'izinler',
-             'push_command': 'push komutu', 'commit_trailer': 'commit imzası', 'advisor': 'danışman', 'start_at': 'başlama saati'}
+             'push_command': 'push komutu', 'commit_trailer': 'commit imzası', 'advisor': 'danışman', 'start_at': 'başlama saati',
+             'replan': 'yeniden planlama'}
 
 
 def _role(m, group=1):
@@ -109,6 +115,7 @@ TR_LINES = [
     (r'^Pushed (\S+)\. Open the pull request when you are ready: ', r'\1 push edildi. Hazır olduğunda pull request’i aç: '),
     (r'^Pushed (\S+) \((\w+)\)\.$', r'\1 push edildi (\2).'),
     (r'^Working on the branch (\S+) \(from (\S+)\)\.$', r'\1 dalında çalışılıyor (\2 dalından açıldı).'),
+    (r'^Clean milestone — on to the next one without a replan\.$', 'Temiz geçti — yeniden planlamaya gerek yok, sıradaki taşa geçiliyor.'),
     (r'^(\d+) role turns so far', r'Şu ana kadar \1 rol turu'), (r'; 5-hour usage (\d+)%', r'; 5 saatlik kullanım %\1'),
     (r'; 7-day usage (\d+)%', r'; 7 günlük kullanım %\1'),
     (r'^Blocked: (.*) — retry, skip or stop when you are ready\.$', lambda m: 'Takıldı: ' + localize_reason(m.group(1)) +
@@ -440,13 +447,13 @@ def crew_roles(crew):
 
 def charter(crew, role):
     if role in CHARTERS:
-        return CHARTERS[role]
+        return CHARTERS[role] + ECONOMY
     r = team_role(crew, role) or {}
     rules = STAGE_RULES.get(r.get('stage'), '')
     if r.get('stage') == 'gate':
         rules = rules % block_text(r.get('block_on'))
     return ('You are the %s of a small autonomous software crew (a Planner, a Developer, a Reviewer and others).\n%s\n%s'
-            % (r.get('title', role), r.get('job', ''), rules))
+            % (r.get('title', role), r.get('job', ''), rules)) + ECONOMY
 
 
 def pipeline(crew):
@@ -663,6 +670,8 @@ def clean_options(options, base):
     if opts['branch'] and not BRANCH_RE.match(opts['branch']):
         raise server.KovanError('invalid branch name: %s' % server.clip(opts['branch'], 60))
     opts['start_at'] = max(0, int(opts.get('start_at') or 0))
+    if opts.get('replan') not in ('auto', 'always'):
+        raise server.KovanError('replan is auto or always')
     return opts
 
 
@@ -2011,10 +2020,21 @@ class Crews:
         more = any(x['status'] == 'pending' for x in crew['plan']['milestones'])
         if crew['options'].get('fresh') and more:
             self.retire_roles(crew, m)
+        if more and self.clean(crew, m):
+            # A milestone that passed at the first attempt needs no Planner turn: on to the next one. (A Planner turn
+            # re-reads its whole, ever-growing session — often the most expensive turn of a milestone.)
+            self.say(crew, 'kovan', 'Clean milestone — on to the next one without a replan.', save=False)
+            return self.advance_milestone(crew)
         crew['step'] = 'replan' if more else None
         if not more:
             crew['current'] = len(crew['plan']['milestones'])
         self.save(crew)
+
+    def clean(self, crew, m):
+        """Did the milestone pass at the first attempt, so the plan needs no second look?"""
+        if crew['options'].get('replan', 'auto') != 'auto' or TEMPLATES.get(crew.get('template') or '', {}).get('replan'):
+            return False
+        return m.get('attempts', 0) == 0 and not m.get('rechecks') and (m.get('ci') or {}).get('state') in (None, 'green')
 
     def retire_roles(self, crew, m):
         """New milestone, new sessions: the working roles start the next milestone with an empty context — the code,
