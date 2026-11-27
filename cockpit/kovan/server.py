@@ -822,7 +822,7 @@ class Store:
             now = int(time.time() * 1000)
             out = {'revision': rev, 'now': now, 'version': __version__, 'dirs': [tilde(d) for d in self.dirs],
                    'sessions': self.ordered_summaries(live, now), 'messages': self.messages(live),
-                   'limit': MANAGER.limit if MANAGER else None, 'quick_prompts': SETTINGS.quick_prompts() if SETTINGS else [],
+                   'limit': fresh_limit(MANAGER.limit) if MANAGER else None, 'quick_prompts': SETTINGS.quick_prompts() if SETTINGS else [],
                    'holder_connected': bool(HOLDER and HOLDER.connected), 'demo': CFG.demo,
                    'notes_available': bool(self.notes_paths)}
             if with_feed:
@@ -1107,6 +1107,19 @@ def child_env():
     pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env['PYTHONPATH'] = os.pathsep.join(x for x in (pkg_parent, env['KOVAN_ORIG_PYTHONPATH']) if x)
     return env
+
+
+def fresh_limit(limit):
+    """The usage windows as last reported, minus the numbers of windows that have reset since: a reading from
+    yesterday's 5-hour window says nothing about today's (crews must never pause on it)."""
+    if not limit:
+        return limit
+    out, now = dict(limit), time.time()
+    for key in ('five_hour', 'seven_day'):
+        w = limit.get(key)
+        if w and w.get('resets_at') and w['resets_at'] <= now:
+            out[key] = dict(w, percent=None, stale=True)
+    return out
 
 
 def session_env():

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.1 — 2026-11-27
+
+- **Fix: a crew paused and resumed every second** when the last usage reading came from a window that had already
+  reset (for example yesterday's "5-hour window at 93%"). The pause flooded the boardroom and pushed out its
+  history. kovan now ignores the numbers of a window whose reset time has passed (in the crews and in the page). A
+  usage pause lasts at least a minute; without a reset time it looks again in ten minutes. The finance officer
+  does not repeat the same line within 15 minutes.
+- **A finished crew takes its next goal.** A project that runs in stages keeps the same crew, roles and boardroom.
+  The crew gets a new plan and, with git, a new branch made from the current one. The Planner is told what was
+  already done. Crews can be renamed.
+- After kovan restarts, an open page says to reload when its token is stale.
+
 ## 0.5.0 — 2026-11-25
 
 Crews can now work on a real project for days without growing their context.

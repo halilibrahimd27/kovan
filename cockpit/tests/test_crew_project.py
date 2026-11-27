@@ -189,6 +189,31 @@ class ProjectCrewTests(CrewTestCase):
         with self.assertRaisesRegex(server.KovanError, 'already started'):
             self.crews.update_options(c['id'], {'start_at': int(time.time() * 1000) + 99999})
 
+    def test_a_reading_from_a_window_that_has_reset_never_pauses(self):
+        # 27 Nov 2026: yesterday's "5-hour window at 93%, resets at 17:40" made a crew pause and resume every second
+        server.MANAGER.limit = {'five_hour': {'percent': 93, 'resets_at': time.time() - 3600},
+                                'seven_day': {'percent': 8, 'resets_at': time.time() + 86400}}
+        c = self.new()
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.assertFalse(any(b['speaker'] == 'finance' for b in c['board']))
+        self.assertIsNone(server.fresh_limit(server.MANAGER.limit)['five_hour']['percent'])
+
+    def test_a_pause_without_a_reset_time_waits_and_never_flaps(self):
+        server.MANAGER.limit = {'five_hour': {'percent': 95}}
+        c = self.new()
+        self.drive(c, lambda c: c['phase'] == 'paused')
+        self.assertGreater(c['resume_at'], (time.time() + 500) * 1000)             # looks again in ten minutes
+        for _ in range(30):
+            self.crews.tick()
+        self.assertEqual(c['phase'], 'paused')
+        self.assertEqual(sum(b['speaker'] == 'finance' for b in c['board']), 1)
+        c['resume_at'] = 1                                                         # time is up: the same reading again
+        for _ in range(5):
+            self.crews.tick()
+        finance = [b['text'] for b in c['board'] if b['speaker'] == 'finance']
+        self.assertEqual(c['phase'], 'paused')
+        self.assertLessEqual(len(finance), 3, finance)                             # no flood, whatever happens
+
     def test_weekly_limit_pauses(self):
         server.MANAGER.limit = {'seven_day': {'percent': 96, 'resets_at': time.time() + 7200}, 'five_hour': {'percent': 3}}
         c = self.new(lang='tr')

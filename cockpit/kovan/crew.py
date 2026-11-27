@@ -1002,6 +1002,11 @@ class Crews:
     def say(self, crew, speaker, text, kind='status', to=None, milestone=None, save=True):
         board = crew.setdefault('board', [])
         text = str(text) if kind in ('note', 'goal', 'idea', 'plan') else localize(crew, str(text))
+        if kind == 'finance' and any(e['text'] == text and e['speaker'] == speaker and now_ms() - e['ts'] < 15 * 60000
+                                     for e in board[-6:]):
+            if save:                # the finance officer does not repeat itself (a flapping pause must not flood the board)
+                self.save(crew)
+            return
         board.append({'id': secrets.token_hex(4), 'ts': now_ms(), 'speaker': speaker, 'to': to, 'kind': kind,
                       'text': server.clip(text, 6000), 'milestone': milestone})
         del board[:-BOARD_LIMIT]
@@ -1031,7 +1036,7 @@ class Crews:
     def usage_view(self, crew):
         """What the crew has used so far: per role, planning, and the account's usage windows now."""
         u = crew.get('usage') or {}
-        lim = (server.MANAGER.limit if server.MANAGER else None) or {}
+        lim = server.fresh_limit(server.MANAGER.limit if server.MANAGER else None) or {}
         return {'roles': u.get('roles') or {}, 'planning': u.get('planning') or {}, 'context': u.get('context') or {},
                 'week_start': u.get('week_start'), 'five_start': u.get('five_start'),
                 'week_now': (lim.get('seven_day') or {}).get('percent'), 'five_now': (lim.get('five_hour') or {}).get('percent'),
@@ -1347,14 +1352,15 @@ class Crews:
         return True
 
     def quota_exceeded(self, crew):
-        lim = (server.MANAGER.limit if server.MANAGER else None) or {}
+        lim = server.fresh_limit(server.MANAGER.limit if server.MANAGER else None) or {}
         for key, opt, label in (('seven_day', 'weekly_pause', '7-day'), ('five_hour', 'quota_pause', '5-hour')):
             w = lim.get(key) or {}
             if w.get('percent') is None or w['percent'] < crew['options'].get(opt, 100):
                 continue
-            resume_at = w.get('resets_at')
+            # Never resume sooner than a minute from now; without a reset time, look again in ten minutes.
+            resume_at = max(w['resets_at'], time.time() + 60) if w.get('resets_at') else time.time() + 600
             crew.update(paused_from=crew['phase'], phase='paused', reason='usage limit',
-                        resume_at=int(resume_at * 1000) if resume_at else None, pause_kind='quota')
+                        resume_at=int(resume_at * 1000), pause_kind='quota')
             self.say(crew, 'finance', 'Pausing: the %s usage window is at %d%% (limit %d%%).%s' % (
                 label, w['percent'], crew['options'][opt], ' I will resume at %s.' % when(resume_at) if resume_at else ''),
                 kind='finance')
@@ -1377,7 +1383,7 @@ class Crews:
                 row[k] = row.get(k, 0) + int(u.get(k) or 0)
         if u.get('context'):
             usage.setdefault('context', {})[role] = u['context']
-        lim = (server.MANAGER.limit if server.MANAGER else None) or {}
+        lim = server.fresh_limit(server.MANAGER.limit if server.MANAGER else None) or {}
         week, five = (lim.get('seven_day') or {}).get('percent'), (lim.get('five_hour') or {}).get('percent')
         if week is not None:
             usage.setdefault('week_start', week)
@@ -1388,7 +1394,7 @@ class Crews:
             usage.setdefault('five_start', five)
 
     def finance_report(self, crew):
-        lim = server.MANAGER.limit if server.MANAGER else None
+        lim = server.fresh_limit(server.MANAGER.limit if server.MANAGER else None)
         parts = ['%d role turns so far' % crew['stats'].get('turns', 0)]
         if lim:
             for key, label in (('five_hour', '5-hour'), ('seven_day', '7-day')):
