@@ -525,6 +525,8 @@ class Notifier:
                 if self.seen is None or self.seen.get(c['id']) == current[c['id']]:
                     continue
                 was_done = (self.seen.get(c['id']) or '').startswith('done|')
+                if summary['phase'] == 'plan_review' and summary.get('busy') == 'advisor':
+                    continue                # the advisor is still reading the plan: nothing for you yet
                 if summary['phase'] in NEEDS_YOU or summary.get('attention') or (summary['phase'] == 'done' and not was_done):
                     if summary.get('attention'):
                         from .crew import role_title

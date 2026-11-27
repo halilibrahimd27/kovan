@@ -190,6 +190,8 @@ and most can be changed later under **Settings → Edit** on the crew page:
   designed the project. An existing session is asked in a fork (`--fork-session`), so its own conversation is left
   untouched. Forking a long conversation costs a lot of usage. You can give the advisor a brief (what to check) and
   files whose contents go into its task. Its answer appears in the boardroom before the approval.
+  With *Who approves the plan: the advisor* it decides instead of you: it may send the plan back to the Planner up to
+  three times, then the crew starts by itself (or the plan waits for you when there is no clear verdict).
 - **Usage.** The crew page shows each role's turns, output tokens, cache reads, context size and time, plus how
   the weekly window moved. Each milestone shows its own share.
 

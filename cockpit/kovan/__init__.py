@@ -1,3 +1,3 @@
 """kovan — a local, zero-dependency control room for parallel Claude Code sessions and crews of them."""
 
-__version__ = '0.5.3'
+__version__ = '0.5.4'

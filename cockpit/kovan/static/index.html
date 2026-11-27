@@ -787,6 +787,8 @@ const TR={
   'Advisor':'Danışman','advisor':'danışman','one of your sessions reviews the plan (forked, once)':'oturumlarından biri planı gözden geçirir (çatallanarak, bir kez)','Advisor model':'Danışman modeli','Advisor effort':'Danışman eforu','none':'yok',
   'reviews the plan before you approve it':'planı sen onaylamadan önce gözden geçirir','reading the plan…':'planı okuyor…',
   'Check command':'Denetim komutu','Permissions':'İzinler','Safe':'Güvenli','Ask':'Sor','Trusted (never ask)':'Güvenilir (hiç sorma)','Attempts':'Deneme','Check timeout (s)':'Denetim süresi (sn)',
+  'Who approves the plan':'Planı kim onaylar','The advisor — you only watch (it may ask the Planner for up to 3 revisions)':'Danışman — sen yalnız izlersin (Planlayıcıdan en çok 3 düzeltme isteyebilir)',
+  'Plan approved by':'Planı onaylayan','the advisor (you only watch)':'danışman (sen izlersin)','you':'sen','Replan':'Yeniden planlama','after every milestone':'her kilometre taşından sonra',
   'Share':'Pay','Approximate share of what this crew used of your limits: output weighs most, cache reads least.':'Bu ekibin sınırlarından kullandığının yaklaşık payı: çıktı en ağır, önbellekten okunan en hafif sayılır.',
   'The Planner reviews every milestone (otherwise only one that needed another attempt)':'Planlayıcı her kilometre taşını değerlendirsin (kapalıysa yalnız yeniden deneme gerekenleri)',
   'Usage':'Kullanım','Turns':'Tur','Output':'Çıktı','Input':'Girdi','Cache read':'Önbellekten','Context':'Bağlam','Time':'Süre','Total':'Toplam','Planning':'Planlama','output':'çıktı','sessions':'oturum',
@@ -1876,6 +1878,8 @@ function projectKV(c){const o=c.options||{},m=o.models||{},ef=o.efforts||{},rows
   if((o.allow||[]).length)rows.push(['Allowed commands','<code>'+o.allow.map(esc).join('</code><br><code>')+'</code>',1]);
   if((o.deny||[]).length)rows.push(['Denied commands','<code>'+o.deny.map(esc).join('</code><br><code>')+'</code>',1]);
   if(o.web)rows.push(['Web','every role']);
+  rows.push(['Plan approved by',o.approver==='advisor'&&o.advisor?'the advisor (you only watch)':'you']);
+  if(o.replan==='always')rows.push(['Replan','after every milestone']);
   if(o.push_command)rows.push(['Push command','<code>'+esc(o.push_command)+'</code>',1]);
   if(o.commit_trailer)rows.push(['Commit trailer','<code>'+esc(o.commit_trailer)+'</code>',1]);
   if(o.idle_command)rows.push(['Idle command','<code>'+esc(o.idle_command)+'</code>',1]);
@@ -1907,7 +1911,8 @@ function advHTML(o,roles,mode){o=o||{};const m=o.models||{},ef=o.efforts||{},h=o
   const fresh=o.advisor&&!a.sid;
   out+='<div class="row3"><label>Advisor <small>reviews the plan once, read-only, before you approve it</small><select name="a_sid"><option value="">none</option><option value="fresh"'+(fresh?' selected':'')+'>'+esc(tt('a fresh session that reads the project'))+'</option>'+sessions.map(x=>'<option value="'+x.sid+'"'+(a.sid===x.sid?' selected':'')+' class="no-i18n">'+esc(x.name)+' '+esc(tt('(forked)'))+'</option>').join('')+'</select></label>'+
     '<label>Advisor model'+'<input name="a_model" list="model-list" value="'+esc(a.model||'')+'" placeholder="'+esc(tt('session default'))+'" autocomplete="off"></label><label>Advisor effort'+eff('a_effort',a.effort||'')+'</label></div>'+
-    '<label>Advisor brief <small>what it should check; optional</small><textarea name="a_brief" rows="2">'+esc(a.brief||'')+'</textarea></label>';
+    '<label>Advisor brief <small>what it should check; optional</small><textarea name="a_brief" rows="2">'+esc(a.brief||'')+'</textarea></label>'+
+    '<label>Who approves the plan<select name="approver"><option value="you"'+(o.approver!=='advisor'?' selected':'')+'>'+esc(tt('You'))+'</option><option value="advisor"'+(o.approver==='advisor'?' selected':'')+'>'+esc(tt('The advisor — you only watch (it may ask the Planner for up to 3 revisions)'))+'</option></select></label>';
   return out;}
 function c_scheduled(o){return o&&o.start_at&&o.start_at>Date.now();}
 function readAdv(f){const E=n=>f.elements.namedItem(n),out={},models={},efforts={};
@@ -1919,6 +1924,7 @@ function readAdv(f){const E=n=>f.elements.namedItem(n),out={},models={},efforts=
   const sid=E('a_sid').value;out.advisor=sid?{sid:sid==='fresh'?'':sid,name:(sid==='fresh'?tt('Advisor'):((S.d.sessions.find(x=>x.sid===sid)||{}).name||'Advisor')).slice(0,40),
     model:E('a_model').value.trim(),effort:E('a_effort').value,brief:E('a_brief').value.trim()}:null;
   if(out.advisor&&f.dataset.files)out.advisor.files=JSON.parse(f.dataset.files);
+  out.approver=E('approver').value==='advisor'&&out.advisor?'advisor':'you';
   if(E('branch'))out.branch=E('branch').value.trim();
   if(E('start_at')){const v=E('start_at').value;out.start_at=v?new Date(v).getTime():0;}
   if(f.id==='crew-settings-form'){out.quota_pause=+E('quota_pause').value||90;Object.assign(out,{check:E('check').value.trim(),policy:E('policy').value,max_attempts:+E('max_attempts').value||3,check_timeout:+E('check_timeout').value||900,milestone_approval:E('milestone_approval').checked});}

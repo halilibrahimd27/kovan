@@ -408,7 +408,8 @@ import json, os, sys
 with open(os.environ['FAKE_ADVISOR_LOG'], 'w') as f:
     json.dump({'args': sys.argv[1:], 'stdin': sys.stdin.read(), 'cwd': os.getcwd(),
                'env': sorted(k for k in os.environ if k.startswith(('CLAUDE_CODE_SESSION', 'KOVAN')))}, f)
-print(json.dumps({'result': 'K1 should come before K2; otherwise fine.', 'session_id': 'aaaaaaaa-0000-4000-8000-000000000001'}))
+print(json.dumps({'result': os.environ.get('FAKE_ADVISOR_RESULT') or 'K1 should come before K2; otherwise fine.',
+                  'session_id': 'aaaaaaaa-0000-4000-8000-000000000001'}))
 '''
 
 
@@ -431,6 +432,7 @@ class AdvisorTests(CrewTestCase):
     def tearDown(self):
         self.patch.stop()
         os.environ.pop('FAKE_ADVISOR_LOG', None)
+        os.environ.pop('FAKE_ADVISOR_RESULT', None)
         super().tearDown()
 
     def test_the_advisor_reviews_the_plan_once_before_you_approve(self):
@@ -482,6 +484,46 @@ class AdvisorTests(CrewTestCase):
         self.assertIn('K1 should come before K2; otherwise fine.', [b['text'] for b in c['board']])
         with self.assertRaisesRegex(server.KovanError, 'advisor file not found'):
             crew.clean_options({'advisor': {'files': ['/nonexistent/x.md']}}, crew.DEFAULT_OPTIONS)
+
+    def verdict(self, verdict, changes=()):
+        os.environ['FAKE_ADVISOR_RESULT'] = 'Review done.\n\n```json\n%s\n```' % json.dumps({'verdict': verdict, 'changes': list(changes)})
+
+    def test_the_advisor_approves_and_the_crew_starts_by_itself(self):
+        self.verdict('changes', ['Put the Keycloak spike first'])
+        c = self.new(plan_approval=True, approver='advisor', advisor={'sid': '', 'name': 'PM'})
+        self.drive(c, self.waiting_on(c, 'planner'))
+        planner = self.role(c, 'planner')
+        planner.reply(fenced(self.plan(2)))
+        self.drive(c, lambda c: c['phase'] == 'planning' and (c.get('wait') or {}).get('role') == 'planner')
+        self.assertIn('- Put the Keycloak spike first', planner.sent[-1])           # the Planner revises with the changes
+        with open(self.log) as f:
+            self.assertIn('"verdict": "approve" | "changes"', json.load(f)['stdin'])
+        self.verdict('approve')
+        planner.reply(fenced(self.plan(2)))
+        self.drive(c, self.waiting_on(c, 'developer'))                             # nobody clicked anything
+        texts = [b['text'] for b in c['board']]
+        self.assertIn('The advisor asks for changes; the Planner revises the plan (round 1 of 3).', texts)
+        self.assertIn('The advisor approved the plan — the crew begins.', texts)
+        self.assertNotIn('approve the plan', [c.get('reason')])
+
+    def test_after_the_last_round_or_without_a_verdict_the_plan_waits_for_you(self):
+        self.verdict('changes', ['More tests'])
+        c = self.new(plan_approval=True, approver='advisor', advisor={'sid': '', 'name': 'PM'})
+        self.drive(c, self.waiting_on(c, 'planner'))
+        for _ in range(crew.ADVISOR_ROUNDS):
+            self.role(c, 'planner').reply(fenced(self.plan(1)))
+            self.drive(c, lambda c: c['phase'] == 'planning' and (c.get('wait') or {}).get('role') == 'planner')
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.drive(c, lambda c: c['phase'] == 'plan_review' and c['reason'] == 'approve the plan')
+        self.assertIn('The advisor still asks for changes after 3 rounds — the plan waits for you.', [b['text'] for b in c['board']])
+        os.environ['FAKE_ADVISOR_RESULT'] = 'Looks fine to me.'                    # no JSON: no decision taken for you
+        self.crews.act(c['id'], 'revise', 'one more try')
+        self.drive(c, self.waiting_on(c, 'planner'))
+        self.role(c, 'planner').reply(fenced(self.plan(1)))
+        self.drive(c, lambda c: c['phase'] == 'plan_review' and c['reason'] == 'approve the plan')
+        self.assertIn('The advisor gave no clear verdict — the plan waits for you.', [b['text'] for b in c['board']])
+        with self.assertRaisesRegex(server.KovanError, 'approved by you or the advisor'):
+            crew.clean_options({'approver': 'robot'}, crew.DEFAULT_OPTIONS)
 
     def test_an_unreachable_advisor_does_not_hold_up_the_plan(self):
         server.STORE.transcripts = {}

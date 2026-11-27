@@ -46,12 +46,14 @@ DEFAULT_OPTIONS = {'tester': False, 'plan_approval': True, 'milestone_approval':
                    'web': False,            # every role may search and read the web (otherwise Ideator and Planner)
                    'idle_command': '',      # runs when the crew rests for the day or finishes, e.g. "make down"
                    'replan': 'auto',        # auto: the Planner reviews a milestone only when it did not pass cleanly
+                   'approver': 'you',       # who approves the plan: you, or the advisor (you only watch)
                    'advisor': None}         # {'sid', 'name', 'model', 'effort'}: an existing session reviews the plan
 COMPLEX_OPTIONS = ('models', 'efforts', 'hours', 'allow', 'deny', 'advisor')
 # What can change while a crew runs (the rest shapes its branch, pipeline or language).
 EDITABLE_OPTIONS = {'models', 'efforts', 'fresh', 'weekly_pause', 'quota_pause', 'hours', 'allow', 'deny', 'web',
                     'idle_command', 'check', 'check_timeout', 'max_attempts', 'milestone_approval', 'policy',
-                    'push_command', 'commit_trailer', 'advisor', 'start_at', 'replan'}
+                    'push_command', 'commit_trailer', 'advisor', 'start_at', 'replan', 'approver'}
+ADVISOR_ROUNDS = 3          # with the advisor approving: at most this many revisions before the plan waits for you
 # Added to every role's charter: whatever a role reads stays in its context and is paid for on every later step.
 ECONOMY = ("\nWork economically: everything you read stays in your context and is paid for again on every later step. "
            "Find what you need with Grep or Glob and read only the relevant part of a large file (offset and limit); "
@@ -82,7 +84,7 @@ OPTION_TR = {'models': 'modeller', 'efforts': 'efor', 'fresh': 'taze oturumlar',
              'web': 'web erişimi', 'idle_command': 'boşta komutu', 'check': 'denetim komutu', 'check_timeout': 'denetim süresi',
              'max_attempts': 'deneme sayısı', 'milestone_approval': 'kilometre taşı onayı', 'policy': 'izinler',
              'push_command': 'push komutu', 'commit_trailer': 'commit imzası', 'advisor': 'danışman', 'start_at': 'başlama saati',
-             'replan': 'yeniden planlama'}
+             'replan': 'yeniden planlama', 'approver': 'plan onayı'}
 
 
 def _role(m, group=1):
@@ -117,6 +119,12 @@ TR_LINES = [
     (r'^Pushed (\S+) \((\w+)\)\.$', r'\1 push edildi (\2).'),
     (r'^Working on the branch (\S+) \(from (\S+)\)\.$', r'\1 dalında çalışılıyor (\2 dalından açıldı).'),
     (r'^Clean milestone — on to the next one without a replan\.$', 'Temiz geçti — yeniden planlamaya gerek yok, sıradaki taşa geçiliyor.'),
+    (r'^The advisor approved the plan — the crew begins\.$', 'Danışman planı onayladı — ekip başlıyor.'),
+    (r'^The advisor asks for changes; the Planner revises the plan \(round (\d+) of (\d+)\)\.$',
+     r'Danışman değişiklik istiyor; Planlayıcı planı düzeltiyor (tur \1/\2).'),
+    (r'^The advisor still asks for changes after (\d+) rounds — the plan waits for you\.$',
+     r'Danışman \1 turdan sonra hâlâ değişiklik istiyor — plan senin onayını bekliyor.'),
+    (r'^The advisor gave no clear verdict — the plan waits for you\.$', 'Danışman açık bir karar vermedi — plan senin onayını bekliyor.'),
     (r'^(\d+) role turns so far', r'Şu ana kadar \1 rol turu'), (r'; 5-hour usage (\d+)%', r'; 5 saatlik kullanım %\1'),
     (r'; 7-day usage (\d+)%', r'; 7 günlük kullanım %\1'),
     (r'^Blocked: (.*) — retry, skip or stop when you are ready\.$', lambda m: 'Takıldı: ' + localize_reason(m.group(1)) +
@@ -780,6 +788,8 @@ def clean_options(options, base):
     opts['start_at'] = max(0, int(opts.get('start_at') or 0))
     if opts.get('replan') not in ('auto', 'always'):
         raise server.KovanError('replan is auto or always')
+    if opts.get('approver') not in ('you', 'advisor'):
+        raise server.KovanError('the plan is approved by you or the advisor')
     return opts
 
 
@@ -1251,7 +1261,7 @@ class Crews:
                 crew.update(phase='building', step='develop', current=self.next_pending(crew), reason=None)
                 self.say(crew, 'you', 'Plan approved — go ahead.', kind='decision')
             elif action == 'revise' and phase == 'plan_review':
-                crew.update(phase='planning', plan_feedback=str(feedback)[:4000], reason=None)
+                crew.update(phase='planning', plan_feedback=str(feedback)[:4000], reason=None, advice_rounds=0)
                 self.say(crew, 'you', 'Please revise the plan: ' + str(feedback), kind='decision', to='planner')
             elif action == 'pick' and phase == 'choosing':
                 ideas = crew.get('ideas') or []
@@ -1607,7 +1617,8 @@ class Crews:
             'milestones': [{'title': m.get('title'), 'status': m.get('status')} for m in plan]})
         del crew['earlier'][:-EARLIER_LIMIT]
         crew.update(goal=goal, options=opts, git=git_info, git_at_start=bool(git_info), plan=None, current=0, step=None,
-                    wait=None, feedback=None, plan_feedback=None, attention=None, reason=None, phase='planning')
+                    wait=None, feedback=None, plan_feedback=None, attention=None, reason=None, phase='planning',
+                    advised=False, advice_rounds=0)
         self.say(crew, 'you', goal, kind='goal', save=False)
         self.say(crew, 'kovan', 'Next goal — the Planner goes first.', save=False)
 
@@ -1805,7 +1816,7 @@ class Crews:
         self.say(crew, 'planner', '%s\n\n%s' % (crew['plan']['summary'], milestones_text(milestones)), kind='plan', to='you')
         if crew['options']['plan_approval']:
             advisor = crew['options'].get('advisor')
-            if advisor and not crew.get('advised'):
+            if advisor and (self.advisor_approves(crew) or not crew.get('advised')):
                 crew.update(phase='plan_review', reason='the advisor is reading the plan', advised=True)
                 self.say(crew, 'kovan', 'Asking %s to review the plan before you approve it.' % advisor['name'], to='advisor')
                 return self.run_background(crew, 'advisor', self.do_advise, None)
@@ -1833,6 +1844,11 @@ class Crews:
         advisor = crew['options'].get('advisor') or {}
         if advisor.get('brief'):
             text += '\n\nCheck in particular:\n' + advisor['brief']
+        if self.advisor_approves(crew):
+            text += ('\n\nYou decide: the crew starts as soon as you approve, nobody else reviews the plan. Approve when '
+                     'nothing must change before the work starts (improvements that can wait are not changes). End your '
+                     'reply with a JSON object in a ```json block: {"verdict": "approve" | "changes", "changes": '
+                     '["one concrete change the Planner must make", ...]}')
         for path in advisor.get('files') or []:
             try:
                 with open(path, encoding='utf-8', errors='replace') as f:
@@ -1849,14 +1865,49 @@ class Crews:
             if sid:
                 crew.setdefault('past', []).append({'role': 'advisor', 'sid': sid, 'milestone': None})
             if text:
-                self.say(crew, 'advisor', text, kind='advice', to='you', save=False)
+                self.say(crew, 'advisor', text, kind='advice', to='planner' if self.advisor_approves(crew) else 'you', save=False)
             else:
                 self.say(crew, 'kovan', 'The advisor could not review the plan: %s' % err, save=False)
-            if crew['phase'] == 'plan_review':
-                crew['reason'] = 'approve the plan'
-                self.ask_approval(crew)
-            else:
-                self.save(crew)
+            if crew['phase'] != 'plan_review':
+                return self.save(crew)
+            if text and self.advisor_approves(crew):
+                return self.advisor_decides(crew, text)
+            crew['reason'] = 'approve the plan'
+            self.ask_approval(crew)
+
+    def advisor_approves(self, crew):
+        return crew['options'].get('approver') == 'advisor' and bool(crew['options'].get('advisor'))
+
+    def advisor_decides(self, crew, text):
+        """The advisor approves the plan (the crew starts), or the Planner revises it with the advisor's changes —
+        ADVISOR_ROUNDS times at most; without a clear verdict, or after the last round, the plan waits for you."""
+        data = extract_json(text) or {}
+        verdict = str(data.get('verdict') or '').lower()
+        changes = [str(x).strip() for x in data.get('changes') or [] if str(x).strip()][:20]
+        rounds = crew.get('advice_rounds', 0)
+        if verdict == 'approve':
+            proposed = crew['plan'].get('check_command')
+            if not crew['options']['check'] and proposed:
+                if auto_allow('safe', 'developer', 'Bash', {'command': proposed}, root=crew['dir']):
+                    crew['options']['check'] = proposed          # nobody reviews it: only a check on the safe list runs
+                else:
+                    self.say(crew, 'kovan', 'The Planner proposed `%s` as the check command. It is not on the safe list, so '
+                             'kovan will not run it unreviewed; set a check command on the crew to enable the CI gate.' %
+                             proposed, save=False)
+            crew.update(phase='building', step='develop', current=self.next_pending(crew), reason=None, advice_rounds=0)
+            self.say(crew, 'advisor', 'The advisor approved the plan — the crew begins.', kind='decision')
+        elif verdict == 'changes' and rounds < ADVISOR_ROUNDS:
+            feedback = '\n'.join('- ' + c for c in changes) or server.clip(text, 3000)
+            crew.update(phase='planning', reason=None, advice_rounds=rounds + 1,
+                        plan_feedback='The advisor reviewed your plan and asks for these changes (address each one, keep '
+                                      'the rest of the plan):\n' + feedback)
+            self.say(crew, 'advisor', 'The advisor asks for changes; the Planner revises the plan (round %d of %d).' % (
+                rounds + 1, ADVISOR_ROUNDS), kind='decision', to='planner')
+        else:
+            crew['reason'] = 'approve the plan'
+            self.say(crew, 'kovan', ('The advisor still asks for changes after %d rounds — the plan waits for you.' % rounds)
+                     if verdict == 'changes' else 'The advisor gave no clear verdict — the plan waits for you.', save=False)
+            self.ask_approval(crew)
 
     def build_step(self, crew):
         plan = crew['plan']['milestones']

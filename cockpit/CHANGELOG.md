@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.4 — 2026-11-27
+
+- **The advisor can approve the plan.** With *Who approves the plan: the advisor*, you only watch. The advisor ends
+  its review with a verdict. On *changes* the Planner revises the plan with the advisor's list, three rounds at most.
+  On *approve* the crew starts by itself. Without a clear verdict, or after the last round, the plan waits for you.
+  This works for a crew's first goal and for its next one, and it can be switched on for a crew that already runs.
+- No phone notification about the plan while the advisor is still reading it.
+
 ## 0.5.3 — 2026-11-27
 
 The safe policy asks far less often. Replayed on the 100 commands a real crew ran, it asked about 17 instead of 64.
