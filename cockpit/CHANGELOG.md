@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.3 — 2026-11-27
+
+The safe policy asks far less often. Replayed on the 100 commands a real crew ran, it asked about 17 instead of 64.
+
+- **Quoted text is text.** `git grep -E "a|b"` or `curl -d '{"a":"b&c"}'` no longer count as pipes or background
+  jobs. `$( )` and backticks still do inside double quotes. Dangerous words count even inside quotes: a quoted
+  `sh -c 'rm -rf /'` is still rm.
+- **Read-only tools and pipelines.** `git grep`, `rg`, `find`, `sed -n …p`, `sort`, `uniq`, `jq`, `cut`, `diff` and
+  others run without asking, also chained with pipes (`git grep -n x | sort | uniq -c`). Flags that make them write,
+  run programs or read files a crew must not see are refused: recursive grep over a folder, `sed -i`, `sort -o`,
+  `find -exec/-delete`, `rg --pre/--hidden/-uu`, `git grep --no-index/-O`. A pipe into `sh`, `xargs` or `tee` still
+  asks.
+- `2>/dev/null`, `2>&1` and `$?` anywhere in a line are harmless. Patterns and sed scripts that start with `/` are no
+  longer taken for absolute paths. `mv`, `cp`, `rmdir`, `git mv` and `git check-ignore` inside the workspace need no
+  prompt.
+- `.env.example`, `.env.sample`, `.env.template` and `.env.dist` are templates, not secrets. Roles may read them, and
+  commits no longer leave them out.
+- `docker compose --env-file .env …` may run; `config`, which prints the secrets, stays denied.
+
 ## 0.5.2 — 2026-11-27
 
 Crews use much less of your limits.

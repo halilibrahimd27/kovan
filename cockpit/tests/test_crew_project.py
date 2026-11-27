@@ -52,6 +52,40 @@ class PatternTests(unittest.TestCase):
         self.assertTrue(self.ok('make test', allow=[]))                           # without patterns: the built-in list
         self.assertFalse(self.ok('make dev', allow=[]))
 
+    def test_quoted_syntax_and_read_only_pipelines(self):
+        ok = lambda c, **kw: crew.auto_allow('safe', 'developer', 'Bash', {'command': c}, '', '/tmp/w', **kw)  # noqa: E731
+        for c in ("git grep -n 'a|b' | sort | uniq -c | head -20", "find . -name '*.java' | wc -l", "jq '.a | length' package.json",
+                  'git grep -E "login|logout" -- src', "grep -n 'x;y' src/app.py", "rg -n 'TODO|FIXME' src", 'sed -n 120,180p docs/09.md',
+                  "rg --files | grep -c '\\.go$'", 'git log --oneline | head -5', "ls src | sort", 'diff a.txt b.txt'):
+            self.assertTrue(ok(c), c)
+        for c in ('git grep x | sh', 'grep -rn PASSWORD deploy', 'grep -R x .', 'git grep "$(cat /etc/passwd)"', 'git grep `id`',
+                  "sed -i 's/a/b/' x.py", 'sed s/a/b/ x.py', 'sort -o out.txt in.txt', 'sort -uo out in', 'uniq in.txt out.txt',
+                  'find . -name x -exec rm {} ;', 'find . -delete', 'rg --pre cat x', 'rg -uu PASSWORD', 'rg --hidden x',
+                  'git grep --no-index x', 'git grep -Oless x', 'ls | xargs cat', 'git grep x | tee out', 'cat x | bash',
+                  'grep x .env', "curl -d '{\"a\":\"b&c\"}' http://example.com", 'echo "a" > f'):
+            self.assertFalse(ok(c), c)
+        # a quoted command inside an allowed one is still read for dangerous words
+        self.assertFalse(ok("docker exec app-dev-x sh -c 'rm -rf /'", allow=['docker exec app-dev-* **']))
+        self.assertTrue(ok("docker exec app-dev-db psql -c 'select 1'", allow=['docker exec app-dev-* **']))
+        self.assertTrue(ok("curl -s -d '{\"a\":\"b&c\"}' http://127.0.0.1:18080/x", allow=['curl ** http://127.0.0.1:18080* **']))
+        self.assertEqual(crew.mask_quoted('echo "a|$b" \'c;d\''), 'echo "__$_" \'___\'')
+        self.assertEqual(crew.mask_quoted("echo 'open"), "echo 'open")          # unbalanced: unchanged (strict)
+
+    def test_templates_sed_ranges_and_recursive_grep_on_files(self):
+        ws = os.path.realpath(tempfile.mkdtemp(prefix='kovan-ro-'))
+        os.makedirs(os.path.join(ws, 'src'))
+        for f in ('src/a.go', 'Dockerfile', '.env.example'):
+            open(os.path.join(ws, f), 'w').close()
+        here = lambda c: crew.auto_allow('safe', 'developer', 'Bash', {'command': c}, '', ws)  # noqa: E731
+        self.assertTrue(here('grep -rn FROM Dockerfile src/a.go'))                # files only: fine
+        self.assertFalse(here('grep -rn FROM src'))                                # a folder may hold an untracked .env
+        self.assertTrue(here('cat .env.example'))                                  # a template, not a secret
+        self.assertFalse(here('cat .env'))
+        self.assertTrue(here("sed -n '/^abort/,/^}/p;/^while/,$p' src/a.go"))
+        self.assertTrue(here('git ls-files src 2>/dev/null | head; git check-ignore -v src/a.go; echo "ci=$?"'))
+        self.assertFalse(crew.SECRET_FILE.search('deploy/.env.local') is None)
+        self.assertIsNone(crew.SECRET_FILE.search('deploy/compose/.env.example'))
+
     def test_absolute_paths_inside_the_workspace(self):
         root = os.path.realpath(tempfile.mkdtemp(prefix='kovan-ws-'))
         ok = lambda c: crew.auto_allow('safe', 'developer', 'Bash', {'command': c}, '', root, ['make **'])  # noqa: E731

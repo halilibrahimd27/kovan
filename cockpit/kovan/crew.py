@@ -15,6 +15,7 @@ import fnmatch
 import json
 import os
 import re
+import shlex
 import secrets
 import subprocess
 import threading
@@ -230,7 +231,9 @@ CHARTERS = {
         "fails. Do not commit — the orchestrator commits after review. Never write secrets or .env files, never "
         "run destructive commands, and stay inside this workspace.\n"
         "Commands run without waiting for a human only when they are simple: the check command, test runners, "
-        "linters and read-only git, with relative paths and no pipes, redirection or $(...). Prefer those."),
+        "linters, read-only git and read-only tools (git grep, rg, find, sed -n, sort, uniq, jq …, also in pipes), "
+        "with paths inside the workspace and no redirection or $(...). Search with git grep or rg — grep -r waits for "
+        "a human. Prefer those."),
     'tester': (
         "You are the Tester of a small autonomous software crew. After the Developer finishes a milestone you add "
         "or strengthen tests so that every acceptance criterion is genuinely exercised, then run them.\n"
@@ -506,7 +509,7 @@ FILE_TOOLS = {'Read': 'file_path', 'Edit': 'file_path', 'Write': 'file_path', 'M
               'NotebookEdit': 'notebook_path', 'NotebookRead': 'notebook_path', 'Glob': 'path', 'Grep': 'path', 'LS': 'path'}
 FREE_TOOLS = {'TodoWrite', 'ToolSearch', 'Task', 'Agent'}     # subagents' own tool calls still come through here
 WEB_TOOLS = {'WebSearch', 'WebFetch'}
-SECRET_FILE = re.compile(r'(^|/)(\.env(\..*)?|.*\.pem|.*\.key|id_(rsa|ed25519|ecdsa)(\.pub)?|credentials\.json|'
+SECRET_FILE = re.compile(r'(^|/)(\.env(?!\.(?:example|sample|template|dist)$)(\..*)?|.*\.pem|.*\.key|id_(rsa|ed25519|ecdsa)(\.pub)?|credentials\.json|'
                          r'\.npmrc|\.pypirc|\.netrc|secrets?\.(ya?ml|json|toml))$', re.I)
 SAFE_COMMAND = re.compile(
     r'^(?:(?:python3?|py)(?:\s+-[BqWu]\S*)*\s+-m\s+(?:pytest|unittest|py_compile|compileall|mypy|ruff|black|isort|'
@@ -514,7 +517,9 @@ SAFE_COMMAND = re.compile(
     r'npm\s+(?:test|run\s+(?:test|lint|build|typecheck|check))\b|npx\s+(?:tsc|eslint|vitest|jest|prettier\s+--check)\b|'
     r'node\s+--check\b|go\s+(?:test|build|vet)\b|cargo\s+(?:test|build|check|clippy)\b|make\s+(?:test|check|lint)\b|'
     r'git\s+(?:status|diff|log|show|rev-parse|ls-files|branch\s+--show-current)\b|ls\b|cat\b|head\b|tail\b|wc\b|pwd\b|echo\b|'
-    r'mkdir\b|touch\b|which\b|tree\b)')
+    r'mkdir\b|touch\b|which\b|tree\b|mv\b|cp\b|rmdir\b|git\s+(?:mv|check-ignore)\b|date\b|uname\b|true\b)')
+# Harmless redirections Claude habitually adds anywhere in a line; removed before the checks.
+QUIET = re.compile(r'\s*(?:2>&1|[12]?>\s*/dev/null|&>\s*/dev/null)(?=\s|$|;|&|\|)')
 # Harmless tails Claude habitually appends to a test run; stripped (from the end only) before the checks below.
 BENIGN_TAILS = (re.compile(r'\s*;\s*echo\s+(["\']?)[\w ]*[=:]?\s*\$\?\1\s*$'),     # ; echo "exit=$?"
                 re.compile(r'\s*\|\s*(?:tail|head)(?:\s+-n)?(?:\s+-?\d+)?\s*$'),      # | tail -20
@@ -524,6 +529,107 @@ FORBIDDEN = re.compile(r'[|`$<>&]|\brm\b|\bsudo\b|\bcurl\b|\bwget\b|\bssh\b|\bsc
 # Commands you allow by pattern may use curl and friends, but never these.
 ALLOWED_FORBIDDEN = re.compile(r'[|`$<>&]|\brm\b|\bsudo\b|\bssh\b|\bscp\b|\bchmod\b|\bchown\b|-exec\b|-delete\b|'
                                r'--force\b|--privileged\b')
+# The same two checks split in two: shell syntax is looked for outside quotes (a `|` in a grep pattern is text),
+# dangerous words everywhere (a quoted `sh -c 'rm -rf /'` is still rm).
+SHELL_CHARS = re.compile(r'[|`$<>&]')
+FORBIDDEN_WORDS = re.compile(FORBIDDEN.pattern.replace(r'[|`$<>&]|', '', 1))
+ALLOWED_FORBIDDEN_WORDS = re.compile(ALLOWED_FORBIDDEN.pattern.replace(r'[|`$<>&]|', '', 1))
+SEPARATORS = re.compile(r'&&|\|\||;|\|')
+# Read-only tools that may also sit in a pipeline (`git grep -n x | sort | uniq -c`). read_only() rejects the flags
+# that make them write, run programs or read what a crew must not see (recursive grep reads an untracked .env).
+READ_ONLY = {'grep', 'egrep', 'fgrep', 'rg', 'find', 'sort', 'uniq', 'sed', 'jq', 'cut', 'tr', 'nl', 'comm', 'paste',
+             'column', 'basename', 'dirname', 'realpath', 'file', 'stat', 'du', 'diff', 'cmp', 'head', 'tail', 'wc', 'cat',
+             'ls', 'tree', 'git'}
+RG_UNSAFE = {'--pre', '--pre-glob', '--no-ignore', '--no-ignore-vcs', '--no-ignore-dot', '--no-ignore-global',
+             '--no-ignore-parent', '--no-ignore-files', '--hidden', '--unrestricted', '--follow', '--search-zip'}
+FIND_UNSAFE = {'-exec', '-execdir', '-ok', '-okdir', '-delete', '-fprint', '-fprint0', '-fprintf', '-fls'}
+
+
+def mask_quoted(command):
+    """``command`` with the inside of its quotes replaced by '_' (same length), so shell syntax inside a quoted
+    argument is not mistaken for syntax. Inside double quotes `$` and backticks keep their meaning and stay.
+    Unbalanced quotes: the command as it is (strict)."""
+    out, quote, i = [], None, 0
+    while i < len(command):
+        ch = command[i]
+        if quote is None:
+            quote = ch if ch in '"\'' else None
+            out.append(ch)
+        elif ch == quote:
+            quote = None
+            out.append(ch)
+        elif quote == '"' and ch == '\\' and i + 1 < len(command):
+            out.append('__')
+            i += 2
+            continue
+        elif quote == '"' and ch == '`':
+            out.append(ch)
+        elif quote == '"' and ch == '$' and re.match(r'[A-Za-z_{(0-9@*#!$-]', command[i + 1:i + 2]):
+            out.append(ch)                                 # an expansion: still syntax ($? is harmless, see auto_allow)
+        else:
+            out.append('_')
+        i += 1
+    return command if quote else ''.join(out)
+
+
+def segments(command):
+    """The commands of a line: [(text, text with quotes masked, read from a pipe)], split at && || ; and |."""
+    masked, out, start, piped = mask_quoted(command), [], 0, False
+    for m in SEPARATORS.finditer(masked):
+        out.append((command[start:m.start()].strip(), masked[start:m.start()].strip(), piped))
+        piped, start = m.group() == '|', m.end()
+    out.append((command[start:].strip(), masked[start:].strip(), piped))
+    return out
+
+
+def path_args(tokens):
+    """The arguments of a command that name files — not a grep/rg/jq pattern or a sed -n script, which may well start
+    with '/' (`git grep "/api/login"`) and must not be taken for an absolute path."""
+    cmd, args = tokens[0], tokens[1:]
+    if cmd == 'sed' and len(args) >= 2 and args[0] == '-n':
+        return args[2:]
+    if cmd in ('grep', 'egrep', 'fgrep', 'rg', 'jq') or (cmd == 'git' and args[:1] == ['grep']):
+        a = args[1:] if cmd == 'git' else args
+        skip = {j + 1 for j, x in enumerate(a) if x in ('-e', '--regexp')}
+        if not skip:
+            first = next((j for j, x in enumerate(a) if not x.startswith('-') or x == '--'), None)
+            if first is not None and a[first] != '--':
+                skip.add(first)
+        return [x for j, x in enumerate(a) if j not in skip]
+    return args
+
+
+SED_PRINT = re.compile(r'(?:(?:\d+|\$|/(?:[^/\\]|\\.)*/)(?:,(?:\d+|\$|/(?:[^/\\]|\\.)*/))?p;?)+')
+
+
+def read_only(tokens, root=None):
+    """Is this a read-only command (git grep, grep, rg, find, sort, sed -n …) without its writing or running flags?"""
+    cmd, args = tokens[0], tokens[1:]
+    longs = {a.split('=', 1)[0] for a in args if a.startswith('--')}
+    shorts = ''.join(a[1:] for a in args if a.startswith('-') and not a.startswith('--') and len(a) > 1)
+    if cmd not in READ_ONLY:
+        return False
+    if cmd == 'git':
+        return bool(args) and args[0] == 'grep' and not ({'--untracked', '--no-index', '--open-files-in-pager'} & longs) \
+            and not any(a.startswith('-O') for a in args[1:])
+    if cmd in ('grep', 'egrep', 'fgrep'):
+        if not set('rR') & set(shorts) and not {'--recursive', '--dereference-recursive'} & longs and 'recurse' not in args:
+            return True
+        # recursive grep reads untracked files (an .env); only when every path it is given is a plain file
+        words = [a for a in args if not a.startswith('-')]
+        paths = words if any(a == '-e' or a.startswith('--regexp') for a in args) else words[1:]
+        return bool(root) and bool(paths) and all(os.path.isfile(os.path.join(root, p)) for p in paths)
+    if cmd == 'rg':
+        return not RG_UNSAFE & longs and not set('uLz.') & set(shorts)
+    if cmd == 'find':
+        return not FIND_UNSAFE & set(args)
+    if cmd == 'sort':
+        return 'o' not in shorts and not {'--output', '--compress-program'} & longs
+    if cmd == 'uniq':
+        return len([a for a in args if not a.startswith('-')]) <= 1        # `uniq in out` writes out
+    if cmd == 'sed':                                                       # only printing a range: sed -n 10,40p file
+        return len(args) >= 2 and args[0] == '-n' and bool(SED_PRINT.fullmatch(args[1])) and not any(a.startswith('-') for a in args[2:])
+    return True
 
 
 def match_pattern(pattern, tokens, urls=True):
@@ -534,6 +640,7 @@ def match_pattern(pattern, tokens, urls=True):
     pattern itself, so ``curl ** http://127.0.0.1:18080*`` cannot also reach another host.
     """
     pat = pattern.split()
+    url_globs = [t for t in pat if '://' in t]          # a second URL may hide in ** only if the pattern names it too
 
     def go(i, j):
         if i == len(pat):
@@ -543,7 +650,8 @@ def match_pattern(pattern, tokens, urls=True):
             while True:
                 if go(i + 1, k):
                     return True
-                if k == len(tokens) or (urls and '://' in tokens[k]):
+                if k == len(tokens) or (urls and '://' in tokens[k] and
+                                        not any(fnmatch.fnmatchcase(tokens[k], u) for u in url_globs)):
                     return False
                 k += 1
         return j < len(tokens) and fnmatch.fnmatchcase(tokens[j], pat[i]) and go(i + 1, j + 1)
@@ -847,25 +955,35 @@ def auto_allow(policy, role, tool, inp, check_command='', root=None, allow=(), d
         return False
     if check_command and command == check_command.strip():
         return True
-    command = strip_benign(command)
+    command = strip_benign(QUIET.sub('', command).replace('$?', '0'))
     if not command or (check_command and command == check_command.strip()):
         return bool(command)
-    for part in re.split(r'\s*(?:&&|;)\s*', command):
+    for part, masked, piped in segments(command):
         if not part:
             return False
-        tokens = part.split()
+        try:
+            tokens = shlex.split(part)
+        except ValueError:
+            return False
+        if not tokens:
+            return False
         if tokens[0] == 'cd':
-            if len(tokens) != 2 or outside(tokens[1], root):
+            if len(tokens) != 2 or outside(tokens[1], root) or piped:
                 return False
             continue
-        if any(outside(t, root) for t in tokens[1:]):
+        if any(outside(t, root) for t in path_args(tokens)):
             return False
-        if any(SECRET_FILE.search(piece) for t in tokens for piece in re.split(r'[=:,]', t.strip('\'"')) if piece) or \
-                any(match_pattern(p, tokens, urls=False) for p in deny):
+        named = [t for n, t in enumerate(tokens) if not (n and tokens[n - 1] == '--env-file') and not t.startswith('--env-file=')]
+        if any(SECRET_FILE.search(piece) for t in named for piece in re.split(r'[=:,]', t) if piece) or \
+                any(match_pattern(p, tokens, urls=False) for p in deny) or SHELL_CHARS.search(masked):
             return False
-        if not FORBIDDEN.search(part) and SAFE_COMMAND.match(part):
+        if piped:                                        # what reads a pipe must be a read-only filter
+            if read_only(tokens, root) and not FORBIDDEN_WORDS.search(part):
+                continue
+            return False
+        if not FORBIDDEN_WORDS.search(part) and (SAFE_COMMAND.match(part) or read_only(tokens, root)):
             continue
-        if allow and not ALLOWED_FORBIDDEN.search(part) and any(match_pattern(p, tokens) for p in allow):
+        if allow and not ALLOWED_FORBIDDEN_WORDS.search(part) and any(match_pattern(p, tokens) for p in allow):
             continue
         return False
     return True
