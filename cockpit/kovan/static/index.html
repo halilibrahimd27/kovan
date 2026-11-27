@@ -409,9 +409,50 @@ dialog.palette{padding:0;width:min(640px,94vw);top:12vh;margin-top:0;overflow:hi
 .room-head .acts,.crew-top .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .seg-chips{display:inline-flex;gap:4px;margin-right:4px}
 .table-wrap{padding:4px 24px 0;flex:none}
-.table-svg{width:100%;max-width:1060px;max-height:var(--tbl-h);height:auto;display:block;margin:0 auto}
+.table-svg{width:100%;max-width:1060px;height:auto;display:block;margin:0 auto}
 .room{--tbl-h:min(440px,48vh)}.room.t-s{--tbl-h:min(250px,30vh)}.room.t-f{--tbl-h:calc(100vh - 250px)}.room.t-f .stream{flex:0 0 110px}
 .seat .md2{font-size:10.5px;fill:var(--faint);font-family:var(--mono,ui-monospace,monospace)}
+.stage{position:relative;margin:4px auto 6px;max-width:100%}
+.stage svg.arcs{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.oval{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid var(--line);
+  background:radial-gradient(ellipse at 50% 35%,color-mix(in srgb,var(--panel2) 80%,var(--text) 6%),var(--panel2) 70%);
+  box-shadow:inset 0 2px 18px rgba(0,0,0,.16),0 10px 30px rgba(0,0,0,.10);display:grid;place-items:center;text-align:center;overflow:hidden}
+.oval-in{max-width:86%;padding:6px 0}
+.oval .ms{font-size:12px;color:var(--muted);font-weight:650;margin-bottom:6px;letter-spacing:.01em}
+.pipe-mini{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;margin-bottom:9px}
+.pipe-mini span{font-size:10.5px;line-height:1.5;padding:0 7px;border-radius:9px;background:var(--panel);color:var(--faint);border:1px solid var(--line)}
+.pipe-mini span.done{color:var(--muted);border-color:color-mix(in srgb,var(--busy) 35%,var(--line))}
+.pipe-mini span.now{background:var(--accent);color:#fff;border-color:transparent;font-weight:650}
+.oval .now-who{font-size:14px;font-weight:700}
+.oval .now-txt{font-size:12.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:3px;line-height:1.45}
+.room.t-s .oval .now-txt{-webkit-line-clamp:1}
+.s2{position:absolute;width:0;height:0}
+.s2 .av2{position:absolute;left:-22px;top:-22px;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;
+  background:var(--c);box-shadow:0 0 0 3px var(--bg),0 4px 14px rgba(0,0,0,.22);transition:transform .25s ease}
+.s2.busy .av2{animation:seatbusy 1.6s ease-in-out infinite}
+@keyframes seatbusy{0%,100%{box-shadow:0 0 0 3px var(--bg),0 0 0 5px color-mix(in srgb,var(--busy) 90%,transparent)}50%{box-shadow:0 0 0 3px var(--bg),0 0 0 9px color-mix(in srgb,var(--busy) 15%,transparent)}}
+.s2.ask .av2{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ask)}
+.s2.talking .av2{transform:scale(1.1)}
+.s2.away{opacity:.42}
+.s2 .lb{position:absolute;left:0;transform:translateX(-50%);text-align:center;white-space:nowrap;line-height:1.3;pointer-events:none}
+.s2 .lb.below{top:28px}.s2 .lb.above{bottom:28px}
+.s2 .nm2{font-size:13px;font-weight:650;color:var(--text);max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.s2 .rl2,.s2 .md3{max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.s2 .rl2{font-size:11.5px;color:var(--muted)}
+.s2 .md3{font-size:10.5px;color:var(--faint);font-family:var(--mono,ui-monospace,monospace)}
+.s2[data-open]{cursor:pointer}.s2[data-open]:hover .nm2{text-decoration:underline}
+.room.t-s .s2 .rl2,.room.t-s .s2 .md3{display:none}
+.seat-row{display:flex;gap:14px 20px;justify-content:center;flex-wrap:wrap;padding:12px 0 6px}
+.sr{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:56px}
+.sr .av3{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;background:var(--c);box-shadow:0 0 0 2px var(--bg),0 3px 10px rgba(0,0,0,.2);transition:transform .25s}
+.sr.busy .av3{animation:seatbusy 1.6s ease-in-out infinite}.sr.ask .av3{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ask)}
+.sr.talking .av3{transform:scale(1.12)}.sr.away{opacity:.42}.sr[data-open]{cursor:pointer}
+.sr .nm3{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap}
+.sr-now{text-align:center;font-size:12.5px;color:var(--muted);padding:2px 24px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:900px;margin:0 auto}
+.sr-now b{color:var(--text);font-weight:650}
+.say.cont{margin-top:-6px}.say.cont .av{visibility:hidden;height:0}.say.cont .who b,.say.cont .who .to,.say.cont .who .k{display:none}
+.say .md.clampy{max-height:15em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 72%,transparent);mask-image:linear-gradient(#000 72%,transparent)}
+.say .more{font-size:12px;margin-top:2px}
 .seat.away{opacity:.38}
 .tbl{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}
 .t-now{font-size:14.5px;font-weight:650;fill:var(--text)}
@@ -726,6 +767,7 @@ const LANG=(()=>{const s=store('kovan.lang');if(s==='tr'||s==='en')return s;cons
 document.documentElement.lang=LANG;
 const TR={
   // running a crew on a real project (0.5.0)
+  'Conversation':'Konuşma','Everything':'Her şey','Decisions':'Kararlar','Show more':'Devamını göster','Show less':'Daha az göster','click to open the session':'oturumu açmak için tıkla',
   'Large table':'Büyük masa','Full table':'Tam ekran masa','Small table':'Küçük masa','Table size — click to switch':'Masa boyutu — değiştirmek için tıkla',
   'Advanced — models, working hours, start time, commands, branch, advisor':'Gelişmiş — modeller, mesai saatleri, başlama zamanı, komutlar, dal, danışman',
   'Crew settings':'Ekip ayarları','Models and effort apply to the next session a role starts (with fresh sessions: the next milestone).':'Model ve efor, rolün açacağı bir sonraki oturumda geçerli olur (taze oturumlarla: sonraki kilometre taşında).',
@@ -1571,7 +1613,9 @@ const YOU_KEYS=['you','human','operator'];
 function roleKey(r){return String(r||'').toLowerCase().replace(/[^a-z0-9]+/g,'_');}
 function roleColor(r){const k=roleKey(r);if(ROLE_C[k])return ROLE_C[k];let h=0;for(const c of k)h=(h*31+c.charCodeAt(0))|0;return COLORS[Math.abs(h)%COLORS.length];}
 function roleName(r){const k=roleKey(r);return ROLE_T[k]||String(r||'?').replace(/^./,c=>c.toUpperCase());}
-function initials(n){const all=String(n||'?').trim().split(/\s+/),w=all.filter(x=>/[\p{L}\p{N}]/u.test(x));if(w.length>2)w.splice(0,w.length-2);if(!w.length)return'?';return (w.length>1?w[0][0]+w[1][0]:(w[0].length<=3?w[0]:w[0][0])).toUpperCase();}
+function initials(n){const base=String(n||'?').replace(/\([^)]*\)/g,' ').trim();   // "ZT (taze oturum)" → ZT
+  const w=base.split(/\s+/).map(x=>x.replace(/[^\p{L}\p{N}]/gu,'')).filter(Boolean);if(w.length>2)w.splice(0,w.length-2);if(!w.length)return'?';return (w.length>1?w[0][0]+w[1][0]:(w[0].length<=3?w[0]:w[0][0])).toUpperCase();}
+function shortModel(m){return String(m||'').replace(/^claude-/,'').replace(/-\d{8}$/,'');}
 function phasePill(p){const[l,c]=PHASE[p]||[p,'idle'];return '<span class="pill '+c+'"><i></i>'+esc(l)+'</span>';}
 function crewOf(id){return ((S.d&&S.d.crews)||[]).find(c=>c.id===id)||null;}
 function crewNeedsYou(c){return ['choosing','plan_review','milestone_review','blocked'].includes(c.phase)||!!c.attention;}
@@ -1620,16 +1664,16 @@ function crewRoom(c){
   const seat=k=>{const sid=(c.roles||{})[k],o=sid&&sess(sid);
     let role=ROLE_DO[k]||'';if(o){role=o.status==='working'?'working…':o.status==='awaiting'?'needs your OK':o.status==='starting'?'joining…':wait&&wait.role===k?'has the floor':'in session';}else if(roles.includes(k))role=sid?'session closed':'not started yet';
     if(k==='kovan'&&c.busy)role='running the '+c.busy+'…';
-    const op=c.options||{},use=((c.usage||{}).roles||{})[k],meta=[(op.models||{})[k],(op.efforts||{})[k],use&&use.out?tok(use.out)+(LANG==='tr'?' çıktı':' out'):''].filter(Boolean).join(' · ');
+    const op=c.options||{},use=((c.usage||{}).roles||{})[k],meta=[shortModel((op.models||{})[k]),(op.efforts||{})[k],use&&use.out?tok(use.out)+(LANG==='tr'?' çıktı':' out'):''].filter(Boolean).join(' · ');
     if(k==='advisor'&&op.advisor)return{key:k,name:op.advisor.name,role:k==='advisor'&&c.busy==='advisor'?'reading the plan…':'advisor',color:roleColor(k),busy:c.busy==='advisor',ask:false,away:false,sid:null,
-      meta:[op.advisor.model,op.advisor.effort].filter(Boolean).join(' · ')};
+      meta:[shortModel(op.advisor.model),op.advisor.effort].filter(Boolean).join(' · ')};
     if(k==='finance'){const u=c.usage||{};return{key:k,name:roleName(k),role,color:roleColor(k),busy:false,ask:false,away:false,sid:null,
       meta:u.week_now!=null?(LANG==='tr'?'hafta %':'week ')+u.week_now+(LANG==='tr'?'':'%')+(u.five_now!=null?(LANG==='tr'?' · 5sa %':' · 5h ')+u.five_now+(LANG==='tr'?'':'%'):''):''};}
     return{key:k,name:roleName(k),role,color:roleColor(k),busy:!!(o&&o.status==='working')||(k==='kovan'&&!!c.busy),ask:!!(o&&o.status==='awaiting')||(k==='you'&&crewNeedsYou(c)),away:roles.includes(k)&&!o,sid:o?sid:null,meta};};
   const seats=['you'].concat(c.options&&c.options.advisor?['advisor']:[],roles,['finance','kovan']).map(seat);
   const entries=h?h.board.map(e=>({id:e.id,ts:e.ts,speaker:e.speaker,to:e.to,kind:e.kind,text:e.text})):null;
   const paused=c.phase==='paused',fin=c.phase==='done'||c.phase==='stopped';
-  const acts=tsizeBtn()+(fin?'':'<button class="btn small" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button>')+'<button class="btn small" data-crew="'+c.id+'">Milestones & settings</button>';
+  const acts=bfilterChips()+tsizeBtn()+(fin?'':'<button class="btn small" data-crew-act="'+(paused?'resume':'pause')+'" data-id="'+c.id+'">'+(paused?'▶ Resume':'❚❚ Pause')+'</button>')+'<button class="btn small" data-crew="'+c.id+'">Milestones & settings</button>';
   const note=c.phase==='paused'&&c.resume_at?(c.pause_kind==='scheduled'?(LANG==='tr'?'başlama: ':'starts '):(LANG==='tr'?'devam: ':'resumes '))+fmtAt(c.resume_at):'';
   return{key:'crew:'+c.id,title:c.name,icon:'⬢',crew:c,detail:h,note,sub:c.goal||(c.theme?tt('Ideas about:')+' '+c.theme:''),pill:phasePill(c.phase),seats,entries,acts,
     need:h?needHTML(c,h,true):'',
@@ -1653,34 +1697,44 @@ function currentRoom(){const r=S.room||'';
   return sessionsRoom();}
 
 /* ---- the table */
+function stageSize(){const el=$('#room-table'),v=tsize();const w=Math.max(340,Math.min(1100,((el&&el.clientWidth)||900)-8));
+  const h=v==='s'?230:v==='f'?Math.max(400,innerHeight-260):Math.max(360,Math.min(480,Math.round(innerHeight*.52)));return[w,h];}
+function seatRow(R){   // the small table: one row of seats and the latest words, room for the conversation
+  const lastE=(R.entries||[])[R.entries&&R.entries.length-1];
+  const who=lastE?((R.map[lastE.speaker]||{}).name||lastE.speakerName||roleName(lastE.speaker)):'',to=lastE&&lastE.to?((R.map[lastE.to]||{}).name||lastE.toName||roleName(lastE.to)):'';
+  return '<div class="seat-row">'+R.seats.map(s=>'<div class="sr'+(s.busy?' busy':'')+(s.ask?' ask':'')+(s.away?' away':'')+(lastE&&s.key===lastE.speaker?' talking':'')+'"'+(s.sid?' data-open="'+s.sid+'"':'')+' style="--c:'+s.color+'" title="'+esc(s.name+(s.role?' — '+tt(s.role):'')+(s.meta?' · '+s.meta:''))+'"><div class="av3">'+esc(initials(s.name))+'</div><div class="nm3 no-i18n">'+esc(clip1(s.name,16))+'</div></div>').join('')+'</div>'+
+    (lastE?'<div class="sr-now no-i18n"><b>'+esc(who+(to?' → '+to:''))+'</b> '+esc(clip1(plain(lastE.text),180))+'</div>':'');}
 function tableSVG(R){
   const seats=R.seats,n=seats.length;if(!n)return'';
-  const W=880,H=444,cx=W/2,cy=H/2+10,rx=236,ry=62,sx=rx+106,sy=ry+66,pos={};
-  seats.forEach((s,i)=>{const a=Math.PI/2+2*Math.PI*i/n;pos[s.key]={x:cx+sx*Math.cos(a),y:cy+sy*Math.sin(a),a};});
+  if(tsize()==='s')return seatRow(R);
+  // Seats sit on an ellipse; every label hangs below its seat, so the bottom edge keeps room for three lines.
+  const[W,H]=stageSize(),small=tsize()==='s',top=small?30:38,bottom=small?52:82,cx=W/2,cy=(top+H-bottom)/2,rx=W*.42,ry=(H-bottom-top)/2,pos={};
+  seats.forEach((s,i)=>{const a=Math.PI/2+2*Math.PI*i/n;pos[s.key]={x:cx+rx*Math.cos(a),y:cy+ry*Math.sin(a),a};});
+  const ow=W*.46,oh=Math.max(70,ry*2-(small?64:118));
   const talks=(R.entries||[]).filter(e=>pos[e.speaker]&&!(roleKey(e.speaker)==='kovan'&&e.kind==='status')).slice(-10);
-  let arcs='',lastCol='var(--faint)';talks.forEach((e,i)=>{const p=pos[e.speaker],fade=' style="opacity:'+(.08+.3*(i+1)/talks.length).toFixed(2)+'"';
-    if(!e.to||!pos[e.to]||e.to===e.speaker){   // spoken to the whole table: a line to the table's edge
-      const col=(R.map[e.speaker]||{}).color||roleColor(e.speaker),last=i===talks.length-1;if(last)lastCol=col;
-      const tx=cx+rx*.78*Math.cos(p.a),ty=cy+ry*.78*Math.sin(p.a),L=Math.hypot(tx-p.x,ty-p.y)||1,a1=p.x+(tx-p.x)/L*27,b1=p.y+(ty-p.y)/L*27;
-      arcs+='<path class="talk'+(last?' last':'')+'"'+(last?'':fade)+' d="M'+f1(a1)+' '+f1(b1)+'L'+f1(tx)+' '+f1(ty)+'" stroke="'+col+'"/>';return;}
-    const q=pos[e.to],mx=(p.x+q.x)/2,my=(p.y+q.y)/2,kx=mx+(cx-mx)*.6,ky=my+(cy-my)*.6;
-    const u=Math.hypot(kx-p.x,ky-p.y)||1,v=Math.hypot(q.x-kx,q.y-ky)||1,a1=p.x+(kx-p.x)/u*27,b1=p.y+(ky-p.y)/u*27,a2=q.x-(q.x-kx)/v*30,b2=q.y-(q.y-ky)/v*30;
-    const col=(R.map[e.speaker]||{}).color||roleColor(e.speaker),last=i===talks.length-1;if(last)lastCol=col;
-    arcs+='<path class="talk'+(last?' last':'')+'"'+(last?'':fade)+' d="M'+f1(a1)+' '+f1(b1)+'Q'+f1(kx)+' '+f1(ky)+' '+f1(a2)+' '+f1(b2)+'" stroke="'+col+'"'+(last?' marker-end="url(#tk-end)"':'')+'/>';});
+  let arcs='',lastCol='var(--faint)',lastSpeaker='';
+  talks.forEach((e,i)=>{const p=pos[e.speaker],last=i===talks.length-1,col=(R.map[e.speaker]||{}).color||roleColor(e.speaker);
+    const fade=last?'':' style="opacity:'+(.07+.28*(i+1)/talks.length).toFixed(2)+'"';if(last){lastCol=col;lastSpeaker=e.speaker;}
+    if(!e.to||!pos[e.to]||e.to===e.speaker){const tx=cx+ow*.5*Math.cos(p.a),ty=cy+oh*.5*Math.sin(p.a),L=Math.hypot(tx-p.x,ty-p.y)||1;
+      arcs+='<path class="talk'+(last?' last':'')+'"'+fade+' d="M'+f1(p.x+(tx-p.x)/L*27)+' '+f1(p.y+(ty-p.y)/L*27)+'L'+f1(tx)+' '+f1(ty)+'" stroke="'+col+'"/>';return;}
+    const q=pos[e.to],mx=(p.x+q.x)/2,my=(p.y+q.y)/2,kx=mx+(cx-mx)*.55,ky=my+(cy-my)*.55;
+    const u=Math.hypot(kx-p.x,ky-p.y)||1,v=Math.hypot(q.x-kx,q.y-ky)||1;
+    arcs+='<path class="talk'+(last?' last':'')+'"'+fade+' d="M'+f1(p.x+(kx-p.x)/u*27)+' '+f1(p.y+(ky-p.y)/u*27)+'Q'+f1(kx)+' '+f1(ky)+' '+f1(q.x-(q.x-kx)/v*31)+' '+f1(q.y-(q.y-ky)/v*31)+'" stroke="'+col+'"'+(last?' marker-end="url(#tk-end)"':'')+'/>';});
+  // the middle of the table: where the crew is, then the latest words
+  let mid='';const c=R.crew;
+  if(c&&c.current&&['building','blocked','paused','milestone_review'].includes(c.phase)&&!small){const steps=crewSteps(c),at=steps.findIndex(x=>x[0]===(c.current.step||'develop'));
+    mid+='<div class="ms no-i18n">'+esc((c.progress?((c.progress.done+1)+'/'+c.progress.total+' · '):'')+clip1(c.current.title,70))+'</div><div class="pipe-mini">'+
+      steps.map((x,j)=>'<span class="'+(j<at?'done':j===at?'now':'')+'">'+esc(tt(x[1]))+'</span>').join('')+'</div>';}
   const lastE=(R.entries||[])[R.entries&&R.entries.length-1];
-  let center='';if(lastE){const who=(R.map[lastE.speaker]||{}).name||lastE.speakerName||roleName(lastE.speaker);const to=lastE.to?((R.map[lastE.to]||{}).name||lastE.toName||roleName(lastE.to)):'';
-    const said=plain(lastE.text),cut=said.length>64?said.slice(0,64).replace(/\s+\S*$/,''):said,rest=said.slice(cut.length).trim();
-    center='<text class="t-now no-i18n" x="'+cx+'" y="'+(cy-12)+'" text-anchor="middle">'+esc(who+(to?' → '+to:''))+'</text><text class="t-sub no-i18n" x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle">'+esc(cut)+'</text>'+
-      (rest?'<text class="t-sub no-i18n" x="'+cx+'" y="'+(cy+25)+'" text-anchor="middle">'+esc(clip1(rest,64))+'</text>':'');}
-  else center='<text class="t-sub'+(R.note?' no-i18n':'')+'" x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle">'+esc(R.note||(R.entries?'quiet so far':'joining…'))+'</text>';
-  let st='';seats.forEach(s=>{const p=pos[s.key],below=Math.sin(p.a)>0.05,lines=s.meta?3:2,ly=below?p.y+41:p.y-30-14*lines;
-    st+='<g class="seat'+(s.busy?' busy':'')+(s.ask?' ask':'')+(s.away?' away':'')+'"'+(s.sid?' data-open="'+s.sid+'"':'')+'><title>'+esc(s.name+(s.role?' — '+s.role:'')+(s.meta?' · '+s.meta:'')+(s.sid?' · click to open the session':''))+'</title>'+
-      (s.busy?'<circle class="ring" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="28"/>':'')+(s.ask?'<circle class="ring ask" cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="28"/>':'')+
-      '<circle cx="'+f1(p.x)+'" cy="'+f1(p.y)+'" r="22" fill="'+s.color+'" stroke="var(--bg)" stroke-width="3"/><text class="ini" x="'+f1(p.x)+'" y="'+f1(p.y+4.6)+'" text-anchor="middle">'+esc(initials(s.name))+'</text>'+
-      '<text class="nm no-i18n" x="'+f1(p.x)+'" y="'+f1(ly)+'" text-anchor="middle">'+esc(clip1(s.name,24))+'</text>'+(s.role?'<text class="rl" x="'+f1(p.x)+'" y="'+f1(ly+14)+'" text-anchor="middle">'+esc(clip1(tt(s.role),32))+'</text>':'')+
-      (s.meta?'<text class="md2 no-i18n" x="'+f1(p.x)+'" y="'+f1(ly+27)+'" text-anchor="middle">'+esc(clip1(s.meta,34))+'</text>':'')+'</g>';});
-  return '<svg class="table-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Who is at the table and who spoke to whom"><defs><marker id="tk-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="'+lastCol+'"/></marker></defs>'+
-    '<ellipse class="tbl" cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'"/>'+arcs+center+st+'</svg>';}
+  if(lastE){const who=(R.map[lastE.speaker]||{}).name||lastE.speakerName||roleName(lastE.speaker);const to=lastE.to?((R.map[lastE.to]||{}).name||lastE.toName||roleName(lastE.to)):'';
+    mid+='<div class="now-who no-i18n" style="color:'+lastCol+'">'+esc(who+(to?' → '+to:''))+'</div><div class="now-txt no-i18n">'+esc(clip1(plain(lastE.text),220))+'</div>';}
+  else mid+='<div class="now-txt'+(R.note?' no-i18n':'')+'">'+esc(R.note||(R.entries?'quiet so far':'joining…'))+'</div>';
+  let st='';seats.forEach(s=>{const p=pos[s.key],below=true;
+    st+='<div class="s2'+(s.busy?' busy':'')+(s.ask?' ask':'')+(s.away?' away':'')+(s.key===lastSpeaker?' talking':'')+'"'+(s.sid?' data-open="'+s.sid+'"':'')+' style="left:'+f1(p.x)+'px;top:'+f1(p.y)+'px;--c:'+s.color+'" title="'+esc(s.name+(s.role?' — '+tt(s.role):'')+(s.meta?' · '+s.meta:'')+(s.sid?' · '+tt('click to open the session'):''))+'">'+
+      '<div class="av2">'+esc(initials(s.name))+'</div><div class="lb '+(below?'below':'above')+'"><div class="nm2 no-i18n">'+esc(clip1(s.name,26))+'</div>'+
+      (s.role?'<div class="rl2">'+esc(clip1(tt(s.role),34))+'</div>':'')+(s.meta?'<div class="md3 no-i18n">'+esc(clip1(s.meta,38))+'</div>':'')+'</div></div>';});
+  return '<div class="stage" style="width:'+W+'px;height:'+H+'px"><svg class="arcs" viewBox="0 0 '+W+' '+H+'" aria-hidden="true"><defs><marker id="tk-end" viewBox="0 0 10 10" refX="8" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto"><path d="M0 1L10 5L0 9z" fill="'+lastCol+'"/></marker></defs>'+arcs+'</svg>'+
+    '<div class="oval" style="width:'+f1(ow)+'px;height:'+f1(oh)+'px"><div class="oval-in">'+mid+'</div></div>'+st+'</div>';}
 function clip1(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s;}
 /* the table's size: large (default), full (watch the meeting) or small (read the conversation) */
 const TSIZES=['l','f','s'],TSIZE_T={l:'Large table',f:'Full table',s:'Small table'};
@@ -1688,13 +1742,24 @@ function tsize(){const v=store('kovan.tsize');return TSIZES.includes(v)?v:'l';}
 function tsizeBtn(){const v=tsize();return '<button class="btn small" data-tsize title="'+esc(tt('Table size — click to switch'))+'">'+({l:'▣',f:'⤢',s:'▭'})[v]+' <span>'+esc(TSIZE_T[v])+'</span></button>';}
 
 /* ---- the stream */
-function sayHTML(e,R){
+/* the conversation: everything, the roles' conversation (without kovan's status lines), or only decisions */
+const BF=['all','talk','dec'],BF_T={all:'Everything',talk:'Conversation',dec:'Decisions'};
+const DEC_KINDS=['goal','plan','decision','verdict','blocked','attention','milestone','replan','done','advice','waiting','note'];
+function bfilter(){const v=store('kovan.bfilter');return BF.includes(v)?v:'all';}
+function isSys(e){return roleKey(e.speaker)==='kovan'&&(e.kind==='status'||!e.kind);}
+function filterEntries(es,R){const f=bfilter();if(f==='all'||!R.key.startsWith('crew:'))return es;
+  return f==='talk'?es.filter(e=>!isSys(e)&&roleKey(e.speaker)!=='finance'):es.filter(e=>DEC_KINDS.includes(e.kind));}
+function bfilterChips(){const f=bfilter();return '<span class="seg-chips">'+BF.map(k=>'<button class="chip'+(k===f?' on':'')+'" data-bfilter="'+k+'">'+esc(BF_T[k])+'</button>').join('')+'</span>';}
+function sayHTML(e,R,prev){
   const seat=R.map[e.speaker],name=e.speakerName||(seat?seat.name:roleName(e.speaker)),c=seat?seat.color:roleColor(e.speaker);
-  if(roleKey(e.speaker)==='kovan'&&(e.kind==='status'||!e.kind))return '<div class="say sys"><span class="md">'+inl(e.text)+'</span><time>'+clock(e.ts)+'</time></div>';
+  if(isSys(e))return '<div class="say sys"><span class="md">'+inl(e.text)+'</span><time>'+clock(e.ts)+'</time></div>';
+  const cont=prev&&prev.speaker===e.speaker&&prev.to===e.to&&e.ts-prev.ts<180000&&!isSys(prev);
+  const raw=String(e.text||''),long=raw.length>900||raw.split('\n').length>12,open=S.open.has('b-'+e.id);
   const you=YOU_KEYS.includes(roleKey(e.speaker));
   const to=e.to?((R.map[e.to]||{}).name||e.toName||roleName(e.to)):'';
   const kind=e.kind==='delivered'?'<span class="dl" title="Seen in the receiving session’s transcript">✓ delivered</span>':(KIND_T[e.kind]?'<span class="k k-'+esc(e.kind)+'">'+KIND_T[e.kind]+'</span>':(e.kind?'<span class="k">'+esc(e.kind)+'</span>':''));
-  return '<div class="say'+(you?' you':'')+(e.kind==='blocked'||e.kind==='attention'?' hot':'')+'" style="--c:'+c+'"><div class="av"'+(seat&&seat.sid?' data-open="'+seat.sid+'" title="Open '+esc(name)+'"':'')+'>'+esc(initials(name))+'</div><div class="bub"><div class="who"><b class="no-i18n">'+esc(name)+'</b>'+(to?'<span class="to no-i18n">→ '+esc(to)+'</span>':'')+kind+'<time>'+clock(e.ts)+'</time></div><div class="md">'+md(e.text)+'</div></div></div>';}
+  return '<div class="say'+(you?' you':'')+(cont?' cont':'')+(e.kind==='blocked'||e.kind==='attention'?' hot':'')+'" style="--c:'+c+'"><div class="av"'+(seat&&seat.sid?' data-open="'+seat.sid+'" title="Open '+esc(name)+'"':'')+'>'+esc(initials(name))+'</div><div class="bub"><div class="who"><b class="no-i18n">'+esc(name)+'</b>'+(to?'<span class="to no-i18n">→ '+esc(to)+'</span>':'')+kind+'<time>'+clock(e.ts)+'</time></div><div class="md'+(long&&!open?' clampy':'')+'">'+md(e.text)+'</div>'+
+    (long?'<button class="link more" data-more="'+esc(e.id)+'">'+(open?'Show less':'Show more')+'</button>':'')+'</div></div>';}
 
 function renderBoard(){
   const rs=pickRoom();
@@ -1709,9 +1774,9 @@ function renderBoard(){
   const tbl=tableSVG(R);if($('#room-table').dataset.sig!==tbl){$('#room-table').dataset.sig=tbl;$('#room-table').innerHTML=tbl;}
   const box=$('#room-stream'),list=$('#room-list');
   const changed=list.dataset.room!==R.key;const atBottom=changed||box.scrollHeight-box.scrollTop-box.clientHeight<80;
-  const es=R.entries;const sig=R.key+':'+(es?es.length+':'+((es[es.length-1]||{}).id||''):'loading')+':'+(R.error||'')+':'+S.d.sessions.length;
+  const es=R.entries?filterEntries(R.entries,R):R.entries;const sig=R.key+':'+(es?es.length+':'+((es[es.length-1]||{}).id||''):'loading')+':'+(R.error||'')+':'+S.d.sessions.length+':'+bfilter()+':'+S.open.size;
   if(list.dataset.sig!==sig){list.dataset.sig=sig;list.dataset.room=R.key;
-    list.innerHTML=(R.error?'<div class="rooms-hint err">'+esc(R.error)+'</div>':'')+(es==null?'<div class="empty">Loading…</div>':es.length?es.map(e=>sayHTML(e,R)).join(''):'<div class="empty">'+esc(R.empty)+'</div>');
+    list.innerHTML=(R.error?'<div class="rooms-hint err">'+esc(R.error)+'</div>':'')+(es==null?'<div class="empty">Loading…</div>':es.length?es.map((e,i)=>sayHTML(e,R,es[i-1])).join(''):'<div class="empty">'+esc(R.empty)+'</div>');
     if(atBottom)requestAnimationFrame(()=>{box.scrollTop=box.scrollHeight;});}
   const need=R.need||'';const nb=$('#room-need');if(nb.dataset.sig!==need&&!nb.contains(document.activeElement)){nb.dataset.sig=need;nb.innerHTML=need;}
   const sp=R.speak,sel=$('#speak-to'),txt=$('#speak-text'),ssig=JSON.stringify(sp.targets);
@@ -1941,6 +2006,8 @@ document.addEventListener('click',e=>{
   const rb=t.closest('[data-room]');if(rb){S.room=rb.dataset.room;store('kovan.room',S.room);if(S.view!=='board')showView('board');else{writeHash();renderBoard();refresh(0);}return;}
   const cb=t.closest('[data-crew]');if(cb&&!t.closest('[data-room],[data-open],button.link')){S.crew=cb.dataset.crew;S.crewDetail=null;showView('crews');return;}
   if(t.closest('[data-crew-back]')){S.crew=null;showView('crews');return;}
+  const bfb=t.closest('[data-bfilter]');if(bfb){store('kovan.bfilter',bfb.dataset.bfilter);$('#room-head').dataset.sig='';$('#room-list').dataset.sig='';renderBoard();return;}
+  const mb=t.closest('[data-more]');if(mb){const k='b-'+mb.dataset.more;S.open.has(k)?S.open.delete(k):S.open.add(k);$('#room-list').dataset.sig='';renderBoard();return;}
   if(t.closest('[data-tsize]')){const v=tsize();store('kovan.tsize',TSIZES[(TSIZES.indexOf(v)+1)%TSIZES.length]);$('#room-head').dataset.sig='';renderBoard();return;}
   const cs=t.closest('[data-crew-settings]');if(cs){crewSettings(cs.dataset.crewSettings);return;}
   const ca=t.closest('[data-crew-act]');if(ca){const a=ca.dataset.crewAct,id=ca.dataset.id,fb=feedbackNear(ca);
@@ -2077,6 +2144,7 @@ const comp=$('#composer');
 comp.addEventListener('drop',e=>{e.preventDefault();addFiles([...e.dataTransfer.files]);});
 $('#c-scroll').addEventListener('scroll',()=>{stick=atBottom();$('#jump').classList.toggle('show',!stick);},{passive:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){markSeen();updateTitle();refresh(0);}});
+let rzT=null;window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(S.view==='board'){$('#room-table').dataset.sig='';renderBoard();}},150);});
 window.addEventListener('hashchange',()=>{const s=S.sel;readHash();if(S.view==='chat'&&S.sel&&S.sel!==s)openSession(S.sel);else{render();refresh(0);}});
 window.addEventListener('resize',grow);
 

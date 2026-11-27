@@ -11,6 +11,11 @@ Crews use much less of your limits.
 - **Every role works economically.** Each charter tells the role that what it reads stays in its context and is paid
   for again on every step. Roles search with Grep or Glob, read only the relevant part of large files, never re-read a
   file and open only the documents the task needs.
+- **A new boardroom.** Seats are page elements, so names and states stay readable at any table size. Every label
+  hangs below its seat. The middle of the table shows where the crew is: milestone, steps with the current one
+  lit, and the latest words. The small table is one row of seats above the conversation. The conversation can show
+  everything, only the roles' conversation or only decisions. Long messages fold, and a role's consecutive messages
+  are grouped.
 - **Share column** in the crew's usage table: the approximate share of your limits each role used. Output weighs
   most, cache reads least.
 
